@@ -1,9 +1,130 @@
----
-description:
-globs:
----
+# Type Through The Bible (TTB) Project Rules
 
-# Your rule content
+## Coding Standards
 
-- You can @ files here
-- You can use markdown but dont have to
+### General
+- Use TypeScript for all new code
+- Maintain consistent code formatting using Prettier
+- Follow ESLint rules configured in the project
+- Write meaningful comments for complex logic
+- Keep functions small and focused on a single responsibility
+- Use descriptive variable and function names
+
+### Frontend (React)
+- Use functional components with hooks instead of class components
+- Keep components small and reusable
+- Use TypeScript interfaces for props and state
+- Implement proper error handling in all API calls
+- Use CSS modules or styled-components for styling
+- Follow the container/presentational component pattern where appropriate
+- Use React Router for navigation
+- Implement lazy loading for routes to improve performance
+
+### Backend (Node.js/Express)
+- Organize code using the MVC pattern
+- Implement proper validation for all API inputs
+- Use async/await instead of callbacks or promise chains
+- Implement comprehensive error handling
+- Use environment variables for configuration
+- Write middleware for common functionality (auth, logging, etc.)
+- Follow RESTful API design principles
+- Document all API endpoints
+
+## Git Workflow
+
+### Branches
+- `main`: Production-ready code
+- `develop`: Integration branch for features
+- `feature/*`: New features
+- `bugfix/*`: Bug fixes
+- `hotfix/*`: Urgent fixes for production
+- `release/*`: Release preparation
+
+### Commit Messages
+- Use conventional commits format: `type(scope): message`
+- Types: feat, fix, docs, style, refactor, test, chore
+- Keep messages clear and descriptive
+- Reference issue numbers when applicable
+
+### Pull Requests
+- Create PRs for all changes to main branches
+- Require at least one code review before merging
+- Include tests for new features
+- Ensure all CI checks pass before merging
+- Keep PRs focused on a single feature or fix
+
+## Testing
+
+- Write unit tests for all new functionality
+- Maintain minimum 80% code coverage
+- Write integration tests for API endpoints
+- Implement end-to-end tests for critical user flows
+- Run tests locally before pushing code
+
+## Documentation
+
+- Keep README.md up to date
+- Document all API endpoints
+- Include JSDoc comments for functions and classes
+- Create and maintain user documentation
+- Document environment setup process
+
+## Performance
+
+- Optimize React component rendering
+- Implement proper database indexing
+- Use caching where appropriate
+- Optimize API response times
+- Implement pagination for large data sets
+- Monitor and optimize bundle size
+
+## Accessibility
+
+- Follow WCAG 2.1 AA standards
+- Ensure proper keyboard navigation
+- Use semantic HTML elements
+- Provide alternative text for images
+- Ensure sufficient color contrast
+- Test with screen readers
+
+## Security
+
+- Implement proper authentication and authorization
+- Sanitize all user inputs
+- Protect against common web vulnerabilities (XSS, CSRF, etc.)
+- Use HTTPS for all communications
+- Implement rate limiting for API endpoints
+- Keep dependencies updated to avoid security vulnerabilities
+
+## Deployment
+
+- Use CI/CD for automated deployments
+- Implement staging environment for testing
+- Use environment-specific configuration
+- Implement proper logging and monitoring
+- Create backup and recovery procedures
+
+## Bible Verse Content Guidelines
+
+- Use the World English Bible (WEB) translation as it's in the public domain
+- Maintain the integrity of the biblical text
+- Implement proper verse reference formatting (Book Chapter:Verse)
+- Include metadata for each verse (testament, book, chapter, verse number)
+- Ensure accurate categorization of verses by book and chapter
+
+## User Experience Guidelines
+
+- Provide clear feedback during typing tests
+- Implement intuitive navigation
+- Design for both beginners and advanced typists
+- Ensure responsive design works on all device sizes
+- Provide helpful error messages
+- Implement proper loading states
+
+## Data Management
+
+- Implement proper data backup procedures
+- Define clear data retention policies
+- Respect user privacy
+- Allow users to export their data
+- Implement data migration strategies for updates 
