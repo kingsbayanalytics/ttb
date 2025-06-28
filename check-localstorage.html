@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalStorage Check</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        pre {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            overflow: auto;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .debug-section {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #e9f7fe;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .primary {
+            background-color: #3f51b5;
+            color: white;
+        }
+        .secondary {
+            background-color: #f50057;
+            color: white;
+        }
+        .warning {
+            background-color: #ff9800;
+            color: white;
+        }
+        .action-links {
+            margin-top: 20px;
+        }
+        .action-links a {
+            display: inline-block;
+            padding: 10px 15px;
+            margin: 5px;
+            background-color: #3f51b5;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>LocalStorage Authentication Check</h1>
+        <div id="status" class="status"></div>
+        <h2>User Data:</h2>
+        <pre id="userData">Checking...</pre>
+        <h2>Token:</h2>
+        <pre id="token">Checking...</pre>
+        
+        <div class="action-buttons">
+            <button id="clearData" class="warning">Clear Authentication Data</button>
+            <button id="generateMockUser" class="primary">Generate Mock User</button>
+            <button id="refreshStatus" class="secondary">Refresh Status</button>
+        </div>
+
+        <div class="action-links">
+            <a href="/login">Go to Login Page</a>
+            <a href="/progress">Go to Progress Page</a>
+        </div>
+        
+        <div class="debug-section">
+            <h2>API Debug Info</h2>
+            <div>
+                <p><strong>API URL:</strong> <span id="apiUrl">Checking...</span></p>
+                <p><strong>Mock Data Mode:</strong> <span id="mockDataMode">Checking...</span></p>
+                <p><strong>Connection Status:</strong> <span id="connectionStatus">Checking...</span></p>
+            </div>
+            <button id="testConnection" class="primary">Test API Connection</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const statusDiv = document.getElementById('status');
+            const userDataPre = document.getElementById('userData');
+            const tokenPre = document.getElementById('token');
+            const clearButton = document.getElementById('clearData');
+            const mockButton = document.getElementById('generateMockUser');
+            const refreshButton = document.getElementById('refreshStatus');
+            const testConnectionButton = document.getElementById('testConnection');
+            const apiUrlSpan = document.getElementById('apiUrl');
+            const mockDataModeSpan = document.getElementById('mockDataMode');
+            const connectionStatusSpan = document.getElementById('connectionStatus');
+
+            // Get API URL from environment or default
+            const apiUrl = localStorage.getItem('apiUrl') || 'http://localhost:3001/api';
+            apiUrlSpan.textContent = apiUrl;
+            
+            // Check mock data mode
+            const useMockData = localStorage.getItem('useMockData') === 'true';
+            mockDataModeSpan.textContent = useMockData ? 'Enabled' : 'Disabled';
+
+            function checkAuthStatus() {
+                // Check for user data
+                const userDataString = localStorage.getItem('userData');
+                const token = localStorage.getItem('userToken');
+
+                if (userDataString && token) {
+                    statusDiv.textContent = 'Authentication data found!';
+                    statusDiv.className = 'status success';
+                    
+                    try {
+                        const userData = JSON.parse(userDataString);
+                        userDataPre.textContent = JSON.stringify(userData, null, 2);
+                        // Show only first 10 characters and last 4 of token for security
+                        const displayToken = token.length > 14 
+                            ? token.substring(0, 10) + '...' + token.substring(token.length - 4) 
+                            : token;
+                        tokenPre.textContent = displayToken;
+                    } catch (e) {
+                        userDataPre.textContent = 'Error parsing user data: ' + e.message;
+                    }
+                } else {
+                    statusDiv.textContent = 'No authentication data found.';
+                    statusDiv.className = 'status error';
+                    userDataPre.textContent = 'No user data in localStorage';
+                    tokenPre.textContent = 'No token in localStorage';
+                }
+            }
+
+            // Test API connection
+            async function testApiConnection() {
+                connectionStatusSpan.textContent = 'Testing...';
+                try {
+                    const response = await fetch(apiUrl + '/health', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        connectionStatusSpan.textContent = 'Connected: ' + JSON.stringify(data);
+                        connectionStatusSpan.style.color = '#155724';
+                    } else {
+                        connectionStatusSpan.textContent = 'Error: ' + response.status + ' ' + response.statusText;
+                        connectionStatusSpan.style.color = '#721c24';
+                    }
+                } catch (error) {
+                    connectionStatusSpan.textContent = 'Connection failed: ' + error.message;
+                    connectionStatusSpan.style.color = '#721c24';
+                }
+            }
+
+            // Check initial status
+            checkAuthStatus();
+            
+            // Test connection on load
+            testApiConnection();
+
+            // Clear button functionality
+            clearButton.addEventListener('click', function() {
+                localStorage.removeItem('userData');
+                localStorage.removeItem('userToken');
+                checkAuthStatus();
+            });
+
+            // Refresh button functionality
+            refreshButton.addEventListener('click', function() {
+                checkAuthStatus();
+                testApiConnection();
+            });
+
+            // Generate mock user button
+            mockButton.addEventListener('click', function() {
+                const mockUser = {
+                    _id: 'mock-user-123',
+                    username: 'testuser',
+                    email: 'test@example.com',
+                    isAdmin: false,
+                    token: 'mock-jwt-token-' + Date.now()
+                };
+                
+                localStorage.setItem('userData', JSON.stringify(mockUser));
+                localStorage.setItem('userToken', mockUser.token);
+                checkAuthStatus();
+            });
+
+            // Test connection button
+            testConnectionButton.addEventListener('click', testApiConnection);
+        });
+    </script>
+</body>
+</html> 

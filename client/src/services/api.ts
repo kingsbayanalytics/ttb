@@ -1,9 +1,10 @@
 import axios from 'axios';
 import { Verse, User, Progress, Result } from '../types';
 import { mockVerses } from '../data/mockVerses';
+import { mockProgress, mockProgressSummary } from '../data/mockProgress';
 
 // Configurable API settings 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 const USE_MOCK_DATA = process.env.REACT_APP_USE_MOCK_DATA === 'true' || false;
 
 // Create axios instance with auth header
@@ -201,7 +202,10 @@ export const AuthService = {
   // Login user
   login: async (email: string, password: string): Promise<User> => {
     try {
+      console.log('Attempting login with:', { email, password: '***' });
+      console.log('API URL:', API_URL);
       const response = await api.post('/users/login', { email, password });
+      console.log('Login response:', response);
       const userData = response.data.data;
       
       // Save token to localStorage
@@ -212,6 +216,7 @@ export const AuthService = {
       
       return userData;
     } catch (error) {
+      console.error('Login API error:', error);
       handleApiError(error);
       throw error;
     }
@@ -273,19 +278,30 @@ export const ProgressService = {
   // Get user progress
   getUserProgress: async (): Promise<Progress[]> => {
     try {
+      if (USE_MOCK_DATA) {
+        console.log('Using mock progress data');
+        return mockProgress;
+      }
+      
       const response = await api.get('/progress');
       return response.data.data;
     } catch (error) {
       handleApiError(error);
       
-      // Return empty array as fallback
-      return [];
+      // Return mock data as fallback
+      console.log('Using fallback mock progress data');
+      return mockProgress;
     }
   },
 
   // Get progress for a specific verse
   getVerseProgress: async (verseId: string): Promise<Progress | null> => {
     try {
+      if (USE_MOCK_DATA) {
+        const progress = mockProgress.find(p => p.verse === verseId);
+        return progress || null;
+      }
+      
       const response = await api.get(`/progress/verse/${verseId}`);
       return response.data.data;
     } catch (error) {
@@ -297,22 +313,19 @@ export const ProgressService = {
   // Get progress summary
   getProgressSummary: async (): Promise<any> => {
     try {
+      if (USE_MOCK_DATA) {
+        console.log('Using mock progress summary');
+        return mockProgressSummary;
+      }
+      
       const response = await api.get('/progress/summary');
       return response.data.data;
     } catch (error) {
       handleApiError(error);
       
       // Return mock summary data as fallback
-      return {
-        completedVerses: 0,
-        attemptedVerses: 0,
-        totalVerses: mockVerses.length,
-        percentageCompleted: 0,
-        averageWPM: 0,
-        bestWPM: 0,
-        averageAccuracy: 0,
-        totalTests: 0
-      };
+      console.log('Using fallback mock progress summary');
+      return mockProgressSummary;
     }
   },
 

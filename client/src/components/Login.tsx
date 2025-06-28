@@ -27,8 +27,10 @@ const Login: React.FC = () => {
       // Redirect to home page after successful login
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed. Please try again.');
-      console.error(err);
+      console.error('Login error details:', err);
+      console.error('Error response:', err.response);
+      console.error('Error response data:', err.response?.data);
+      setError(err.response?.data?.error || err.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
