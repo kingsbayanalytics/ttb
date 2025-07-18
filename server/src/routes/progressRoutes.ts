@@ -22,6 +22,6 @@ router.get('/summary', getProgressSummary);
 router.get('/verse/:verseId', getVerseProgress);
 
 // Submit a typing test result
-router.post('/result', submitResult);
+router.post('/result/:verseId', submitResult);
 
 export default router; 

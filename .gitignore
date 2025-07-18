@@ -2,3 +2,6 @@ ttb.code-workspace
 .cursorignore
 .cursorrules
 server/package-lock.json
+.env.development
+.env.production
+.env.test

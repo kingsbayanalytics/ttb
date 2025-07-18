@@ -1,6 +1,7 @@
 import request from 'supertest';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import { setupTestApp } from './test-setup';
 import { Verse } from '../models';
 
 // Load environment variables
@@ -18,6 +19,8 @@ const mockVerse = {
 };
 
 describe('Verse API', () => {
+  const app = setupTestApp();
+
   beforeAll(async () => {
     // Connect to test database
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/type-the-bible-test');
@@ -36,7 +39,7 @@ describe('Verse API', () => {
 
   describe('GET /api/verses', () => {
     it('should return all verses', async () => {
-      const res = await request('http://localhost:5000')
+      const res = await request(app)
         .get('/api/verses')
         .expect('Content-Type', /json/)
         .expect(200);
@@ -49,7 +52,7 @@ describe('Verse API', () => {
 
   describe('GET /api/verses/random', () => {
     it('should return a random verse', async () => {
-      const res = await request('http://localhost:5000')
+      const res = await request(app)
         .get('/api/verses/random')
         .expect('Content-Type', /json/)
         .expect(200);
@@ -62,7 +65,7 @@ describe('Verse API', () => {
 
   describe('GET /api/verses/order/:verseOrder', () => {
     it('should return a verse by its order number', async () => {
-      const res = await request('http://localhost:5000')
+      const res = await request(app)
         .get('/api/verses/order/1')
         .expect('Content-Type', /json/)
         .expect(200);
@@ -76,7 +79,7 @@ describe('Verse API', () => {
     });
 
     it('should return 404 for non-existent verse order', async () => {
-      await request('http://localhost:5000')
+      await request(app)
         .get('/api/verses/order/9999')
         .expect('Content-Type', /json/)
         .expect(404);

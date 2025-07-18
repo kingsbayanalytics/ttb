@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Progress as ProgressType } from '../types';
 import { ProgressService, AuthService } from '../services/api';
@@ -10,8 +10,8 @@ const Progress: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'summary' | 'recent' | 'all'>('summary');
   
+  const user = useMemo(() => AuthService.getCurrentUser(), []);
   const navigate = useNavigate();
-  const user = AuthService.getCurrentUser();
 
   useEffect(() => {
     // Redirect to login if not authenticated
@@ -21,7 +21,7 @@ const Progress: React.FC = () => {
     }
     
     fetchProgressData();
-  }, [navigate, user]);
+  }, [user]);
 
   const fetchProgressData = async () => {
     try {

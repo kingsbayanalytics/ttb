@@ -216,10 +216,6 @@ const TypingTest: React.FC = () => {
     );
   }
 
-  if (!verse) {
-    return <div className="error">No verse found</div>;
-  }
-
   // Highlight correct/incorrect characters in the verse
   const renderVerse = () => {
     if (!verse) return null;
@@ -238,6 +234,10 @@ const TypingTest: React.FC = () => {
       );
     });
   };
+
+  if (!verse) {
+    return <div className="error">No verse found</div>;
+  }
 
   return (
     <div className="typing-test-container">
@@ -292,83 +292,85 @@ const TypingTest: React.FC = () => {
         </div>
       </div>
       
-      <div className="verse-reference">
-        <h2>{verse.book} {verse.chapter}:{verse.verse}</h2>
-      </div>
-      
-      <div className="verse-display">{renderVerse()}</div>
-      
-      <div className="typing-stats">
-        {startTime && !completed && (
-          <>
-            <div className="stat">
-              <span className="stat-label">WPM:</span> {wpm}
-            </div>
-            <div className="stat">
-              <span className="stat-label">Accuracy:</span> {accuracy}%
-            </div>
-            <div className="stat">
-              <span className="stat-label">Progress:</span>{' '}
-              {Math.round((typedText.length / verse.text.length) * 100)}%
-            </div>
-          </>
-        )}
-      </div>
-      
-      {completed ? (
-        <div className="results-container">
-          <h3>Verse Completed!</h3>
-          
-          <div className="results">
-            <div className="result-item">
-              <span className="result-label">Words Per Minute:</span>
-              <span className="result-value">{wpm}</span>
-            </div>
-            
-            <div className="result-item">
-              <span className="result-label">Accuracy:</span>
-              <span className="result-value">{accuracy}%</span>
-            </div>
-            
-            <div className="result-item">
-              <span className="result-label">Time:</span>
-              <span className="result-value">
-                {startTime && endTime
-                  ? `${((endTime.getTime() - startTime.getTime()) / 1000).toFixed(1)} seconds`
-                  : 'N/A'}
-              </span>
-            </div>
-          </div>
-          
-          <div className="results-actions">
-            <button onClick={handleTryAnotherVerse} className="primary-button">
-              Try Another Verse
-            </button>
-            
-            {user && (
-              <button onClick={handleViewProgress} className="secondary-button">
-                View Progress
-              </button>
-            )}
-          </div>
+      <>
+        <div className="verse-reference">
+          <h2>{verse.book} {verse.chapter}:{verse.verse}</h2>
         </div>
-      ) : (
-        <textarea
-          ref={inputRef}
-          className="typing-input"
-          value={typedText}
-          onChange={handleInputChange}
-          placeholder="Start typing the verse above..."
-          disabled={completed}
-          autoFocus
-        />
-      )}
-      
-      {!completed && (
-        <button onClick={handleTryAnotherVerse} className="secondary-button mt-4">
-          Get Another Verse
-        </button>
-      )}
+        
+        <div className="verse-display" data-testid="verse-display">{renderVerse()}</div>
+        
+        <div className="typing-stats">
+          {startTime && !completed && (
+            <>
+              <div className="stat">
+                <span className="stat-label">WPM:</span> {wpm}
+              </div>
+              <div className="stat">
+                <span className="stat-label">Accuracy:</span> {accuracy}%
+              </div>
+              <div className="stat">
+                <span className="stat-label">Progress:</span>{' '}
+                {Math.round((typedText.length / verse.text.length) * 100)}%
+              </div>
+            </>
+          )}
+        </div>
+        
+        {completed ? (
+          <div className="results-container">
+            <h3>Verse Completed!</h3>
+            
+            <div className="results">
+              <div className="result-item">
+                <span className="result-label">Words Per Minute:</span>
+                <span className="result-value">{wpm}</span>
+              </div>
+              
+              <div className="result-item">
+                <span className="result-label">Accuracy:</span>
+                <span className="result-value">{accuracy}%</span>
+              </div>
+              
+              <div className="result-item">
+                <span className="result-label">Time:</span>
+                <span className="result-value">
+                  {startTime && endTime
+                    ? `${((endTime.getTime() - startTime.getTime()) / 1000).toFixed(1)} seconds`
+                    : 'N/A'}
+                </span>
+              </div>
+            </div>
+            
+            <div className="results-actions">
+              <button onClick={handleTryAnotherVerse} className="primary-button">
+                Try Another Verse
+              </button>
+              
+              {user && (
+                <button onClick={handleViewProgress} className="secondary-button">
+                  View Progress
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <textarea
+            ref={inputRef}
+            className="typing-input"
+            value={typedText}
+            onChange={handleInputChange}
+            placeholder="Start typing the verse above..."
+            disabled={completed}
+            autoFocus
+          />
+        )}
+        
+        {!completed && (
+          <button onClick={handleTryAnotherVerse} className="secondary-button mt-4">
+            Get Another Verse
+          </button>
+        )}
+      </>
     </div>
   );
 };

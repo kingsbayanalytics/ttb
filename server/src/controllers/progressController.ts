@@ -97,8 +97,8 @@ export const getProgressSummary = asyncHandler(async (req: Request, res: Respons
  * @access  Private
  */
 export const submitResult = asyncHandler(async (req: Request, res: Response) => {
+  const { verseId } = req.params;
   const {
-    verseId,
     verseOrder,
     startTime,
     endTime,
@@ -111,7 +111,13 @@ export const submitResult = asyncHandler(async (req: Request, res: Response) => 
   } = req.body;
 
   // Validate the verse exists
-  const verse = await Verse.findById(verseId);
+  let verse;
+  try {
+    verse = await Verse.findById(verseId);
+  } catch (error) {
+    console.error('Error finding verse:', error);
+    throw new ApiError('Invalid verse ID', 400);
+  }
   if (!verse) {
     throw new ApiError('Verse not found', 404);
   }
@@ -154,6 +160,7 @@ export const submitResult = asyncHandler(async (req: Request, res: Response) => 
     }
     
     await progress.save();
+    progress = await Progress.findById(progress._id).populate('verse', 'book chapter verse text');
   } else {
     // Create new progress record
     progress = await Progress.create({
@@ -166,6 +173,7 @@ export const submitResult = asyncHandler(async (req: Request, res: Response) => 
       bestAccuracy: accuracy,
       lastAttemptDate: new Date()
     });
+    progress = await Progress.findById(progress._id).populate('verse', 'book chapter verse text');
   }
 
   res.status(201).json({

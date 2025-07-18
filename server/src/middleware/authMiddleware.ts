@@ -38,7 +38,7 @@ export const protect = asyncHandler(async (req: Request, res: Response, next: Ne
 
       next();
     } catch (error) {
-      console.error(error);
+      console.error('Error in protect middleware:', error);
       throw new ApiError('Not authorized, token failed', 401);
     }
   }
