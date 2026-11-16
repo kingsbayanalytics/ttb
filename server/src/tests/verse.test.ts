@@ -1,11 +1,6 @@
 import request from 'supertest';
-import mongoose from 'mongoose';
-import dotenv from 'dotenv';
-import { setupTestApp } from './test-setup';
+import { setupTestApp, connectTestDB, disconnectTestDB } from './test-setup';
 import { Verse } from '../models';
-
-// Load environment variables
-dotenv.config();
 
 // Mock verse data
 const mockVerse = {
@@ -33,7 +28,7 @@ describe('Verse API', () => {
 
   beforeAll(async () => {
     // Connect to test database
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/type-the-bible-test');
+    await connectTestDB();
     
     // Clear the database
     await Verse.deleteMany({});
@@ -45,7 +40,7 @@ describe('Verse API', () => {
 
   afterAll(async () => {
     // Disconnect from database
-    await mongoose.connection.close();
+    await disconnectTestDB();
   });
 
   describe('GET /api/verses', () => {

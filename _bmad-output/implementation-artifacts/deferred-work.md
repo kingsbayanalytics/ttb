@@ -10,3 +10,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/1-1-clean-the-repo.md`
   summary: Add automated unit test for `PORT` defaulting/validation once config parsing is extracted from `server/src/index.ts`.
   evidence: Verified `server/src/index.ts:72,75` binds `PORT` as an unexported constant and skips `listen` when `NODE_ENV === 'test'`; `npm run dev` verified live on `3001`, and Story 3.1 introduces testable `server/src/config.ts`.
+- source_spec: `_bmad-output/implementation-artifacts/1-2-server-tests-on-an-in-memory-database.md`
+  summary: Decouple `server/src/tests/auth.test.ts` tests from sequential order and add negative/profile-update coverage (400 duplicate user, 401 invalid creds/missing token, `PUT /api/users/profile`).
+  evidence: Verified pre-existing in `server/src/tests/auth.test.ts:18-68` where login and profile tests depend on the registration test creating `test@example.com`.
+- source_spec: `_bmad-output/implementation-artifacts/1-2-server-tests-on-an-in-memory-database.md`
+  summary: Add `server/src/tests/progress.test.ts` coverage for repeat submissions (`attempts` increment, best WPM/accuracy retention, multi-sample average) and `GET /api/progress/verse/:verseId`.
+  evidence: Verified pre-existing in `server/src/tests/progress.test.ts`; current tests only submit once per user.

@@ -1,18 +1,17 @@
 import request from 'supertest';
-import mongoose from 'mongoose';
-import { setupTestApp } from './test-setup';
+import { setupTestApp, connectTestDB, disconnectTestDB } from './test-setup';
 import { User } from '../models';
 
 describe('Auth API', () => {
   const app = setupTestApp();
 
   beforeAll(async () => {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/type-the-bible-test');
+    await connectTestDB();
     await User.deleteMany({});
   });
 
   afterAll(async () => {
-    await mongoose.connection.close();
+    await disconnectTestDB();
   });
 
   describe('POST /api/users', () => {

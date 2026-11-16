@@ -3,9 +3,10 @@ module.exports = {
   testEnvironment: 'node',
   testMatch: ['**/*.test.ts'],
   verbose: true,
-  forceExit: true,
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true,
-  setupFiles: ['./src/tests/setupEnv.ts']
-}; 
+  globalSetup: './src/tests/globalSetup.ts',
+  setupFiles: ['./src/tests/setupEnv.ts'],
+  testTimeout: 60000
+};

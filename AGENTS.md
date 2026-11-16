@@ -35,6 +35,5 @@ Web application for practicing typing speed and accuracy by transcribing Bible v
 
 - `client/src/components/TypingTest.test.tsx` times out on `"Loading verse..."` and crashes the Jest worker; use `cd client && npm run build` to verify client code instead of `cd client && npm test` until the client test suite is repaired.
 - `server/dist/` holds compiled JS executed by `cd server && npm start` and can go stale relative to `server/src/`; use `npm run dev` locally or always run `cd server && npm run build` before `npm start`.
-- `cd server && npm test` connects to MongoDB (`MONGODB_URI` or `mongodb://localhost:27017/type-the-bible-test`) and will fail if no MongoDB server is reachable.
 
 <!-- /bmad:context -->
