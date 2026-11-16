@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '../test-utils';
+import { render, screen, fireEvent, waitFor } from '../test-utils';
 import TypingTest from './TypingTest';
 import { VerseService, ProgressService, AuthService } from '../services/api';
 
@@ -14,226 +14,463 @@ const mockVerse = {
   words: 12,
 };
 
-// Mock the API services
-jest.mock('../services/api', () => {
-  const mockAxios = {
-    get: jest.fn(),
-    post: jest.fn(),
-    put: jest.fn(),
-    interceptors: {
-      request: { use: jest.fn(), eject: jest.fn() },
-      response: { use: jest.fn(), eject: jest.fn() },
-    },
-  };
-
-  return {
-    VerseService: {
-      getRandomVerse: jest.fn(() => Promise.resolve(mockVerse)),
-      getVersesByBook: jest.fn(() => Promise.resolve({ data: [mockVerse] })),
-      getVerseByOrder: jest.fn(() => Promise.resolve(mockVerse)),
-    },
-    ProgressService: {
-      submitResult: jest.fn(() => Promise.resolve({})),
-      getUserProgress: jest.fn(() => Promise.resolve([])),
-    },
-    AuthService: {
-      getCurrentUser: jest.fn(() => null),
-    },
-    // Export mockAxios if other parts of the app directly use it
-    api: mockAxios,
-  };
-});
+// Mock only the API service exports
+jest.mock('../services/api', () => ({
+  VerseService: {
+    getRandomVerse: jest.fn(),
+    getVersesByBook: jest.fn(),
+    getVerseByOrder: jest.fn(),
+  },
+  ProgressService: {
+    submitResult: jest.fn(),
+    getUserProgress: jest.fn(),
+  },
+  AuthService: {
+    getCurrentUser: jest.fn(),
+  },
+}));
 
 describe('TypingTest', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
-    // Reset mocks before each test
     jest.clearAllMocks();
-        (VerseService.getRandomVerse as jest.Mock).mockResolvedValue(mockVerse);
-    (AuthService.getCurrentUser as jest.Mock).mockReturnValue(null); // No user logged in by default
-  });
-
-  afterEach(() => {
-    jest.runOnlyPendingTimers();
-    jest.useRealTimers();
+    (VerseService.getRandomVerse as jest.Mock).mockResolvedValue(mockVerse);
+    (VerseService.getVersesByBook as jest.Mock).mockResolvedValue({ data: [mockVerse] });
+    (VerseService.getVerseByOrder as jest.Mock).mockResolvedValue(mockVerse);
+    (ProgressService.submitResult as jest.Mock).mockResolvedValue({});
+    (ProgressService.getUserProgress as jest.Mock).mockResolvedValue([]);
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue(null);
   });
 
   it('should render loading state initially, then the verse', async () => {
     render(<TypingTest />);
     expect(screen.getByText('Loading verse...')).toBeInTheDocument();
 
-    await act(async () => {
-      jest.runAllTimers();
-    });
-
-    await waitFor(() => expect(screen.getByTestId('verse-display')).toHaveTextContent('In the beginning, God created the heavens and the earth.'));
+    const verseDisplay = await screen.findByTestId('verse-display', {}, { timeout: 2000 });
+    expect(verseDisplay).toHaveTextContent(mockVerse.text);
   });
 
   it('should render the verse after loading', async () => {
     render(<TypingTest />);
-    await act(async () => {
-      jest.runAllTimers();
-    });
-    await waitFor(() => expect(screen.getByTestId('verse-display')).toHaveTextContent('In the beginning, God created the heavens and the earth.'));
 
-    const textarea = await screen.findByPlaceholderText('Start typing the verse above...') as HTMLTextAreaElement;
+    const verseDisplay = await screen.findByTestId('verse-display', {}, { timeout: 2000 });
+    expect(verseDisplay).toHaveTextContent(mockVerse.text);
+
+    const textarea = await screen.findByPlaceholderText(
+      'Start typing the verse above...',
+      {},
+      { timeout: 2000 }
+    );
+    expect(textarea).toBeInTheDocument();
   });
 
   it('should update typed text and calculate WPM/accuracy as user types', async () => {
     render(<TypingTest />);
-    await act(async () => {
-      jest.runAllTimers();
-    });
-    await waitFor(() => expect(screen.queryByText('Loading verse...')).not.toBeInTheDocument());
-    await waitFor(() => expect(screen.getByTestId('verse-display')).toHaveTextContent('In the beginning, God created the heavens and the earth.'));
+    const textarea = (await screen.findByPlaceholderText(
+      'Start typing the verse above...',
+      {},
+      { timeout: 2000 }
+    )) as HTMLTextAreaElement;
 
-    const textarea = await screen.findByPlaceholderText('Start typing the verse above...') as HTMLTextAreaElement;
-    await act(async () => {
-      fireEvent.change(textarea, { target: { value: 'In the beginning' } });
-    });
+    fireEvent.change(textarea, { target: { value: 'In the beginning' } });
 
     expect(textarea.value).toBe('In the beginning');
-    await screen.findByText(/WPM:/);
-    await screen.findByText(/Accuracy:/);
+    expect(await screen.findByText(/WPM:/, {}, { timeout: 2000 })).toBeInTheDocument();
+    expect(await screen.findByText(/Accuracy:/, {}, { timeout: 2000 })).toBeInTheDocument();
   });
 
   it('should mark correct and incorrect characters', async () => {
     render(<TypingTest />);
-    await act(async () => {
-      jest.runAllTimers();
-    });
-    await waitFor(() => expect(screen.queryByText('Loading verse...')).not.toBeInTheDocument());
-    await waitFor(() => expect(screen.getByTestId('verse-display')).toHaveTextContent('In the beginning, God created the heavens and the earth.'));
+    const textarea = (await screen.findByPlaceholderText(
+      'Start typing the verse above...',
+      {},
+      { timeout: 2000 }
+    )) as HTMLTextAreaElement;
 
-    const textarea = await screen.findByPlaceholderText('Start typing the verse above...') as HTMLTextAreaElement;
-    await act(async () => {
-      fireEvent.change(textarea, { target: { value: 'In the beginninX' } }); // Introduce an error
-    });
+    fireEvent.change(textarea, { target: { value: 'In the beginninX' } });
 
-    // Check for correct/incorrect class names (this requires inspecting the DOM structure)
-    // This is a simplified check, a more robust test would query for specific spans with classes
-    await waitFor(() => {
-      expect(screen.getAllByText('g')[1].closest('span')).toHaveClass('incorrect');
-      expect(screen.getByText('I').closest('span')).toHaveClass('correct');
-    });
+    await waitFor(
+      () => {
+        expect(screen.getAllByText('g')[1].closest('span')).toHaveClass('incorrect');
+        expect(screen.getByText('I').closest('span')).toHaveClass('correct');
+      },
+      { timeout: 2000 }
+    );
   });
 
-  it('should show results and call submitResult on completion if user is logged in', async () => {
-    (AuthService.getCurrentUser as jest.Mock).mockReturnValue({ _id: 'user123' });
-    (ProgressService.submitResult as jest.Mock).mockResolvedValue({});
+  it('should show 0% accuracy when all typed characters are incorrect', async () => {
+    const loggedInUser = { _id: 'user123' };
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue(loggedInUser);
 
     render(<TypingTest />);
-    await act(async () => {
-      jest.runAllTimers();
-    });
-    await waitFor(() => expect(screen.queryByText('Loading verse...')).not.toBeInTheDocument());
-    await waitFor(() => expect(screen.getByTestId('verse-display')).toHaveTextContent('In the beginning, God created the heavens and the earth.'));
+    const textarea = (await screen.findByPlaceholderText(
+      'Start typing the verse above...',
+      {},
+      { timeout: 2000 }
+    )) as HTMLTextAreaElement;
 
-    const textarea = await screen.findByPlaceholderText('Start typing the verse above...') as HTMLTextAreaElement;
-    await act(async () => {
-      fireEvent.change(textarea, { target: { value: mockVerse.text } }); // Type the full verse
-    });
+    fireEvent.change(textarea, { target: { value: 'XXXXX' } });
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /Verse Completed!/i })).toBeInTheDocument());
-    await waitFor(() => {
-      expect(ProgressService.submitResult).toHaveBeenCalledTimes(1);
-      expect(ProgressService.submitResult).toHaveBeenCalledWith(expect.objectContaining({
-        user: 'user123',
-        verse: mockVerse._id,
-        wpm: expect.any(Number),
-        accuracy: expect.any(Number),
-      }));
-    });
+    const accuracyLabel = await screen.findByText(/Accuracy:/, {}, { timeout: 2000 });
+    expect(accuracyLabel.parentElement).toHaveTextContent('Accuracy: 0%');
+
+    const allWrongVerse = 'X'.repeat(mockVerse.text.length);
+    fireEvent.change(textarea, { target: { value: allWrongVerse } });
+
+    expect(
+      await screen.findByRole('heading', { name: /Verse Completed!/i }, { timeout: 2000 })
+    ).toBeInTheDocument();
+
+    await waitFor(
+      () => {
+        expect(ProgressService.submitResult).toHaveBeenCalledTimes(1);
+        expect(ProgressService.submitResult).toHaveBeenCalledWith(
+          expect.objectContaining({
+            accuracy: 0,
+            incorrectCharacters: mockVerse.text.length,
+          })
+        );
+      },
+      { timeout: 2000 }
+    );
+  });
+
+  it('should show results and call submitResult on single-change completion if user is logged in', async () => {
+    const loggedInUser = { _id: 'user123' };
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue(loggedInUser);
+
+    render(<TypingTest />);
+    const textarea = (await screen.findByPlaceholderText(
+      'Start typing the verse above...',
+      {},
+      { timeout: 2000 }
+    )) as HTMLTextAreaElement;
+
+    fireEvent.change(textarea, { target: { value: mockVerse.text } });
+
+    expect(
+      await screen.findByRole('heading', { name: /Verse Completed!/i }, { timeout: 2000 })
+    ).toBeInTheDocument();
+    expect(screen.queryByText('N/A')).not.toBeInTheDocument();
+
+    await waitFor(
+      () => {
+        expect(ProgressService.submitResult).toHaveBeenCalledTimes(1);
+        expect(ProgressService.submitResult).toHaveBeenCalledWith(
+          expect.objectContaining({
+            user: 'user123',
+            verse: mockVerse._id,
+            verseOrder: mockVerse.verseOrder,
+            wpm: expect.any(Number),
+            cps: expect.any(Number),
+            accuracy: 100,
+            incorrectCharacters: 0,
+            totalCharacters: mockVerse.characters,
+          })
+        );
+      },
+      { timeout: 2000 }
+    );
+
+    const submitted = (ProgressService.submitResult as jest.Mock).mock.calls[0][0];
+    expect(Number.isFinite(submitted.wpm)).toBe(true);
+    expect(Number.isFinite(submitted.cps)).toBe(true);
+    expect(submitted.duration).toBeGreaterThanOrEqual(0);
+  });
+
+  it('should compute exact non-zero wpm, cps, duration, and Time display on two-step completion', async () => {
+    const loggedInUser = { _id: 'user123' };
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue(loggedInUser);
+
+    const RealDate = global.Date;
+    let currentTime = new RealDate('2026-01-01T00:00:00.000Z').getTime();
+    class MockDate extends RealDate {
+      constructor(...args: any[]) {
+        if (args.length === 0) {
+          super(currentTime);
+        } else {
+          super(...(args as [any]));
+        }
+      }
+    }
+
+    global.Date = MockDate as unknown as DateConstructor;
+    try {
+      render(<TypingTest />);
+      const textarea = (await screen.findByPlaceholderText(
+        'Start typing the verse above...',
+        {},
+        { timeout: 2000 }
+      )) as HTMLTextAreaElement;
+
+      fireEvent.change(textarea, { target: { value: 'I' } });
+      await screen.findByText(/WPM:/, {}, { timeout: 2000 });
+
+      currentTime += 30000;
+      fireEvent.change(textarea, { target: { value: mockVerse.text } });
+
+      expect(
+        await screen.findByRole('heading', { name: /Verse Completed!/i }, { timeout: 2000 })
+      ).toBeInTheDocument();
+
+      expect(screen.getByText('Words Per Minute:').nextElementSibling).toHaveTextContent('24');
+      expect(screen.getByText('Accuracy:').nextElementSibling).toHaveTextContent('100%');
+      expect(screen.getByText('Time:').nextElementSibling).toHaveTextContent('30.0 seconds');
+
+      await waitFor(
+        () => {
+          expect(ProgressService.submitResult).toHaveBeenCalledTimes(1);
+        },
+        { timeout: 2000 }
+      );
+
+      const submitted = (ProgressService.submitResult as jest.Mock).mock.calls[0][0];
+      expect(submitted).toEqual(
+        expect.objectContaining({
+          user: 'user123',
+          verse: mockVerse._id,
+          verseOrder: mockVerse.verseOrder,
+          duration: 30000,
+          wpm: 24,
+          accuracy: 100,
+          incorrectCharacters: 0,
+          totalCharacters: mockVerse.characters,
+        })
+      );
+      expect(submitted.cps).toBeCloseTo(56 / 30, 10);
+    } finally {
+      global.Date = RealDate;
+    }
+  });
+
+  it('should count overshoot characters on completion when typedText exceeds verse.text', async () => {
+    const loggedInUser = { _id: 'user123' };
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue(loggedInUser);
+
+    render(<TypingTest />);
+    const textarea = (await screen.findByPlaceholderText(
+      'Start typing the verse above...',
+      {},
+      { timeout: 2000 }
+    )) as HTMLTextAreaElement;
+
+    fireEvent.change(textarea, { target: { value: mockVerse.text + '!' } });
+
+    expect(
+      await screen.findByRole('heading', { name: /Verse Completed!/i }, { timeout: 2000 })
+    ).toBeInTheDocument();
+
+    await waitFor(
+      () => {
+        expect(ProgressService.submitResult).toHaveBeenCalledTimes(1);
+        expect(ProgressService.submitResult).toHaveBeenCalledWith(
+          expect.objectContaining({
+            incorrectCharacters: 1,
+            accuracy: 98,
+          })
+        );
+      },
+      { timeout: 2000 }
+    );
+  });
+
+  it('should not crash if submitResult rejects on completion', async () => {
+    const loggedInUser = { _id: 'user123' };
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue(loggedInUser);
+    (ProgressService.submitResult as jest.Mock).mockRejectedValueOnce(new Error('Submit failed'));
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      render(<TypingTest />);
+      const textarea = (await screen.findByPlaceholderText(
+        'Start typing the verse above...',
+        {},
+        { timeout: 2000 }
+      )) as HTMLTextAreaElement;
+
+      fireEvent.change(textarea, { target: { value: mockVerse.text } });
+
+      expect(
+        await screen.findByRole('heading', { name: /Verse Completed!/i }, { timeout: 2000 })
+      ).toBeInTheDocument();
+
+      await waitFor(
+        () => {
+          expect(ProgressService.submitResult).toHaveBeenCalledTimes(1);
+          expect(consoleErrorSpy).toHaveBeenCalledWith(
+            'Failed to submit result:',
+            expect.any(Error)
+          );
+        },
+        { timeout: 2000 }
+      );
+
+      expect(screen.getByRole('button', { name: /Try Another Verse/i })).toBeInTheDocument();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 
   it('should not call submitResult on completion if no user is logged in', async () => {
     render(<TypingTest />);
-    await act(async () => {
-      jest.runAllTimers();
-    });
-    await waitFor(() => expect(screen.queryByText('Loading verse...')).not.toBeInTheDocument());
-    await waitFor(() => expect(screen.getByTestId('verse-display')).toHaveTextContent('In the beginning, God created the heavens and the earth.'));
+    const textarea = (await screen.findByPlaceholderText(
+      'Start typing the verse above...',
+      {},
+      { timeout: 2000 }
+    )) as HTMLTextAreaElement;
 
-    const textarea = await screen.findByPlaceholderText('Start typing the verse above...') as HTMLTextAreaElement;
-    await act(async () => {
-      fireEvent.change(textarea, { target: { value: mockVerse.text } }); // Type the full verse
-    });
+    fireEvent.change(textarea, { target: { value: mockVerse.text } });
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /Verse Completed!/i })).toBeInTheDocument());
+    expect(
+      await screen.findByRole('heading', { name: /Verse Completed!/i }, { timeout: 2000 })
+    ).toBeInTheDocument();
     expect(ProgressService.submitResult).not.toHaveBeenCalled();
   });
 
-  it('should display an error message if verse fetching fails', async () => {
-    (VerseService.getRandomVerse as jest.Mock).mockRejectedValue(new Error('Failed to fetch'));
+  it('should display an error message if verse fetching fails and retry on "Try Again"', async () => {
+    (VerseService.getRandomVerse as jest.Mock).mockRejectedValueOnce(new Error('Failed to fetch'));
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-    render(<TypingTest />);
-    await act(async () => {
-      jest.runAllTimers();
-    });
-        await waitFor(() => expect(screen.findByText('Failed to fetch')).toBeInTheDocument());
-    expect(screen.getByRole('button', { name: /Try Again/i })).toBeInTheDocument();
+    try {
+      render(<TypingTest />);
+
+      expect(await screen.findByText('Failed to fetch', {}, { timeout: 2000 })).toBeInTheDocument();
+      const tryAgainButton = screen.getByRole('button', { name: /Try Again/i });
+      expect(tryAgainButton).toBeInTheDocument();
+
+      fireEvent.click(tryAgainButton);
+
+      const verseDisplay = await screen.findByTestId('verse-display', {}, { timeout: 2000 });
+      expect(verseDisplay).toHaveTextContent(mockVerse.text);
+      expect(VerseService.getRandomVerse).toHaveBeenCalledTimes(2);
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 
-  it('should fetch a new random verse when "Get Another Verse" is clicked', async () => {
-    render(<TypingTest />);
-    await act(async () => {
-      jest.runAllTimers();
-    });
-    await waitFor(() => expect(screen.getByTestId('verse-display')).toHaveTextContent('In the beginning, God created the heavens and the earth.'));
+  it('should fetch a new random verse and reset wpm/accuracy when "Try Another Verse" is clicked', async () => {
+    const RealDate = global.Date;
+    let currentTime = new RealDate('2026-01-01T00:00:00.000Z').getTime();
+    class MockDate extends RealDate {
+      constructor(...args: any[]) {
+        if (args.length === 0) {
+          super(currentTime);
+        } else {
+          super(...(args as [any]));
+        }
+      }
+    }
 
-    // Simulate completion to make the "Try Another Verse" button visible
-    const textarea = await screen.findByPlaceholderText('Start typing the verse above...') as HTMLTextAreaElement;
-    await act(async () => {
+    global.Date = MockDate as unknown as DateConstructor;
+    try {
+      render(<TypingTest />);
+      const textarea = (await screen.findByPlaceholderText(
+        'Start typing the verse above...',
+        {},
+        { timeout: 2000 }
+      )) as HTMLTextAreaElement;
+
+      fireEvent.change(textarea, { target: { value: 'I' } });
+      await screen.findByText(/WPM:/, {}, { timeout: 2000 });
+
+      currentTime += 30000;
       fireEvent.change(textarea, { target: { value: mockVerse.text } });
-    });
-    await waitFor(() => expect(screen.getByRole('heading', { name: /Verse Completed!/i })).toBeInTheDocument());
+      expect(
+        await screen.findByRole('heading', { name: /Verse Completed!/i }, { timeout: 2000 })
+      ).toBeInTheDocument();
+      expect(screen.getByText('Words Per Minute:').nextElementSibling).toHaveTextContent('24');
 
-    (VerseService.getRandomVerse as jest.Mock).mockResolvedValue({
+      (VerseService.getRandomVerse as jest.Mock).mockResolvedValueOnce({
+        ...mockVerse,
+        _id: '2',
+        text: 'Another verse.',
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: /Try Another Verse/i }));
+
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('verse-display')).toHaveTextContent('Another verse.');
+        },
+        { timeout: 2000 }
+      );
+      expect(VerseService.getRandomVerse).toHaveBeenCalledTimes(2);
+
+      const nextTextarea = (await screen.findByPlaceholderText(
+        'Start typing the verse above...',
+        {},
+        { timeout: 2000 }
+      )) as HTMLTextAreaElement;
+      fireEvent.change(nextTextarea, { target: { value: 'A' } });
+
+      const wpmLabel = await screen.findByText(/WPM:/, {}, { timeout: 2000 });
+      expect(wpmLabel.parentElement).toHaveTextContent('WPM: 0');
+      expect(screen.getByText(/Accuracy:/).parentElement).toHaveTextContent('Accuracy: 100%');
+    } finally {
+      global.Date = RealDate;
+    }
+  });
+
+  it('should reset accuracy and typed text when "Get Another Verse" is clicked mid-typing', async () => {
+    render(<TypingTest />);
+    const textarea = (await screen.findByPlaceholderText(
+      'Start typing the verse above...',
+      {},
+      { timeout: 2000 }
+    )) as HTMLTextAreaElement;
+
+    fireEvent.change(textarea, { target: { value: 'X' } });
+    const accuracyLabel = await screen.findByText(/Accuracy:/, {}, { timeout: 2000 });
+    expect(accuracyLabel.parentElement).toHaveTextContent('Accuracy: 0%');
+
+    (VerseService.getRandomVerse as jest.Mock).mockResolvedValueOnce({
       ...mockVerse,
       _id: '2',
       text: 'Another verse.',
     });
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Try Another Verse/i }));
-      jest.runAllTimers();
-    });
-    await waitFor(() => expect(screen.getByTestId('verse-display')).toHaveTextContent('Another verse.'));
-    expect(VerseService.getRandomVerse).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByRole('button', { name: /Get Another Verse/i }));
+
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('verse-display')).toHaveTextContent('Another verse.');
+      },
+      { timeout: 2000 }
+    );
+
+    const nextTextarea = (await screen.findByPlaceholderText(
+      'Start typing the verse above...',
+      {},
+      { timeout: 2000 }
+    )) as HTMLTextAreaElement;
+    expect(nextTextarea.value).toBe('');
+
+    fireEvent.change(nextTextarea, { target: { value: 'A' } });
+    const nextAccuracyLabel = await screen.findByText(/Accuracy:/, {}, { timeout: 2000 });
+    expect(nextAccuracyLabel.parentElement).toHaveTextContent('Accuracy: 100%');
   });
 
   it('should switch to "By Book" mode and fetch a verse by book', async () => {
-    (VerseService.getVersesByBook as jest.Mock).mockResolvedValue({ data: [mockVerse] });
+    render(<TypingTest />);
+    await screen.findByTestId('verse-display', {}, { timeout: 2000 });
 
-    await act(async () => {
-      render(<TypingTest />);
-      jest.runAllTimers();
-    });
-    await waitFor(() => expect(screen.queryByText('Loading verse...')).not.toBeInTheDocument());
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /By Book/i }));
-    });
+    fireEvent.click(screen.getByRole('button', { name: /By Book/i }));
     expect(screen.getByText('-- Select a Book --')).toBeInTheDocument();
 
-    await act(async () => {
-      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Genesis' } });
-    });
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Get Verse/i }));
-      jest.runAllTimers();
-    });
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Genesis' } });
+    fireEvent.click(screen.getByRole('button', { name: /Get Verse/i }));
 
-    await waitFor(() => expect(screen.getByTestId('verse-display')).toHaveTextContent('In the beginning, God created the heavens and the earth.'));
-    expect(VerseService.getVersesByBook).toHaveBeenCalledWith('Genesis');
+    await waitFor(
+      () => {
+        expect(VerseService.getVersesByBook).toHaveBeenCalledWith('Genesis');
+        expect(screen.getByTestId('verse-display')).toHaveTextContent(mockVerse.text);
+      },
+      { timeout: 2000 }
+    );
   });
 
   it('should disable "Sequential" mode button if no user is logged in', async () => {
-    await act(async () => {
-      render(<TypingTest />);
-      jest.runAllTimers();
-    });
-    await waitFor(() => expect(screen.queryByText('Loading verse...')).not.toBeInTheDocument());
+    render(<TypingTest />);
+    await screen.findByTestId('verse-display', {}, { timeout: 2000 });
 
     const sequentialButton = screen.getByRole('button', { name: /Sequential/i });
     expect(sequentialButton).toBeDisabled();
@@ -241,20 +478,20 @@ describe('TypingTest', () => {
   });
 
   it('should enable "Sequential" mode button if a user is logged in', async () => {
-    (AuthService.getCurrentUser as jest.Mock).mockReturnValue({ _id: 'user123' });
-    await act(async () => {
-      render(<TypingTest />);
-      jest.runAllTimers();
-    });
-    await waitFor(() => expect(screen.queryByText('Loading verse...')).not.toBeInTheDocument());
+    const loggedInUser = { _id: 'user123' };
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue(loggedInUser);
+
+    render(<TypingTest />);
+    await screen.findByTestId('verse-display', {}, { timeout: 2000 });
 
     const sequentialButton = screen.getByRole('button', { name: /Sequential/i });
     expect(sequentialButton).not.toBeDisabled();
-    expect(sequentialButton).not.toHaveAttribute('title');
+    expect(sequentialButton).toHaveAttribute('title', '');
   });
 
   it('should switch to "Sequential" mode and fetch the next verse', async () => {
-    (AuthService.getCurrentUser as jest.Mock).mockReturnValue({ _id: 'user123' });
+    const loggedInUser = { _id: 'user123' };
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue(loggedInUser);
     (ProgressService.getUserProgress as jest.Mock).mockResolvedValue([{ verseOrder: 1 }]);
     (VerseService.getVerseByOrder as jest.Mock).mockResolvedValue({
       ...mockVerse,
@@ -263,21 +500,18 @@ describe('TypingTest', () => {
       text: 'The second verse.',
     });
 
-    await act(async () => {
-      render(<TypingTest />);
-      jest.runAllTimers();
-    });
-    await waitFor(() => expect(screen.queryByText('Loading verse...')).not.toBeInTheDocument());
+    render(<TypingTest />);
+    await screen.findByTestId('verse-display', {}, { timeout: 2000 });
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Sequential/i }));
-    });
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /Get Verse/i }));
-      jest.runAllTimers();
-    });
+    fireEvent.click(screen.getByRole('button', { name: /Sequential/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Get Verse/i }));
 
-    await waitFor(() => expect(screen.getByTestId('verse-display')).toHaveTextContent('The second verse.'));
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('verse-display')).toHaveTextContent('The second verse.');
+      },
+      { timeout: 2000 }
+    );
     expect(ProgressService.getUserProgress).toHaveBeenCalledTimes(1);
     expect(VerseService.getVerseByOrder).toHaveBeenCalledWith(2);
   });

@@ -2,6 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Verse } from '../types';
 import { VerseService, ProgressService, AuthService } from '../services/api';
+import {
+  countIncorrectCharacters,
+  calculateAccuracy,
+  calculateWpm,
+  calculateCps,
+} from '../utils/typingMetrics';
 
 const TypingTest: React.FC = () => {
   const [verse, setVerse] = useState<Verse | null>(null);
@@ -13,7 +19,6 @@ const TypingTest: React.FC = () => {
   const [completed, setCompleted] = useState<boolean>(false);
   const [wpm, setWpm] = useState<number>(0);
   const [accuracy, setAccuracy] = useState<number>(0);
-  const [incorrectCharCount, setIncorrectCharCount] = useState<number>(0);
   const [verseSelectionMode, setVerseSelectionMode] = useState<'random' | 'book' | 'sequential'>('random');
   const [selectedBook, setSelectedBook] = useState<string>('');
   const [selectedChapter, setSelectedChapter] = useState<number>(1);
@@ -43,45 +48,43 @@ const TypingTest: React.FC = () => {
 
   // Set start time on first keystroke
   useEffect(() => {
-    if (typedText.length === 1 && !startTime) {
+    if (typedText.length > 0 && !startTime) {
       setStartTime(new Date());
     }
   }, [typedText, startTime]);
 
   // Check for completion and calculate stats
   useEffect(() => {
-    if (!verse || !typedText) return;
+    if (!verse) return;
+
+    const incorrect = countIncorrectCharacters(typedText, verse.text);
+    const accuracyPercentage = calculateAccuracy(typedText.length, incorrect);
+    setAccuracy(accuracyPercentage);
+
+    if (!typedText) return;
 
     // Check for completion
-    if (typedText.length === verse.text.length && !completed) {
+    if (typedText.length >= verse.text.length && !completed) {
       const now = new Date();
+      const effectiveStartTime = startTime || now;
+      if (!startTime) {
+        setStartTime(effectiveStartTime);
+      }
       setEndTime(now);
       setCompleted(true);
-      
+
       // Calculate final stats
-      const durationInMinutes = (now.getTime() - (startTime?.getTime() || now.getTime())) / 1000 / 60;
-      const wordsPerMinute = Math.round(verse.words / durationInMinutes);
+      const durationMs = now.getTime() - effectiveStartTime.getTime();
+      const wordsPerMinute = calculateWpm(verse.words, durationMs);
       setWpm(wordsPerMinute);
-      
+
       // Submit result if logged in
       if (user) {
-        submitResult(now, wordsPerMinute, incorrectCharCount);
+        submitResult(effectiveStartTime, now, wordsPerMinute, accuracyPercentage, incorrect);
       }
     }
-    
-    // Calculate accuracy as we type
-    let incorrect = 0;
-    for (let i = 0; i < typedText.length; i++) {
-      if (typedText[i] !== verse.text[i]) {
-        incorrect++;
-      }
-    }
-    setIncorrectCharCount(incorrect);
-    
-    const accuracyPercentage = Math.round(((typedText.length - incorrect) / typedText.length) * 100) || 100;
-    setAccuracy(accuracyPercentage);
-  // eslint-disable-next-line react-hooks/exhaustive-deps  
-  }, [typedText, verse, completed, startTime, user, incorrectCharCount]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typedText, verse, completed, startTime, user?._id]);
 
   const fetchVerse = async () => {
     try {
@@ -91,6 +94,8 @@ const TypingTest: React.FC = () => {
       setStartTime(null);
       setEndTime(null);
       setCompleted(false);
+      setWpm(0);
+      setAccuracy(0);
       
       let data: Verse;
       
@@ -151,23 +156,29 @@ const TypingTest: React.FC = () => {
     }
   };
 
-  const submitResult = async (endTime: Date, wpm: number, incorrectChars: number) => {
-    if (!verse || !startTime) return;
+  const submitResult = async (
+    resultStartTime: Date,
+    resultEndTime: Date,
+    resultWpm: number,
+    resultAccuracy: number,
+    incorrectChars: number
+  ) => {
+    if (!verse) return;
 
     try {
-      const duration = endTime.getTime() - startTime.getTime(); // in milliseconds
-      const cps = verse.characters / (duration / 1000);
-      
+      const duration = Math.max(0, resultEndTime.getTime() - resultStartTime.getTime()); // in milliseconds
+      const cps = calculateCps(verse.characters, duration);
+
       await ProgressService.submitResult({
         user: user?._id || '',
         verse: verse._id,
         verseOrder: verse.verseOrder,
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
+        startTime: resultStartTime.toISOString(),
+        endTime: resultEndTime.toISOString(),
         duration,
-        wpm,
+        wpm: resultWpm,
         cps,
-        accuracy,
+        accuracy: resultAccuracy,
         incorrectCharacters: incorrectChars,
         totalCharacters: verse.characters
       });

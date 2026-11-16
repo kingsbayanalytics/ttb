@@ -23,8 +23,8 @@ Web application for practicing typing speed and accuracy by transcribing Bible v
 - Target runtime is Node 22 LTS with MongoDB (local or Atlas via `MONGODB_URI` in `server/.env`).
 - Run both apps in dev from root with `npm run dev` (server on port `3001`, client on `3000`); never configure dev ports to `5000`.
 - Seed MongoDB from `server/` using `npm run import-data` (replaces existing `Verse` documents from the CSV).
-- Verify server changes with `cd server && npm run build && npm test`; verify client changes with `cd client && npm run build`.
-- Root `npm test` only runs `cd server && npm test` — run `cd client && npm run build` separately to check client TypeScript compilation.
+- Verify server changes with `cd server && npm run build && npm test`; verify client changes with `cd client && npm run build && npm test`.
+- Root `npm test` runs server then client tests (`cd server && npm test && cd ../client && npm test`); run `cd client && npm run build` separately to check client TypeScript compilation and production bundling.
 
 ## Conventions that differ from defaults
 
@@ -33,7 +33,6 @@ Web application for practicing typing speed and accuracy by transcribing Bible v
 
 ## Known pitfalls
 
-- `client/src/components/TypingTest.test.tsx` times out on `"Loading verse..."` and crashes the Jest worker; use `cd client && npm run build` to verify client code instead of `cd client && npm test` until the client test suite is repaired.
 - `server/dist/` holds compiled JS executed by `cd server && npm start` and can go stale relative to `server/src/`; use `npm run dev` locally or always run `cd server && npm run build` before `npm start`.
 
 <!-- /bmad:context -->

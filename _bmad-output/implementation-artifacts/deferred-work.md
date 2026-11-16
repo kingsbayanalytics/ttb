@@ -16,3 +16,12 @@
 - source_spec: `_bmad-output/implementation-artifacts/1-2-server-tests-on-an-in-memory-database.md`
   summary: Add `server/src/tests/progress.test.ts` coverage for repeat submissions (`attempts` increment, best WPM/accuracy retention, multi-sample average) and `GET /api/progress/verse/:verseId`.
   evidence: Verified pre-existing in `server/src/tests/progress.test.ts`; current tests only submit once per user.
+- source_spec: `_bmad-output/implementation-artifacts/1-3-repair-the-client-test-suite.md`
+  summary: Clear pre-existing ESLint warnings in `TypingTest.tsx` (`selectedChapter`, `setAvailableBooks`, `fetchVerse` deps) and `Progress.tsx` so `cd client && CI=true npm run build` passes in CI.
+  evidence: Verified `cd client && npm run build` reports pre-existing ESLint warnings; CRA treats warnings as errors when `CI=true` (blocks Story 1.5 CI).
+- source_spec: `_bmad-output/implementation-artifacts/1-3-repair-the-client-test-suite.md`
+  summary: Remove `client/__mocks__/react-router*.js` or fix `App.test.tsx` so `<App />` doesn't mount all `<Route>` elements simultaneously and log `act(...)` / `TypeError` warnings.
+  evidence: Verified `client/__mocks__/react-router-dom.js` renders every `<Route>` `element` unconditionally, mounting `TypingTest` during `App.test.tsx`.
+- source_spec: `_bmad-output/implementation-artifacts/1-3-repair-the-client-test-suite.md`
+  summary: Fix duplicate `'John'` key in `TypingTest.tsx` `availableBooks`, compute live WPM while typing, and expand `TypingTest.test.tsx` branch coverage (`View Progress`, book errors, sequential fallback).
+  evidence: Verified pre-existing in `TypingTest.tsx` and `TypingTest.test.tsx`.

@@ -10,7 +10,7 @@
     "client:start": "cd client && npm start",
     "build": "cd client && npm run build",
     "install:all": "npm install && cd server && npm install && cd ../client && npm install",
-    "test": "cd server && npm test"
+    "test": "cd server && npm test && cd ../client && npm test"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
