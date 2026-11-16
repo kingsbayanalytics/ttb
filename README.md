@@ -89,7 +89,7 @@ sequenceDiagram
     participant DB as MongoDB
     
     User->>Client: Login/Register
-    Client->>API: POST /api/auth/login or register
+    Client->>API: POST /api/users/login or /api/users
     API->>DB: Validate/Create User
     DB->>API: User Data
     API->>Client: Auth Token + User Info
@@ -102,7 +102,7 @@ sequenceDiagram
     
     User->>Client: Complete Typing Test
     Client->>Client: Calculate WPM, Accuracy
-    Client->>API: POST /api/progress
+    Client->>API: POST /api/progress/result/:verseId
     API->>DB: Save Progress Data
     DB->>API: Confirmation
     API->>Client: Success Response
@@ -133,14 +133,14 @@ project/
 │   └── public/           # Static assets
 │
 ├── server/               # Backend Node.js/Express API
-│   ├── src/
-│   │   ├── controllers/  # Request handlers
-│   │   ├── models/       # Database models
-│   │   ├── routes/       # API routes
-│   │   └── index.ts      # Server entry point
-│   └── tests/            # Server tests
+│   └── src/
+│       ├── controllers/  # Request handlers
+│       ├── models/       # Database models
+│       ├── routes/       # API routes
+│       ├── tests/        # Server tests
+│       └── index.ts      # Server entry point
 │
-├── src/                  # Shared code (if applicable)
+├── data/                 # Bible verse CSV data
 └── docs/                 # Documentation
 ```
 
@@ -218,68 +218,94 @@ classDiagram
 
 ### Prerequisites
 
-- Node.js (v14 or higher)
+- Node.js (v18+ / v22 LTS)
 - MongoDB (local or Atlas)
 
 ### Installation
 
 1. Clone the repository
-2. Install dependencies for both server and client:
+2. Install dependencies for root, server, and client:
 
 ```bash
-# Install server dependencies
-cd server
-npm install
+npm run install:all
+```
 
-# Install client dependencies
-cd ../client
-npm install
+3. Configure environment variables for the server by copying `server/.env.example` to `server/.env`:
+
+```bash
+cp server/.env.example server/.env
+```
+
+4. Import Bible verses into MongoDB (required unless running the client in mock mode with `REACT_APP_USE_MOCK_DATA=true`):
+
+```bash
+cd server
+npm run import-data
 ```
 
 ### Running the Application
 
 #### Development Mode
 
-1. Start the server:
+1. Start both the server (port `3001`) and client (port `3000`) from the repository root:
 
 ```bash
-# From the server directory
 npm run dev
 ```
 
-2. Start the client:
+Or run them in separate terminals:
 
 ```bash
-# From the client directory
+# Terminal 1 - Server (http://localhost:3001)
+cd server
+npm run dev
+
+# Terminal 2 - Client (http://localhost:3000)
+cd client
 npm start
 ```
 
-3. Open your browser and navigate to `http://localhost:3000`
+2. Open your browser and navigate to `http://localhost:3000`
 
 #### Production Mode
 
-1. Build the client:
+1. Configure `server/.env` with `NODE_ENV=production` and replace `JWT_SECRET` with a secure secret.
+
+2. Build the client and server:
 
 ```bash
-# From the client directory
-npm run build
+cd client && npm run build
+cd ../server && npm run build
 ```
 
-2. Start the server in production mode:
+3. Start the server in production mode:
 
 ```bash
-# From the server directory
+cd server
 npm start
 ```
 
 ## API Endpoints
 
-- `GET /api/verses`: Get verses (with filtering options)
-- `GET /api/verses/:id`: Get a specific verse
-- `POST /api/progress`: Save typing test results
-- `GET /api/progress`: Get user progress statistics
-- `POST /api/auth/register`: Register a new user
-- `POST /api/auth/login`: Login a user
+### Verses
+- `GET /api/verses`: Get verses (paginated)
+- `GET /api/verses/:id`: Get a specific verse by ID
+- `GET /api/verses/order/:verseOrder`: Get a verse by order number
+- `GET /api/verses/random`: Get a random verse
+- `GET /api/verses/book/:book`: Get verses by book
+- `GET /api/verses/book/:book/chapter/:chapter`: Get verses by book and chapter
+
+### Users
+- `POST /api/users`: Register a new user
+- `POST /api/users/login`: Login a user
+- `GET /api/users/profile`: Get user profile (requires authentication)
+- `PUT /api/users/profile`: Update user profile (requires authentication)
+
+### Progress (requires authentication)
+- `GET /api/progress`: Get user progress
+- `GET /api/progress/summary`: Get progress summary
+- `GET /api/progress/verse/:verseId`: Get progress for a specific verse
+- `POST /api/progress/result/:verseId`: Save typing test results
 
 ## Technologies Used
 

@@ -69,7 +69,7 @@ app.use(notFound);
 app.use(errorMiddleware);
 
 // Define port
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 
 // Start server
 if (process.env.NODE_ENV !== 'test') {

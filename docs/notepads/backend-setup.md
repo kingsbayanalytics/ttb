@@ -8,9 +8,9 @@ The "Type the Bible" application requires a backend API server to fetch Bible ve
 
 For local development, you can run the frontend in mock data mode, which doesn't require a backend connection.
 
-1. Make sure the `.env.development` file contains:
+1. Make sure `client/.env.development` contains:
    ```
-   REACT_APP_API_URL=http://localhost:5000/api
+   REACT_APP_API_URL=http://localhost:3001/api
    REACT_APP_USE_MOCK_DATA=true
    ```
 
@@ -20,38 +20,35 @@ For local development, you can run the frontend in mock data mode, which doesn't
 
 To use actual backend services:
 
-1. Clone the backend repository:
+1. Install dependencies from the repository root (or inside `server/`):
    ```
-   git clone https://github.com/yourusername/type-the-bible-backend.git
-   ```
-
-2. Install dependencies:
-   ```
-   cd type-the-bible-backend
-   npm install
+   npm run install:all
    ```
 
-3. Configure the database connection in a `.env` file:
+2. Configure the database connection in `server/.env` (see `server/.env.example`):
    ```
-   MONGODB_URI=mongodb://localhost:27017/typethebible
+   MONGODB_URI=mongodb://localhost:27017/type-the-bible
    JWT_SECRET=your_secret_key
-   PORT=5000
+   PORT=3001
+   NODE_ENV=development
    ```
 
-4. Seed the database with Bible verses:
+3. Import the Bible verses into MongoDB (from `server/`):
    ```
-   npm run seed
-   ```
-
-5. Start the backend server:
-   ```
-   npm start
+   cd server
+   npm run import-data
    ```
 
-6. Update the frontend configuration to use the actual API:
+4. Start the backend server in development mode (from `server/`):
    ```
-   # In .env.development
-   REACT_APP_API_URL=http://localhost:5000/api
+   npm run dev
+   ```
+   (For production, run `npm run build && npm start`.)
+
+5. Update the frontend configuration to use the actual API:
+   ```
+   # In client/.env.development
+   REACT_APP_API_URL=http://localhost:3001/api
    REACT_APP_USE_MOCK_DATA=false
    ```
 
@@ -80,7 +77,7 @@ The backend provides the following endpoints:
 - `GET /api/progress` - Get user progress (requires authentication)
 - `GET /api/progress/verse/:verseId` - Get progress for a specific verse (requires authentication)
 - `GET /api/progress/summary` - Get progress summary (requires authentication)
-- `POST /api/progress/result` - Submit a typing test result (requires authentication)
+- `POST /api/progress/result/:verseId` - Submit a typing test result (requires authentication)
 
 ## Error Handling
 
@@ -88,7 +85,9 @@ The API returns error responses in the following format:
 
 ```json
 {
-  "error": "Error message"
+  "success": false,
+  "error": "Error message",
+  "stack": null
 }
 ```
 
@@ -103,4 +102,4 @@ Status codes:
 
 The frontend is designed to work even if the backend is not available. It will use mock data for verses and will store progress locally in the browser.
 
-To deploy the application without a backend, set `REACT_APP_USE_MOCK_DATA=true` in the `.env.production` file. 
+To deploy the application without a backend, set `REACT_APP_USE_MOCK_DATA=true` in the `client/.env.production` file. 

@@ -8,7 +8,6 @@
     "dev": "nodemon --exec ts-node src/index.ts",
     "build": "tsc",
     "test": "jest --detectOpenHandles",
-    "lint": "eslint . --ext .ts",
     "import-data": "ts-node src/utils/importData.ts"
   },
   "keywords": [
