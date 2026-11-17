@@ -8,6 +8,7 @@ import { errorMiddleware, notFound } from './utils/errorHandler';
 import verseRoutes from './routes/verseRoutes';
 import userRoutes from './routes/userRoutes';
 import progressRoutes from './routes/progressRoutes';
+import statsRoutes from './routes/statsRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -48,6 +49,7 @@ app.get('/', (req, res) => {
 app.use('/api/verses', verseRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/progress', progressRoutes);
+app.use('/api/stats', statsRoutes);
 
 // Serve check-localstorage.html file
 app.get('/check-localstorage.html', (req, res) => {

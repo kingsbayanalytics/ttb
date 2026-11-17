@@ -3,3 +3,13 @@
 // expect(element).toHaveTextContent(/react/i)
 // learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom';
+
+if (typeof window !== 'undefined' && typeof window.ResizeObserver === 'undefined') {
+  class MockResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  (window as unknown as { ResizeObserver: typeof MockResizeObserver }).ResizeObserver =
+    MockResizeObserver;
+}

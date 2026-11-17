@@ -30,6 +30,7 @@ export const errorMiddleware = (err: any, req: Request, res: Response, next: Nex
   
   res.status(statusCode).json({
     success: false,
+    message,
     error: message,
     stack: process.env.NODE_ENV === 'production' ? null : err.stack
   });

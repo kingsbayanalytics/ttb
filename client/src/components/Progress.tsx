@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Progress as ProgressType } from '../types';
 import { ProgressService, AuthService } from '../services/api';
 
@@ -85,6 +85,13 @@ const Progress: React.FC = () => {
     
     return (
       <div className="summary-tab">
+        <div className="dashboard-promo-banner">
+          <p>Explore daily speed trends, activity heatmap, and book-by-book Bible coverage.</p>
+          <Link to="/dashboard" className="primary-button">
+            Open Statistics Dashboard
+          </Link>
+        </div>
+
         <div className="progress-summary">
           <div className="summary-card">
             <h3>Completion</h3>

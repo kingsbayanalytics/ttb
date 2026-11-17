@@ -25,7 +25,7 @@ export const mockVerses: Verse[] = [
   {
     _id: '3',
     verseOrder: 3,
-    book: 'Psalm',
+    book: 'Psalms',
     chapter: 23,
     verse: 1,
     text: 'The LORD is my shepherd, I lack nothing.',

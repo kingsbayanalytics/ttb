@@ -6,6 +6,7 @@ import { MongoMemoryServer } from 'mongodb-memory-server';
 import verseRoutes from '../routes/verseRoutes';
 import userRoutes from '../routes/userRoutes';
 import progressRoutes from '../routes/progressRoutes';
+import statsRoutes from '../routes/statsRoutes';
 import { errorMiddleware, notFound } from '../utils/errorHandler';
 
 let mongoServer: MongoMemoryServer | null = null;
@@ -51,6 +52,7 @@ export const setupTestApp = () => {
   app.use('/api/verses', verseRoutes);
   app.use('/api/users', userRoutes);
   app.use('/api/progress', progressRoutes);
+  app.use('/api/stats', statsRoutes);
 
   // Error handling middleware
   app.use(notFound);

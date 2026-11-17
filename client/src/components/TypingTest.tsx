@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Verse } from '../types';
+import { CANONICAL_BOOKS } from '../data/books';
 import { VerseService, ProgressService, AuthService } from '../services/api';
 import {
   countIncorrectCharacters,
@@ -10,34 +11,131 @@ import {
 } from '../utils/typingMetrics';
 
 const TypingTest: React.FC = () => {
+  const location = useLocation();
+  const initialBook = new URLSearchParams(location.search || '').get('book')?.trim() || '';
+
   const [verse, setVerse] = useState<Verse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [bookComplete, setBookComplete] = useState<string | null>(null);
   const [typedText, setTypedText] = useState<string>('');
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
   const [completed, setCompleted] = useState<boolean>(false);
   const [wpm, setWpm] = useState<number>(0);
   const [accuracy, setAccuracy] = useState<number>(0);
-  const [verseSelectionMode, setVerseSelectionMode] = useState<'random' | 'book' | 'sequential'>('random');
-  const [selectedBook, setSelectedBook] = useState<string>('');
-  const [availableBooks] = useState<string[]>([
-    'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 
-    'Matthew', 'Mark', 'Luke', 'John', 'Acts',
-    'Romans', 'Corinthians', 'Galatians', 'Ephesians', 'Philippians',
-    'Colossians', 'Thessalonians', 'Timothy', 'Titus', 'Philemon',
-    'Hebrews', 'James', 'Peter', 'John', 'Jude', 'Revelation'
-  ]);
-  
+  const [verseSelectionMode, setVerseSelectionMode] = useState<'random' | 'book' | 'sequential'>(
+    initialBook ? 'book' : 'random'
+  );
+  const [selectedBook, setSelectedBook] = useState<string>(initialBook);
+
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
   const user = AuthService.getCurrentUser();
+  const userId = user?._id;
 
-  // Load a verse on component mount
+  const fetchVerse = useCallback(
+    async (
+      modeOverride?: 'random' | 'book' | 'sequential',
+      bookOverride?: string
+    ) => {
+      const mode = modeOverride ?? verseSelectionMode;
+      const bookToFetch = bookOverride ?? selectedBook;
+
+      try {
+        setLoading(true);
+        setError(null);
+        setBookComplete(null);
+        setTypedText('');
+        setStartTime(null);
+        setEndTime(null);
+        setCompleted(false);
+        setWpm(0);
+        setAccuracy(0);
+
+        let data: Verse;
+
+        switch (mode) {
+          case 'book':
+            if (!bookToFetch) {
+              setError('Please select a book');
+              setLoading(false);
+              return;
+            }
+            if (userId) {
+              try {
+                const nextResult = await VerseService.getNextVerse(bookToFetch);
+                if (nextResult.complete || !nextResult.verse) {
+                  setVerse(null);
+                  setBookComplete(bookToFetch);
+                  setLoading(false);
+                  return;
+                }
+                data = nextResult.verse;
+              } catch (err) {
+                throw new Error(`Failed to fetch verse from ${bookToFetch}.`);
+              }
+            } else {
+              try {
+                const bookResults = await VerseService.getVersesByBook(bookToFetch);
+                if (bookResults.data.length === 0) {
+                  setError(`No verses found for ${bookToFetch}`);
+                  setLoading(false);
+                  return;
+                }
+                const randomBookIndex = Math.floor(Math.random() * bookResults.data.length);
+                data = bookResults.data[randomBookIndex];
+              } catch (err) {
+                throw new Error(`Failed to fetch verse from ${bookToFetch}.`);
+              }
+            }
+            break;
+
+          case 'sequential':
+            try {
+              const progress = userId ? await ProgressService.getUserProgress() : [];
+
+              let nextVerseOrder = 1;
+              if (progress.length > 0) {
+                const maxVerseOrder = Math.max(...progress.map((p) => p.verseOrder));
+                nextVerseOrder = maxVerseOrder + 1;
+              }
+
+              data = await VerseService.getVerseByOrder(nextVerseOrder);
+            } catch (err) {
+              console.error('Failed to get sequential verse, falling back to random:', err);
+              data = await VerseService.getRandomVerse();
+            }
+            break;
+
+          case 'random':
+          default:
+            data = await VerseService.getRandomVerse();
+            break;
+        }
+
+        setVerse(data);
+      } catch (err: any) {
+        setError(err.message || 'Failed to fetch verse. Please try again.');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [verseSelectionMode, selectedBook, userId]
+  );
+
+  // Load initial verse or respond to ?book= query parameter changes
   useEffect(() => {
-    fetchVerse();
+    if (initialBook) {
+      setVerseSelectionMode('book');
+      setSelectedBook(initialBook);
+      fetchVerse('book', initialBook);
+    } else {
+      fetchVerse('random', '');
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialBook]);
 
   // Focus the textarea when verse is loaded
   useEffect(() => {
@@ -85,76 +183,6 @@ const TypingTest: React.FC = () => {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [typedText, verse, completed, startTime, user?._id]);
-
-  const fetchVerse = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      setTypedText('');
-      setStartTime(null);
-      setEndTime(null);
-      setCompleted(false);
-      setWpm(0);
-      setAccuracy(0);
-      
-      let data: Verse;
-      
-      switch (verseSelectionMode) {
-        case 'book':
-          if (!selectedBook) {
-            setError('Please select a book');
-            setLoading(false);
-            return;
-          }
-          try {
-            const bookResults = await VerseService.getVersesByBook(selectedBook);
-            if (bookResults.data.length === 0) {
-              setError(`No verses found for ${selectedBook}`);
-              setLoading(false);
-              return;
-            }
-            // Get a random verse from this book
-            const randomBookIndex = Math.floor(Math.random() * bookResults.data.length);
-            data = bookResults.data[randomBookIndex];
-          } catch (err) {
-            throw new Error(`Failed to fetch verse from ${selectedBook}.`);
-          }
-          break;
-          
-        case 'sequential':
-          try {
-            // Get the user's progress to find the next verse they should do
-            const progress = user ? await ProgressService.getUserProgress() : [];
-            
-            // Find the highest verse order they've attempted
-            let nextVerseOrder = 1;
-            if (progress.length > 0) {
-              const maxVerseOrder = Math.max(...progress.map(p => p.verseOrder));
-              nextVerseOrder = maxVerseOrder + 1;
-            }
-            
-            data = await VerseService.getVerseByOrder(nextVerseOrder);
-          } catch (err) {
-            // If we can't get sequential verse, fall back to random
-            console.error('Failed to get sequential verse, falling back to random:', err);
-            data = await VerseService.getRandomVerse();
-          }
-          break;
-          
-        case 'random':
-        default:
-          data = await VerseService.getRandomVerse();
-          break;
-      }
-      
-      setVerse(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch verse. Please try again.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const submitResult = async (
     resultStartTime: Date,
@@ -220,9 +248,36 @@ const TypingTest: React.FC = () => {
     return (
       <div className="error-container">
         <p className="error-message">{error}</p>
-        <button onClick={fetchVerse} className="primary-button">
+        <button onClick={() => fetchVerse()} className="primary-button">
           Try Again
         </button>
+      </div>
+    );
+  }
+
+  if (bookComplete) {
+    return (
+      <div className="typing-test-container">
+        <div className="results-container" data-testid="book-complete-state">
+          <h3>{bookComplete} Complete!</h3>
+          <p>You have completed all verses in {bookComplete}.</p>
+          <div className="results-actions">
+            <Link to="/dashboard" className="primary-button">
+              Back to Dashboard
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setVerseSelectionMode('random');
+                setSelectedBook('');
+                fetchVerse('random', '');
+              }}
+              className="secondary-button"
+            >
+              Practice Random Verse
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -286,7 +341,7 @@ const TypingTest: React.FC = () => {
             <div className="book-selector">
               <select value={selectedBook} onChange={handleBookChange}>
                 <option value="">-- Select a Book --</option>
-                {availableBooks.map(book => (
+                {CANONICAL_BOOKS.map(book => (
                   <option key={book} value={book}>{book}</option>
                 ))}
               </select>

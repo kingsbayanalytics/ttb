@@ -49,6 +49,12 @@ const Navbar: React.FC = () => {
           {user ? (
             <>
               <li className="nav-item">
+                <Link to="/dashboard" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+                  Dashboard
+                </Link>
+              </li>
+
+              <li className="nav-item">
                 <Link to="/progress" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
                   Progress
                 </Link>

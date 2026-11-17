@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Verse } from '../models';
+import { Progress, Verse } from '../models';
 import { asyncHandler, ApiError } from '../utils/errorHandler';
 
 /**
@@ -26,6 +26,70 @@ export const getVerses = asyncHandler(async (req: Request, res: Response) => {
     pages: Math.ceil(total / limit),
     currentPage: page,
     data: verses
+  });
+});
+
+/**
+ * @desc    Get next untyped verse (lowest verseOrder without completed Progress), overall or by book
+ * @route   GET /api/verses/next?book=
+ * @access  Private
+ */
+export const getNextVerse = asyncHandler(async (req: Request, res: Response) => {
+  const rawBook = req.query.book;
+  if (rawBook !== undefined && typeof rawBook !== 'string') {
+    throw new ApiError('Invalid book parameter', 400);
+  }
+
+  const book = typeof rawBook === 'string' ? rawBook.trim() : '';
+  const verseFilter = book ? { book } : {};
+
+  const orderedVerses = await Verse.find(verseFilter, { _id: 1, verseOrder: 1 })
+    .sort({ verseOrder: 1 })
+    .lean();
+
+  if (book && orderedVerses.length === 0) {
+    throw new ApiError('No verses found for this book', 404);
+  }
+
+  if (orderedVerses.length === 0) {
+    return res.json({
+      success: true,
+      data: {
+        complete: true,
+        verse: null,
+      },
+    });
+  }
+
+  const progressFilter: Record<string, any> = {
+    user: req.user._id,
+    completed: true,
+  };
+  if (book) {
+    progressFilter.verse = { $in: orderedVerses.map((v) => v._id) };
+  }
+
+  const completedProgress = await Progress.find(progressFilter).select('verse').lean();
+  const completedVerseIds = new Set(completedProgress.map((p) => p.verse.toString()));
+
+  const nextMeta = orderedVerses.find((v) => !completedVerseIds.has(v._id.toString()));
+  if (!nextMeta) {
+    return res.json({
+      success: true,
+      data: {
+        complete: true,
+        verse: null,
+      },
+    });
+  }
+
+  const nextVerse = await Verse.findById(nextMeta._id).lean();
+  res.json({
+    success: true,
+    data: {
+      complete: false,
+      verse: nextVerse,
+    },
   });
 });
 

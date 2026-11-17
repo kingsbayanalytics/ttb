@@ -80,6 +80,32 @@ export const USFM_TO_CANONICAL_BOOK: Readonly<Record<string, string>> = {
 
 export const CANONICAL_BOOK_ORDER: readonly string[] = Object.values(USFM_TO_CANONICAL_BOOK);
 
+export type Testament = 'Old Testament' | 'New Testament';
+
+const NEW_TESTAMENT_START_INDEX = CANONICAL_BOOK_ORDER.indexOf('Matthew');
+
+export const OLD_TESTAMENT_BOOKS: readonly string[] = CANONICAL_BOOK_ORDER.slice(
+  0,
+  NEW_TESTAMENT_START_INDEX
+);
+
+export const NEW_TESTAMENT_BOOKS: readonly string[] = CANONICAL_BOOK_ORDER.slice(
+  NEW_TESTAMENT_START_INDEX
+);
+
+export const BOOK_TO_TESTAMENT: Readonly<Record<string, Testament>> = Object.fromEntries([
+  ...OLD_TESTAMENT_BOOKS.map((book) => [book, 'Old Testament' as const]),
+  ...NEW_TESTAMENT_BOOKS.map((book) => [book, 'New Testament' as const]),
+]);
+
+export function getBookTestament(book: string): Testament | undefined {
+  return BOOK_TO_TESTAMENT[book];
+}
+
+export function isCanonicalBook(book: string): boolean {
+  return Object.prototype.hasOwnProperty.call(BOOK_TO_TESTAMENT, book);
+}
+
 /**
  * Maps a 3-character USFM book code from the WEB Catholic CSV to its canonical English name.
  */

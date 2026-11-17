@@ -856,3 +856,325 @@ p {
     flex-direction: column;
   }
 }
+
+/* Accessibility utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Progress Summary Dashboard Banner */
+.dashboard-promo-banner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  background-color: var(--bg-color);
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  margin-bottom: 1.5rem;
+  border-left: 4px solid var(--primary-color);
+}
+
+.dashboard-promo-banner p {
+  margin-bottom: 0;
+  color: var(--text-color);
+}
+
+/* Statistics Dashboard */
+.dashboard-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.dashboard-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.dashboard-header h2 {
+  margin-bottom: 0.25rem;
+}
+
+.dashboard-subtitle {
+  margin-bottom: 0;
+  color: var(--dark-gray);
+}
+
+.dashboard-section {
+  background-color: var(--bg-color);
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-section-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.dashboard-section-header h3 {
+  margin-bottom: 0.25rem;
+}
+
+.dashboard-section-subtitle {
+  margin-bottom: 0;
+  color: var(--dark-gray);
+  font-size: 0.95rem;
+}
+
+.dashboard-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.dashboard-year-select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--medium-gray);
+  border-radius: 4px;
+  background-color: var(--bg-color);
+  font-size: 1rem;
+}
+
+.dashboard-chart-wrapper {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.dashboard-empty-state,
+.dashboard-inline-loading {
+  padding: 2rem 1rem;
+  text-align: center;
+  background-color: var(--light-gray);
+  border-radius: 6px;
+  color: var(--dark-gray);
+}
+
+.dashboard-table-toggle {
+  margin-top: 0.75rem;
+}
+
+.dashboard-table-wrapper {
+  margin-top: 1rem;
+  overflow-x: auto;
+}
+
+/* Activity Heatmap */
+.heatmap-status-bar {
+  font-size: 0.9rem;
+  color: var(--dark-gray);
+  margin-bottom: 0.75rem;
+  min-height: 1.5rem;
+}
+
+.heatmap-scroll-container {
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.heatmap-layout {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.heatmap-weekdays {
+  display: grid;
+  grid-template-rows: repeat(7, 14px);
+  gap: 3px;
+  font-size: 0.7rem;
+  color: var(--dark-gray);
+  line-height: 14px;
+}
+
+.heatmap-grid {
+  display: flex;
+  gap: 3px;
+}
+
+.heatmap-week {
+  display: grid;
+  grid-template-rows: repeat(7, 14px);
+  gap: 3px;
+}
+
+.heatmap-cell,
+.heatmap-cell-placeholder {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.heatmap-cell {
+  border: 1px solid rgba(27, 31, 35, 0.08);
+  padding: 0;
+  cursor: pointer;
+}
+
+.heatmap-cell.level-0 {
+  background-color: #ebedf0;
+}
+
+.heatmap-cell.level-1 {
+  background-color: #c6e48b;
+}
+
+.heatmap-cell.level-2 {
+  background-color: #7bc96f;
+}
+
+.heatmap-cell.level-3 {
+  background-color: #239a3b;
+}
+
+.heatmap-cell.level-4 {
+  background-color: #196127;
+}
+
+.heatmap-cell:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 1px;
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--dark-gray);
+}
+
+/* Book Coverage */
+.coverage-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.coverage-overview-grid .summary-card {
+  box-shadow: none;
+  border: 1px solid var(--medium-gray);
+}
+
+.coverage-chart-wrapper {
+  margin-bottom: 1.5rem;
+}
+
+.coverage-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.coverage-book-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.coverage-book-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1.2fr) minmax(200px, 2fr) auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--light-gray);
+  border-radius: 6px;
+}
+
+.coverage-book-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.coverage-book-name {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.coverage-book-testament {
+  font-size: 0.8rem;
+  color: var(--dark-gray);
+}
+
+.coverage-book-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.coverage-book-bar {
+  margin-top: 0;
+  background-color: #dcdcdc;
+}
+
+.coverage-book-numbers {
+  font-size: 0.85rem;
+  color: var(--dark-gray);
+}
+
+.coverage-book-action {
+  min-width: 100px;
+  text-align: right;
+}
+
+.coverage-continue-link {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.9rem;
+}
+
+.coverage-complete-badge {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.coverage-empty-badge {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background-color: var(--medium-gray);
+  color: var(--dark-gray);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  .coverage-book-row {
+    grid-template-columns: 1fr;
+  }
+
+  .coverage-book-action {
+    text-align: left;
+  }
+}

@@ -1,5 +1,16 @@
 import axios from 'axios';
-import { Verse, User, Progress, Result } from '../types';
+import {
+  ActivityPoint,
+  CoverageData,
+  NextVerseResult,
+  Progress,
+  Result,
+  TrendPoint,
+  TrendRange,
+  User,
+  Verse,
+} from '../types';
+import { CANONICAL_BOOKS } from '../data/books';
 import { mockVerses } from '../data/mockVerses';
 import { mockProgress, mockProgressSummary } from '../data/mockProgress';
 
@@ -184,6 +195,28 @@ export const VerseService = {
       );
     }
   },
+
+  // Get next untyped verse (overall or scoped to a book)
+  getNextVerse: async (book?: string): Promise<NextVerseResult> => {
+    try {
+      if (USE_MOCK_DATA) {
+        const candidates = book
+          ? mockVerses.filter((v) => v.book.toLowerCase() === book.toLowerCase())
+          : mockVerses;
+        return candidates.length > 0
+          ? { complete: false, verse: candidates[0] }
+          : { complete: true, verse: null };
+      }
+
+      const response = await api.get('/verses/next', {
+        params: book ? { book } : undefined,
+      });
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
 };
 
 // Auth Service
@@ -356,6 +389,83 @@ export const ProgressService = {
       };
       
       return { result: mockResult, progress: mockProgress };
+    }
+  },
+};
+
+function getBrowserTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
+export const StatsService = {
+  getTrend: async (range: TrendRange = '30', tz?: string): Promise<TrendPoint[]> => {
+    try {
+      if (USE_MOCK_DATA) {
+        return [];
+      }
+
+      const response = await api.get('/stats/trend', {
+        params: {
+          range,
+          tz: tz || getBrowserTimeZone(),
+        },
+      });
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  getActivity: async (year?: number, tz?: string): Promise<ActivityPoint[]> => {
+    try {
+      if (USE_MOCK_DATA) {
+        return [];
+      }
+
+      const params: Record<string, string | number> = {
+        tz: tz || getBrowserTimeZone(),
+      };
+      if (year !== undefined) {
+        params.year = year;
+      }
+
+      const response = await api.get('/stats/activity', { params });
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  getCoverage: async (): Promise<CoverageData> => {
+    try {
+      if (USE_MOCK_DATA) {
+        return {
+          overall: { totalVerses: 0, completedVerses: 0, percentage: 0 },
+          testaments: [
+            { testament: 'Old Testament', totalVerses: 0, completedVerses: 0, percentage: 0 },
+            { testament: 'New Testament', totalVerses: 0, completedVerses: 0, percentage: 0 },
+          ],
+          books: CANONICAL_BOOKS.map((book, index) => ({
+            book,
+            testament: index < 46 ? 'Old Testament' : 'New Testament',
+            totalVerses: 0,
+            completedVerses: 0,
+            percentage: 0,
+          })),
+        };
+      }
+
+      const response = await api.get('/stats/coverage');
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
     }
   },
 }; 

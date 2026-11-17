@@ -7,6 +7,7 @@ import Register from './components/Register';
 import TypingTest from './components/TypingTest';
 import Progress from './components/Progress';
 import Profile from './components/Profile';
+import { Dashboard } from './components/dashboard';
 import './App.css';
 
 // Create a simple component to handle the check-localstorage page
@@ -29,6 +30,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/typing" element={<TypingTest />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/progress" element={<Progress />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/check-localstorage" element={<CheckLocalStorage />} />

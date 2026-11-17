@@ -20,6 +20,7 @@ jest.mock('../services/api', () => ({
     getRandomVerse: jest.fn(),
     getVersesByBook: jest.fn(),
     getVerseByOrder: jest.fn(),
+    getNextVerse: jest.fn(),
   },
   ProgressService: {
     submitResult: jest.fn(),
@@ -36,6 +37,7 @@ describe('TypingTest', () => {
     (VerseService.getRandomVerse as jest.Mock).mockResolvedValue(mockVerse);
     (VerseService.getVersesByBook as jest.Mock).mockResolvedValue({ data: [mockVerse] });
     (VerseService.getVerseByOrder as jest.Mock).mockResolvedValue(mockVerse);
+    (VerseService.getNextVerse as jest.Mock).mockResolvedValue({ complete: false, verse: mockVerse });
     (ProgressService.submitResult as jest.Mock).mockResolvedValue({});
     (ProgressService.getUserProgress as jest.Mock).mockResolvedValue([]);
     (AuthService.getCurrentUser as jest.Mock).mockReturnValue(null);
@@ -514,5 +516,74 @@ describe('TypingTest', () => {
     );
     expect(ProgressService.getUserProgress).toHaveBeenCalledTimes(1);
     expect(VerseService.getVerseByOrder).toHaveBeenCalledWith(2);
+  });
+
+  it('honors ?book= query param via VerseService.getNextVerse and renders canonical 73 books without duplicate keys', async () => {
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue({ _id: 'user123' });
+    const router = require('react-router-dom');
+    const useLocationSpy = jest
+      .spyOn(router, 'useLocation')
+      .mockReturnValue({ pathname: '/typing', search: '?book=Psalms' });
+
+    const psalmVerse = {
+      ...mockVerse,
+      _id: 'ps1',
+      verseOrder: 13940,
+      book: 'Psalms',
+      chapter: 23,
+      verse: 1,
+      text: 'The LORD is my shepherd.',
+      characters: 24,
+      words: 5,
+    };
+    (VerseService.getNextVerse as jest.Mock).mockResolvedValueOnce({
+      complete: false,
+      verse: psalmVerse,
+    });
+
+    try {
+      render(<TypingTest />);
+
+      const verseDisplay = await screen.findByTestId('verse-display', {}, { timeout: 2000 });
+      expect(verseDisplay).toHaveTextContent(psalmVerse.text);
+      expect(VerseService.getNextVerse).toHaveBeenCalledWith('Psalms');
+
+      const select = screen.getByRole('combobox') as HTMLSelectElement;
+      expect(select.value).toBe('Psalms');
+      // 73 canonical books + 1 placeholder option
+      expect(select.options).toHaveLength(74);
+      const optionValues = Array.from(select.options).map((o) => o.value);
+      expect(new Set(optionValues).size).toBe(optionValues.length);
+      expect(optionValues).toContain('1 John');
+      expect(optionValues).toContain('Tobit');
+    } finally {
+      useLocationSpy.mockRestore();
+    }
+  });
+
+  it('shows book-complete state when VerseService.getNextVerse reports complete', async () => {
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue({ _id: 'user123' });
+    const router = require('react-router-dom');
+    const useLocationSpy = jest
+      .spyOn(router, 'useLocation')
+      .mockReturnValue({ pathname: '/typing', search: '?book=Genesis' });
+
+    (VerseService.getNextVerse as jest.Mock).mockResolvedValueOnce({
+      complete: true,
+      verse: null,
+    });
+
+    try {
+      render(<TypingTest />);
+
+      const completeState = await screen.findByTestId('book-complete-state', {}, { timeout: 2000 });
+      expect(completeState).toHaveTextContent('Genesis Complete!');
+      expect(screen.getByRole('link', { name: /Back to Dashboard/i })).toHaveAttribute(
+        'href',
+        '/dashboard'
+      );
+    } finally {
+      useLocationSpy.mockRestore();
+    }
   });
 });
