@@ -58,10 +58,10 @@ development_status:
   3-4-hardening: done
   epic-3-retrospective: optional
 
-  epic-4: backlog
-  4-1-azure-resources-and-runbook: backlog
-  4-2-database-initialization-and-verse-import-in-azure: backlog
-  4-3-entra-sign-in-and-owner-only-access: backlog
-  4-4-deploy-pipeline: backlog
+  epic-4: in-progress
+  4-1-azure-resources-and-runbook: done
+  4-2-database-initialization-and-verse-import-in-azure: done
+  4-3-entra-sign-in-and-owner-only-access: done
+  4-4-deploy-pipeline: in-progress
   4-5-custom-domain-tls-and-live-acceptance: backlog
   epic-4-retrospective: optional

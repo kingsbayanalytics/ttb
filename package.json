@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Type the Bible - A web application for typing Bible verses",
   "scripts": {
+    "start": "node server/dist/index.js",
     "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
     "server:dev": "cd server && npm run dev",
     "client:dev": "cd client && npm start",
@@ -11,6 +12,8 @@
     "build": "cd server && npm run build && cd ../client && npm run build",
     "typecheck": "cd server && npm run typecheck && cd ../client && npm run typecheck",
     "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "db:init": "cd server && npm run db:init",
+    "import-data": "cd server && npm run import-data",
     "test": "cd server && npm test && cd ../client && npm test"
   },
   "devDependencies": {

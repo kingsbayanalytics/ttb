@@ -9,6 +9,7 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "jest --detectOpenHandles",
+    "db:init": "ts-node src/utils/initDb.ts",
     "import-data": "ts-node src/utils/importData.ts",
     "spike:db": "ts-node src/scripts/azureSpike.ts"
   },
