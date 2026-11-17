@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User } from '../types';
 import { AuthService } from '../services/api';
+import { useAuthSession } from '../context/AuthContext';
 
 const Profile: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -14,23 +15,27 @@ const Profile: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [updating, setUpdating] = useState<boolean>(false);
   
+  const { mode, user: sessionUser, loading: authLoading } = useAuthSession();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Get current user
-    const currentUser = AuthService.getCurrentUser();
-    
-    // Redirect to login if not authenticated
-    if (!currentUser) {
+    if (authLoading) {
+      return;
+    }
+
+    // Redirect to login if not authenticated in local mode
+    if (mode !== 'entra' && !sessionUser) {
       navigate('/login');
       return;
     }
-    
-    setUser(currentUser);
-    setUsername(currentUser.username);
-    setEmail(currentUser.email);
+
+    if (sessionUser) {
+      setUser(sessionUser);
+      setUsername(sessionUser.username);
+      setEmail(sessionUser.email);
+    }
     setLoading(false);
-  }, [navigate]);
+  }, [authLoading, mode, sessionUser, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,30 +130,34 @@ const Profile: React.FC = () => {
           />
         </div>
         
-        <div className="form-group">
-          <label htmlFor="password">New Password (leave blank to keep current)</label>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter new password"
-            disabled={updating}
-            minLength={6}
-          />
-        </div>
-        
-        <div className="form-group">
-          <label htmlFor="confirmPassword">Confirm New Password</label>
-          <input
-            type="password"
-            id="confirmPassword"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="Confirm new password"
-            disabled={updating || !password}
-          />
-        </div>
+        {mode !== 'entra' && (
+          <>
+            <div className="form-group">
+              <label htmlFor="password">New Password (leave blank to keep current)</label>
+              <input
+                type="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter new password"
+                disabled={updating}
+                minLength={6}
+              />
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="confirmPassword">Confirm New Password</label>
+              <input
+                type="password"
+                id="confirmPassword"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+                disabled={updating || !password}
+              />
+            </div>
+          </>
+        )}
         
         <button 
           type="submit" 

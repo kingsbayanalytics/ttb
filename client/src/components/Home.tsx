@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { AuthService } from '../services/api';
+import { useAuthSession } from '../context/AuthContext';
 
 const Home: React.FC = () => {
-  const user = AuthService.getCurrentUser();
+  const { mode, user } = useAuthSession();
 
   return (
     <div className="home-container">
@@ -12,9 +12,9 @@ const Home: React.FC = () => {
         <p className="subtitle">
           Improve your typing skills while engaging with scripture
         </p>
-        
+
         <div className="cta-buttons">
-          {user ? (
+          {mode === 'entra' || user ? (
             <>
               <Link to="/typing" className="primary-button">
                 Start Typing
@@ -41,17 +41,17 @@ const Home: React.FC = () => {
           <h3>Bible Verses</h3>
           <p>Practice typing with verses from the World English Bible Catholic Edition</p>
         </div>
-        
+
         <div className="feature-card">
           <h3>Track Progress</h3>
           <p>Monitor your typing speed and accuracy across different verses</p>
         </div>
-        
+
         <div className="feature-card">
           <h3>Interactive Statistics</h3>
           <p>View detailed statistics about your typing performance</p>
         </div>
-        
+
         <div className="feature-card">
           <h3>Verse Selection</h3>
           <p>Choose verses randomly, sequentially, or from specific books</p>
@@ -71,4 +71,4 @@ const Home: React.FC = () => {
   );
 };
 
-export default Home; 
+export default Home;

@@ -3,7 +3,7 @@ import path from 'path';
 import csv from 'csv-parser';
 import mongoose from 'mongoose';
 import type { AnyBulkWriteOperation, BulkWriteOptions, BulkWriteResult } from 'mongodb';
-import dotenv from 'dotenv';
+import { config } from '../config';
 import { Verse } from '../models';
 import { IVerse } from '../models/Verse';
 import { mapUsfmBookCode } from './bookMapping';
@@ -428,8 +428,12 @@ export async function importVerses(options: ImportVersesOptions = {}): Promise<I
 }
 
 async function runCli(): Promise<void> {
-  dotenv.config();
-  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/type-the-bible';
+  const uri = config.mongodbUri;
+  if (!uri) {
+    console.error('Error importing verses: MONGODB_URI is required');
+    process.exitCode = 1;
+    return;
+  }
 
   try {
     const conn = await mongoose.connect(uri);

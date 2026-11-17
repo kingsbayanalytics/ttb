@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { config } from '../config';
 
 /**
  * Custom error class for API errors
@@ -31,7 +32,8 @@ export const errorMiddleware = (err: any, req: Request, res: Response, next: Nex
   res.status(statusCode).json({
     success: false,
     error: message,
-    stack: process.env.NODE_ENV === 'production' ? null : err.stack
+    message,
+    stack: config.isProduction ? null : err.stack
   });
 };
 

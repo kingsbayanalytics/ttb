@@ -1,6 +1,6 @@
 import { performance } from 'perf_hooks';
 import mongoose from 'mongoose';
-import dotenv from 'dotenv';
+import { config } from '../config';
 import { Progress, Result, User, Verse } from '../models';
 import { isRetryableWriteError, extractRetryAfterMs } from '../utils/importData';
 
@@ -447,8 +447,12 @@ export async function runAzureSpike(
 }
 
 async function main(): Promise<void> {
-  dotenv.config();
-  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/type-the-bible';
+  const uri = config.mongodbUri;
+  if (!uri) {
+    console.error('Azure spike error: MONGODB_URI is required');
+    process.exitCode = 1;
+    return;
+  }
 
   try {
     const conn = await mongoose.connect(uri);

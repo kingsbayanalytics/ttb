@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Verse } from '../types';
-import { VerseService, ProgressService, AuthService } from '../services/api';
+import { VerseService, ProgressService } from '../services/api';
+import { useAuthSession } from '../context/AuthContext';
 import {
   countIncorrectCharacters,
   calculateAccuracy,
@@ -31,7 +32,7 @@ const TypingTest: React.FC = () => {
   
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
-  const user = AuthService.getCurrentUser();
+  const { user } = useAuthSession();
 
   // Load a verse on component mount
   useEffect(() => {

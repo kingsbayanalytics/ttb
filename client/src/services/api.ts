@@ -4,8 +4,31 @@ import { mockVerses } from '../data/mockVerses';
 import { mockProgress, mockProgressSummary } from '../data/mockProgress';
 
 // Configurable API settings 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_URL =
+  process.env.REACT_APP_API_URL ||
+  (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api');
 const USE_MOCK_DATA = process.env.REACT_APP_USE_MOCK_DATA === 'true' || false;
+
+export type AuthMode = 'local' | 'entra';
+
+export interface AuthSession {
+  mode: AuthMode;
+  user: User | null;
+}
+
+let cachedAuthSession: AuthSession | null = null;
+let pendingAuthSession: Promise<AuthSession> | null = null;
+
+const notifyAuthChange = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('ttb-auth-change'));
+  }
+};
+
+export const resetAuthSessionCache = () => {
+  cachedAuthSession = null;
+  pendingAuthSession = null;
+};
 
 // Create axios instance with auth header
 const api = axios.create({
@@ -36,15 +59,25 @@ const handleApiError = (error: any) => {
   }
 };
 
-// Interceptor to add auth token
+export function attachAuthHeader<T extends { headers?: Record<string, any> }>(
+  requestConfig: T,
+  mode: AuthMode,
+  token: string | null
+): T {
+  if (mode !== 'entra' && token && requestConfig.headers) {
+    requestConfig.headers.Authorization = `Bearer ${token}`;
+  }
+  return requestConfig;
+}
+
+// Interceptor to add auth token (local mode only)
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('userToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
+  (config) =>
+    attachAuthHeader(
+      config,
+      cachedAuthSession?.mode ?? 'local',
+      localStorage.getItem('userToken')
+    ),
   (error) => Promise.reject(error)
 );
 
@@ -186,8 +219,73 @@ export const VerseService = {
   },
 };
 
+const readStoredLocalUser = (): User | null => {
+  const userDataString = localStorage.getItem('userData');
+  if (userDataString) {
+    try {
+      return JSON.parse(userDataString);
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+      return null;
+    }
+  }
+  return null;
+};
+
 // Auth Service
 export const AuthService = {
+  // Fetch auth mode and (in entra mode) owner session from server
+  getAuthSession: async (forceRefresh = false): Promise<AuthSession> => {
+    if (!forceRefresh && cachedAuthSession) {
+      return cachedAuthSession;
+    }
+    if (!forceRefresh && pendingAuthSession) {
+      return pendingAuthSession;
+    }
+
+    const request = (async (): Promise<AuthSession> => {
+      try {
+        const response = await api.get('/auth/mode');
+        const payload = response?.data?.data;
+        if (payload?.mode === 'entra') {
+          const session: AuthSession = {
+            mode: 'entra',
+            user: payload.user ?? null,
+          };
+          cachedAuthSession = session;
+          return session;
+        }
+        const session: AuthSession = {
+          mode: 'local',
+          user: readStoredLocalUser(),
+        };
+        cachedAuthSession = session;
+        return session;
+      } catch (_error) {
+        return {
+          mode: 'local',
+          user: readStoredLocalUser(),
+        };
+      } finally {
+        pendingAuthSession = null;
+      }
+    })();
+
+    pendingAuthSession = request;
+    return request;
+  },
+
+  // Get auth mode ('local' | 'entra')
+  getAuthMode: async (): Promise<AuthMode> => {
+    const session = await AuthService.getAuthSession();
+    return session.mode;
+  },
+
+  // Synchronously read cached auth mode (defaults to 'local')
+  getCachedAuthMode: (): AuthMode => {
+    return cachedAuthSession?.mode ?? 'local';
+  },
+
   // Register a new user
   register: async (username: string, email: string, password: string): Promise<User> => {
     try {
@@ -212,6 +310,10 @@ export const AuthService = {
       if (userData.token) {
         localStorage.setItem('userToken', userData.token);
         localStorage.setItem('userData', JSON.stringify(userData));
+        if (cachedAuthSession?.mode === 'local') {
+          cachedAuthSession = { mode: 'local', user: userData };
+        }
+        notifyAuthChange();
       }
       
       return userData;
@@ -226,20 +328,18 @@ export const AuthService = {
   logout: () => {
     localStorage.removeItem('userToken');
     localStorage.removeItem('userData');
+    if (cachedAuthSession?.mode === 'local') {
+      cachedAuthSession = { mode: 'local', user: null };
+    }
+    notifyAuthChange();
   },
 
-  // Get current user from localStorage
+  // Get current user (owner session in entra mode, localStorage in local mode)
   getCurrentUser: (): User | null => {
-    const userDataString = localStorage.getItem('userData');
-    if (userDataString) {
-      try {
-        return JSON.parse(userDataString);
-      } catch (error) {
-        console.error('Error parsing user data:', error);
-        return null;
-      }
+    if (cachedAuthSession?.mode === 'entra') {
+      return cachedAuthSession.user;
     }
-    return null;
+    return readStoredLocalUser();
   },
 
   // Get user profile
@@ -262,7 +362,15 @@ export const AuthService = {
       const currentUser = AuthService.getCurrentUser();
       if (currentUser) {
         const updatedUser = { ...currentUser, ...response.data.data };
-        localStorage.setItem('userData', JSON.stringify(updatedUser));
+        if (cachedAuthSession?.mode === 'entra') {
+          cachedAuthSession = { mode: 'entra', user: updatedUser };
+        } else {
+          localStorage.setItem('userData', JSON.stringify(updatedUser));
+          if (cachedAuthSession?.mode === 'local') {
+            cachedAuthSession = { mode: 'local', user: updatedUser };
+          }
+        }
+        notifyAuthChange();
       }
       
       return response.data.data;
