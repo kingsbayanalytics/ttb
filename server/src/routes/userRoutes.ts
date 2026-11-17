@@ -1,24 +1,32 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import {
   registerUser,
   loginUser,
   getUserProfile,
   updateUserProfile
 } from '../controllers/userController';
-import { protect } from '../middleware/authMiddleware';
+import { authenticate, getActiveConfig } from '../middleware/authMiddleware';
+import { ApiError } from '../utils/errorHandler';
 
 const router = express.Router();
 
-// Register a new user
-router.post('/', registerUser);
+const requireLocalAuthMode = (req: Request, _res: Response, next: NextFunction) => {
+  if (getActiveConfig(req).authMode === 'entra') {
+    return next(new ApiError(`Not Found - ${req.originalUrl}`, 404));
+  }
+  return next();
+};
 
-// Login user
-router.post('/login', loginUser);
+// Register a new user (disabled in entra mode)
+router.post('/', requireLocalAuthMode, registerUser);
+
+// Login user (disabled in entra mode)
+router.post('/login', requireLocalAuthMode, loginUser);
 
 // Get user profile
-router.get('/profile', protect, getUserProfile);
+router.get('/profile', authenticate, getUserProfile);
 
 // Update user profile
-router.put('/profile', protect, updateUserProfile);
+router.put('/profile', authenticate, updateUserProfile);
 
 export default router;

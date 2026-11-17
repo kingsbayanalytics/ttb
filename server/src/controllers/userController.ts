@@ -2,10 +2,14 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { User } from '../models';
 import { asyncHandler, ApiError } from '../utils/errorHandler';
+import { getActiveConfig } from '../middleware/authMiddleware';
 
 // Generate JWT token
-const generateToken = (id: string) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'fallback_secret', {
+const generateToken = (id: string, jwtSecret?: string) => {
+  if (!jwtSecret) {
+    throw new ApiError('Server JWT configuration missing', 500);
+  }
+  return jwt.sign({ id }, jwtSecret, {
     expiresIn: '30d'
   });
 };
@@ -13,9 +17,10 @@ const generateToken = (id: string) => {
 /**
  * @desc    Register a new user
  * @route   POST /api/users
- * @access  Public
+ * @access  Public (local mode only)
  */
 export const registerUser = asyncHandler(async (req: Request, res: Response) => {
+  const activeConfig = getActiveConfig(req);
   const { username, email, password } = req.body;
 
   // Check if user already exists
@@ -40,7 +45,7 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
         username: user.username,
         email: user.email,
         isAdmin: user.isAdmin,
-        token: generateToken(user._id.toString())
+        token: generateToken(user._id.toString(), activeConfig.jwtSecret)
       }
     });
   } else {
@@ -51,9 +56,10 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
 /**
  * @desc    Authenticate user & get token
  * @route   POST /api/users/login
- * @access  Public
+ * @access  Public (local mode only)
  */
 export const loginUser = asyncHandler(async (req: Request, res: Response) => {
+  const activeConfig = getActiveConfig(req);
   const { email, password } = req.body;
 
   // Check for user email
@@ -67,7 +73,7 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
         username: user.username,
         email: user.email,
         isAdmin: user.isAdmin,
-        token: generateToken(user._id.toString())
+        token: generateToken(user._id.toString(), activeConfig.jwtSecret)
       }
     });
   } else {
@@ -81,7 +87,6 @@ export const loginUser = asyncHandler(async (req: Request, res: Response) => {
  * @access  Private
  */
 export const getUserProfile = asyncHandler(async (req: Request, res: Response) => {
-  // req.user is set by the auth middleware
   const user = await User.findById((req as any).user._id).select('-password');
 
   if (user) {
@@ -100,13 +105,14 @@ export const getUserProfile = asyncHandler(async (req: Request, res: Response) =
  * @access  Private
  */
 export const updateUserProfile = asyncHandler(async (req: Request, res: Response) => {
+  const activeConfig = getActiveConfig(req);
   const user = await User.findById((req as any).user._id);
 
   if (user) {
     user.username = req.body.username || user.username;
     user.email = req.body.email || user.email;
-    
-    if (req.body.password) {
+
+    if (req.body.password && activeConfig.authMode !== 'entra') {
       user.password = req.body.password;
     }
 
@@ -119,7 +125,9 @@ export const updateUserProfile = asyncHandler(async (req: Request, res: Response
         username: updatedUser.username,
         email: updatedUser.email,
         isAdmin: updatedUser.isAdmin,
-        token: generateToken(updatedUser._id.toString())
+        ...(activeConfig.authMode === 'local'
+          ? { token: generateToken(updatedUser._id.toString(), activeConfig.jwtSecret) }
+          : {})
       }
     });
   } else {

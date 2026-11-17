@@ -141,6 +141,13 @@ p {
   font-weight: 500;
 }
 
+.nav-user {
+  color: var(--medium-gray);
+  font-weight: 600;
+  padding: 0.5rem 0;
+  display: inline-block;
+}
+
 .mobile-menu-icon {
   display: none;
   cursor: pointer;

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthService } from '../services/api';
+import { useAuthSession } from '../context/AuthContext';
 
 const Navbar: React.FC = () => {
-  const user = AuthService.getCurrentUser();
+  const { mode, user } = useAuthSession();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -39,14 +40,14 @@ const Navbar: React.FC = () => {
               Home
             </Link>
           </li>
-          
+
           <li className="nav-item">
             <Link to="/typing" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
               Start Typing
             </Link>
           </li>
-          
-          {user ? (
+
+          {mode === 'entra' ? (
             <>
               <li className="nav-item">
                 <Link to="/dashboard" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
@@ -59,13 +60,49 @@ const Navbar: React.FC = () => {
                   Progress
                 </Link>
               </li>
-              
+
               <li className="nav-item">
                 <Link to="/profile" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
                   Profile
                 </Link>
               </li>
-              
+
+              <li className="nav-item">
+                <span className="nav-user" data-testid="navbar-owner-name">
+                  {user?.username || 'Owner'}
+                </span>
+              </li>
+
+              <li className="nav-item">
+                <a
+                  href="/.auth/logout"
+                  className="nav-link logout-button"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Sign out
+                </a>
+              </li>
+            </>
+          ) : user ? (
+            <>
+              <li className="nav-item">
+                <Link to="/dashboard" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+                  Dashboard
+                </Link>
+              </li>
+
+              <li className="nav-item">
+                <Link to="/progress" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+                  Progress
+                </Link>
+              </li>
+
+              <li className="nav-item">
+                <Link to="/profile" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+                  Profile
+                </Link>
+              </li>
+
               <li className="nav-item">
                 <button onClick={handleLogout} className="nav-link logout-button">
                   Logout
@@ -79,7 +116,7 @@ const Navbar: React.FC = () => {
                   Login
                 </Link>
               </li>
-              
+
               <li className="nav-item">
                 <Link to="/register" className="nav-link register-button" onClick={() => setMobileMenuOpen(false)}>
                   Register
@@ -93,4 +130,4 @@ const Navbar: React.FC = () => {
   );
 };
 
-export default Navbar; 
+export default Navbar;

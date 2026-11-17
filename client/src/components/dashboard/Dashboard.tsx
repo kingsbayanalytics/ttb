@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AuthService, StatsService } from '../../services/api';
+import { useAuthSession } from '../../context/AuthContext';
+import { StatsService } from '../../services/api';
 import { ActivityPoint, CoverageData, TrendPoint, TrendRange } from '../../types';
 import ActivityHeatmap from './ActivityHeatmap';
 import BookCoverage from './BookCoverage';
@@ -33,7 +34,7 @@ const Dashboard: React.FC = () => {
   const [activityLoading, setActivityLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const user = useMemo(() => AuthService.getCurrentUser(), []);
+  const { mode, user, loading: authLoading } = useAuthSession();
   const navigate = useNavigate();
 
   const loadDashboard = useCallback(async () => {
@@ -57,7 +58,11 @@ const Dashboard: React.FC = () => {
   }, [range, year]);
 
   useEffect(() => {
-    if (!user) {
+    if (authLoading) {
+      return;
+    }
+
+    if (mode !== 'entra' && !user) {
       navigate('/login');
       return;
     }
@@ -93,7 +98,7 @@ const Dashboard: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [user, navigate, currentYear]);
+  }, [authLoading, mode, user, navigate, currentYear]);
 
   const handleRangeChange = async (nextRange: TrendRange) => {
     setRange(nextRange);

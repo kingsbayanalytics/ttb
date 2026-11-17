@@ -1,13 +1,7 @@
-import express from 'express';
-import cors from 'cors';
-import morgan from 'morgan';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import verseRoutes from '../routes/verseRoutes';
-import userRoutes from '../routes/userRoutes';
-import progressRoutes from '../routes/progressRoutes';
-import statsRoutes from '../routes/statsRoutes';
-import { errorMiddleware, notFound } from '../utils/errorHandler';
+import { config, AppConfig } from '../config';
+import { createApp, CreateAppOptions } from '../index';
 
 let mongoServer: MongoMemoryServer | null = null;
 
@@ -41,22 +35,9 @@ export const disconnectTestDB = async () => {
   }
 };
 
-export const setupTestApp = () => {
-  const app = express();
-
-  app.use(cors());
-  app.use(express.json());
-  app.use(morgan('dev'));
-
-  // API Routes
-  app.use('/api/verses', verseRoutes);
-  app.use('/api/users', userRoutes);
-  app.use('/api/progress', progressRoutes);
-  app.use('/api/stats', statsRoutes);
-
-  // Error handling middleware
-  app.use(notFound);
-  app.use(errorMiddleware);
-
-  return app;
+export const setupTestApp = (
+  configOverrides: Partial<AppConfig> = {},
+  options: CreateAppOptions = {}
+) => {
+  return createApp({ ...config, ...configOverrides }, options);
 };

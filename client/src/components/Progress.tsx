@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Progress as ProgressType } from '../types';
-import { ProgressService, AuthService } from '../services/api';
+import { ProgressService } from '../services/api';
+import { useAuthSession } from '../context/AuthContext';
 
 const Progress: React.FC = () => {
   const [progress, setProgress] = useState<ProgressType[]>([]);
@@ -10,18 +11,22 @@ const Progress: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'summary' | 'recent' | 'all'>('summary');
   
-  const user = useMemo(() => AuthService.getCurrentUser(), []);
+  const { mode, user, loading: authLoading } = useAuthSession();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Redirect to login if not authenticated
-    if (!user) {
+    if (authLoading) {
+      return;
+    }
+
+    // Redirect to login if not authenticated in local mode
+    if (mode !== 'entra' && !user) {
       navigate('/login');
       return;
     }
     
     fetchProgressData();
-  }, [user, navigate]);
+  }, [authLoading, mode, user, navigate]);
 
   const fetchProgressData = async () => {
     try {

@@ -8,7 +8,8 @@ import bcrypt from 'bcrypt';
 export interface IUser {
   username: string;
   email: string;
-  password: string;
+  password?: string;
+  entraOid?: string;
   isAdmin: boolean;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
@@ -30,8 +31,16 @@ const userSchema = new mongoose.Schema<IUser>(
     },
     password: {
       type: String,
-      required: true,
+      required: function (this: IUser) {
+        return !this.entraOid;
+      },
       minlength: 6
+    },
+    entraOid: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true
     },
     isAdmin: {
       type: Boolean,
@@ -46,7 +55,7 @@ const userSchema = new mongoose.Schema<IUser>(
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
+  if (!this.isModified('password') || !this.password) {
     return next();
   }
 
@@ -61,9 +70,12 @@ userSchema.pre('save', async function (next) {
 
 // Compare password method
 userSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
+  if (!this.password) {
+    return false;
+  }
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-const User = mongoose.model<IUser>('User', userSchema);
+const User = mongoose.models.User || mongoose.model<IUser>('User', userSchema);
 
-export default User; 
+export default User;
