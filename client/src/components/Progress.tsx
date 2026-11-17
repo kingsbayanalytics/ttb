@@ -21,7 +21,7 @@ const Progress: React.FC = () => {
     }
     
     fetchProgressData();
-  }, [user]);
+  }, [user, navigate]);
 
   const fetchProgressData = async () => {
     try {

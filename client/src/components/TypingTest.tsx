@@ -21,8 +21,7 @@ const TypingTest: React.FC = () => {
   const [accuracy, setAccuracy] = useState<number>(0);
   const [verseSelectionMode, setVerseSelectionMode] = useState<'random' | 'book' | 'sequential'>('random');
   const [selectedBook, setSelectedBook] = useState<string>('');
-  const [selectedChapter, setSelectedChapter] = useState<number>(1);
-  const [availableBooks, setAvailableBooks] = useState<string[]>([
+  const [availableBooks] = useState<string[]>([
     'Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 
     'Matthew', 'Mark', 'Luke', 'John', 'Acts',
     'Romans', 'Corinthians', 'Galatians', 'Ephesians', 'Philippians',
@@ -37,6 +36,7 @@ const TypingTest: React.FC = () => {
   // Load a verse on component mount
   useEffect(() => {
     fetchVerse();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Focus the textarea when verse is loaded

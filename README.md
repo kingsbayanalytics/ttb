@@ -271,11 +271,10 @@ npm start
 
 1. Configure `server/.env` with `NODE_ENV=production` and replace `JWT_SECRET` with a secure secret.
 
-2. Build the client and server:
+2. Build both the server and client from the repository root:
 
 ```bash
-cd client && npm run build
-cd ../server && npm run build
+npm run build
 ```
 
 3. Start the server in production mode:
@@ -284,6 +283,30 @@ cd ../server && npm run build
 cd server
 npm start
 ```
+
+## CI & Branch Protection
+
+GitHub Actions runs the [CI workflow](.github/workflows/ci.yml) on every push and pull request targeting `main` using Node.js 22 with `CI=true`:
+
+1. Install dependencies across root, `server/`, and `client/` (`npm ci`).
+2. Run TypeScript checks across `server/` and `client/` (`npm run typecheck`).
+3. Run server and client test suites (`npm test`).
+4. Build both `server/` and `client/` (`npm run build`, treating any CRA ESLint warning as an error under `CI=true`).
+
+To run the same verification checks locally before opening a pull request:
+
+```bash
+npm run typecheck
+CI=true npm test
+CI=true npm run build
+```
+
+To enforce passing checks before merging into `main`, configure a GitHub branch protection rule (or ruleset) on `main`:
+
+1. Open **Settings → Branches** (or **Settings → Rules → Rulesets**) in the GitHub repository.
+2. Target the `main` branch.
+3. Enable **Require a pull request before merging**.
+4. Enable **Require status checks to pass before merging** and add the **`CI`** status check as required.
 
 ## API Endpoints
 

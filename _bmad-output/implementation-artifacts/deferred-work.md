@@ -25,3 +25,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/1-3-repair-the-client-test-suite.md`
   summary: Fix duplicate `'John'` key in `TypingTest.tsx` `availableBooks`, compute live WPM while typing, and expand `TypingTest.test.tsx` branch coverage (`View Progress`, book errors, sequential fallback).
   evidence: Verified pre-existing in `TypingTest.tsx` and `TypingTest.test.tsx`.
+- source_spec: `_bmad-output/implementation-artifacts/1-5-ci-pipeline.md`
+  summary: Add component tests and unmount abort cleanup for `client/src/components/Progress.tsx` (or supersede during Epic 2 Dashboard work).
+  evidence: Pre-existing lack of `Progress.test.tsx`; `Progress.tsx:24` `useEffect` invokes `fetchProgressData` without an abort guard.
+- source_spec: `_bmad-output/implementation-artifacts/1-5-ci-pipeline.md`
+  summary: Evaluate adding explicit ESLint checks across `server/` and `client/` test files in CI.
+  evidence: Currently ESLint runs only via CRA `react-scripts build` on bundled `client/src` (`server/` has no ESLint config).
