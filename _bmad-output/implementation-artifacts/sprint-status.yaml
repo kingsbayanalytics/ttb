@@ -29,17 +29,17 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 11-16-2026 10:23
-last_updated: 11-17-2026 10:29
+last_updated: 11-17-2026 11:57
 project: Typing the Bible
 project_key: NOKEY
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
 development_status:
-  epic-1: in-progress
+  epic-1: done
   1-1-clean-the-repo: done
   1-2-server-tests-on-an-in-memory-database: done
   1-3-repair-the-client-test-suite: done
-  1-4-azure-data-path-spike: backlog
+  1-4-azure-data-path-spike: done
   1-5-ci-pipeline: done
   epic-1-retrospective: optional
 

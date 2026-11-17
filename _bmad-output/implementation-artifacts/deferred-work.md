@@ -31,3 +31,12 @@
 - source_spec: `_bmad-output/implementation-artifacts/1-5-ci-pipeline.md`
   summary: Evaluate adding explicit ESLint checks across `server/` and `client/` test files in CI.
   evidence: Currently ESLint runs only via CRA `react-scripts build` on bundled `client/src` (`server/` has no ESLint config).
+- source_spec: `_bmad-output/implementation-artifacts/1-4-azure-data-path-spike.md`
+  summary: Align `client/src/components/TypingTest.tsx` `availableBooks` and `client/src/data/mockVerses.ts` (`Psalm`) with the 73 canonical book names in `server/src/utils/bookMapping.ts`.
+  evidence: Verified `bookMapping.ts` stores canonical names (`Psalms`, `1 Corinthians`, `Tobit`, etc.) while `TypingTest.tsx:25-31` hardcodes `Corinthians`, `Thessalonians`, `Timothy`, `Peter`, and duplicate `John` (owned by Epic 2 Book Coverage).
+- source_spec: `_bmad-output/implementation-artifacts/1-4-azure-data-path-spike.md`
+  summary: Document `retrywrites=false`, `serverVersion: "7.0"`, and `az rest` (`Microsoft.DocumentDB/mongoClusters` `2024-07-01`) Free-tier provisioning details in Epic 4 `docs/deployment.md`.
+  evidence: Observed during live Story 1.4 provisioning of `ttb-cosmos-vcore` in `eastus2`.
+- source_spec: `_bmad-output/implementation-artifacts/1-4-azure-data-path-spike.md`
+  summary: Note that `azureSpike.ts` had a post-Azure `cleanupMs` ordering edit verified via `mongodb-memory-server` (`azureSpike.test.ts`), and `main()` / `insertBatchWithRetry` CLI wrapper lack mocked unit tests.
+  evidence: Live firewall rule was removed before that final 3-line refactor; all aggregation stages themselves were unchanged.
