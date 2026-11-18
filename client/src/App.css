@@ -397,18 +397,19 @@
 
   .navbar-title-group {
     display: flex;
-    align-items: baseline;
-    gap: 0.75rem;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 0.05rem;
   }
 
   .navbar-logo {
     color: var(--ink-primary);
     text-decoration: none;
     font-family: var(--font-serif);
-    font-size: 1.35rem;
+    font-size: 1.3rem;
     font-weight: 500;
     letter-spacing: -0.02em;
+    line-height: 1.15;
+    white-space: nowrap;
     transition: color 0.15s ease;
   }
 
@@ -418,13 +419,14 @@
 
   .navbar-subtitle {
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: 0.62rem;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     color: var(--ink-muted);
+    white-space: nowrap;
   }
 
-  @media (max-width: 1024px) {
+  @media (max-width: 1120px) {
     .navbar-subtitle {
       display: none;
     }
@@ -434,8 +436,8 @@
     display: flex;
     align-items: center;
     list-style: none;
-    gap: 0.35rem;
-    flex-wrap: wrap;
+    gap: 0.25rem;
+    flex-wrap: nowrap;
   }
 
   .nav-item {
@@ -447,10 +449,11 @@
     color: var(--ink-secondary);
     text-decoration: none;
     font-family: var(--font-mono);
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     font-weight: 500;
-    letter-spacing: 0.03em;
-    padding: 0.4rem 0.65rem;
+    letter-spacing: 0.02em;
+    padding: 0.35rem 0.55rem;
+    white-space: nowrap;
     border: 1px solid transparent;
     transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
   }

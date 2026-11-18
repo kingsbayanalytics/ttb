@@ -33,6 +33,7 @@ export function createApp(
           'script-src': [
             "'self'",
             "'sha256-4bOLYhNW9l8wdl1cImo9FJKWTTIJDdzQ3TUUdsvCOHY='",
+            "'sha256-eM2JixU4NUy+JxIoa9C5h/tQntwSWTve8CQ4B8/icoo='",
           ],
         },
       },
