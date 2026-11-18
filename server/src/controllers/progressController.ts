@@ -107,7 +107,9 @@ export const submitResult = asyncHandler(async (req: Request, res: Response) => 
     cps,
     accuracy,
     incorrectCharacters,
-    totalCharacters
+    totalCharacters,
+    missedChars,
+    missedWords,
   } = req.body;
 
   // Validate the verse exists
@@ -122,6 +124,40 @@ export const submitResult = asyncHandler(async (req: Request, res: Response) => 
     throw new ApiError('Verse not found', 404);
   }
 
+  const sanitizedMissedChars = Array.isArray(missedChars)
+    ? missedChars
+        .filter(
+          (item: any) =>
+            item &&
+            typeof item.char === 'string' &&
+            item.char.length > 0 &&
+            typeof item.count === 'number' &&
+            item.count > 0
+        )
+        .slice(0, 64)
+        .map((item: { char: string; count: number }) => ({
+          char: item.char.slice(0, 4),
+          count: Math.floor(item.count),
+        }))
+    : [];
+
+  const sanitizedMissedWords = Array.isArray(missedWords)
+    ? missedWords
+        .filter(
+          (item: any) =>
+            item &&
+            typeof item.word === 'string' &&
+            item.word.trim().length > 0 &&
+            typeof item.count === 'number' &&
+            item.count > 0
+        )
+        .slice(0, 64)
+        .map((item: { word: string; count: number }) => ({
+          word: item.word.trim().slice(0, 64),
+          count: Math.floor(item.count),
+        }))
+    : [];
+
   // Create the result
   const result = await Result.create({
     user: req.user._id,
@@ -134,7 +170,9 @@ export const submitResult = asyncHandler(async (req: Request, res: Response) => 
     cps,
     accuracy,
     incorrectCharacters,
-    totalCharacters
+    totalCharacters,
+    missedChars: sanitizedMissedChars,
+    missedWords: sanitizedMissedWords,
   });
 
   // Update or create progress record

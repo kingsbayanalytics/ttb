@@ -1,7 +1,9 @@
 import {
   buildActivity,
   buildCoverage,
+  buildStreaksAndBadges,
   buildTrend,
+  buildWeaknessReport,
   isValidTimeZone,
   isValidTrendRange,
 } from '../services/stats';
@@ -252,6 +254,133 @@ describe('stats service (Story 2.1 pure functions)', () => {
         completedVerses: 1,
         percentage: 25,
       });
+    });
+  });
+
+  describe('buildWeaknessReport (Epic 6)', () => {
+    it('aggregates top missed characters/punctuation and words and builds a suggested drill', () => {
+      const report = buildWeaknessReport([
+        {
+          missedChars: [
+            { char: ';', count: 3 },
+            { char: "'", count: 2 },
+          ],
+          missedWords: [
+            { word: 'righteousness', count: 2 },
+            { word: "doesn't", count: 1 },
+          ],
+        },
+        {
+          missedChars: [
+            { char: ';', count: 2 },
+            { char: 'e', count: 4 },
+          ],
+          missedWords: [
+            { word: 'righteousness', count: 3 },
+            { word: 'counsel', count: 2 },
+          ],
+        },
+        {
+          missedChars: [],
+          missedWords: [],
+        },
+      ]);
+
+      expect(report.totalTrackedAttempts).toBe(2);
+      expect(report.topCharacters).toEqual([
+        { char: ';', label: 'Semicolon (;)', count: 5 },
+        { char: 'e', label: 'e', count: 4 },
+        { char: "'", label: "Apostrophe (')", count: 2 },
+      ]);
+      expect(report.topWords).toEqual([
+        { word: 'righteousness', count: 5 },
+        { word: 'counsel', count: 2 },
+        { word: "doesn't", count: 1 },
+      ]);
+      expect(report.suggestedDrillText).toBe(
+        "righteousness counsel doesn't righteousness counsel doesn't"
+      );
+    });
+
+    it('returns empty collections when no error telemetry exists', () => {
+      const empty = buildWeaknessReport([]);
+      expect(empty).toEqual({
+        topCharacters: [],
+        topWords: [],
+        totalTrackedAttempts: 0,
+        suggestedDrillText: '',
+      });
+    });
+  });
+
+  describe('buildStreaksAndBadges (Epic 8)', () => {
+    it('computes timezone-aware current and longest streaks (keeping streak alive if practiced yesterday) and unlocks badges', () => {
+      const now = new Date('2026-11-18T14:00:00.000Z'); // 2026-11-18 in America/New_York
+      const results = [
+        // 4-day historical streak in October
+        { startTime: '2026-10-01T15:00:00.000Z', wpm: 55, accuracy: 96, incorrectCharacters: 1 },
+        { startTime: '2026-10-02T15:00:00.000Z', wpm: 62, accuracy: 100, incorrectCharacters: 0 },
+        { startTime: '2026-10-03T15:00:00.000Z', wpm: 68, accuracy: 98, incorrectCharacters: 1 },
+        { startTime: '2026-10-04T15:00:00.000Z', wpm: 84, accuracy: 100, incorrectCharacters: 0 },
+        // Current 3-day streak ending yesterday (Nov 15, 16, 17 in NY)
+        { startTime: '2026-11-15T16:00:00.000Z', wpm: 70, accuracy: 99, incorrectCharacters: 1 },
+        { startTime: '2026-11-16T16:00:00.000Z', wpm: 75, accuracy: 100, incorrectCharacters: 0 },
+        { startTime: '2026-11-18T03:30:00.000Z', wpm: 81, accuracy: 100, incorrectCharacters: 0 }, // 22:30 EST on Nov 17
+      ];
+
+      const achievements = buildStreaksAndBadges({
+        results,
+        completedProgressCount: 15,
+        psalmsCompletedCount: 10,
+        timezone: 'America/New_York',
+        now,
+      });
+
+      expect(achievements.streak).toEqual({
+        currentStreakDays: 3,
+        longestStreakDays: 4,
+        lastActiveDate: '2026-11-17',
+        activeToday: false,
+      });
+
+      expect(achievements.milestones).toEqual({
+        totalAttempts: 7,
+        bestWpm: 84,
+        flawlessCount: 4,
+        uniqueVersesCompleted: 15,
+        psalmsCompletedCount: 10,
+      });
+
+      expect(achievements.badges).toHaveLength(10);
+      const byId = Object.fromEntries(achievements.badges.map((b) => [b.id, b]));
+      expect(byId['first-scribe'].unlocked).toBe(true);
+      expect(byId['streak-3'].unlocked).toBe(true);
+      expect(byId['streak-7'].unlocked).toBe(false);
+      expect(byId['streak-7'].progressCurrent).toBe(4);
+      expect(byId['speed-60'].unlocked).toBe(true);
+      expect(byId['speed-80'].unlocked).toBe(true);
+      expect(byId['speed-100'].unlocked).toBe(false);
+      expect(byId['psalms-mantra'].unlocked).toBe(true);
+      expect(byId['explorer-50'].unlocked).toBe(false);
+      expect(byId['explorer-50'].progressPct).toBe(30);
+    });
+
+    it('resets currentStreakDays to 0 when the last practice was 2 or more days ago', () => {
+      const now = new Date('2026-11-18T14:00:00.000Z');
+      const achievements = buildStreaksAndBadges({
+        results: [
+          { startTime: '2026-11-14T12:00:00.000Z', wpm: 50, accuracy: 95 },
+          { startTime: '2026-11-15T12:00:00.000Z', wpm: 55, accuracy: 97 },
+        ],
+        completedProgressCount: 2,
+        psalmsCompletedCount: 0,
+        timezone: 'UTC',
+        now,
+      });
+
+      expect(achievements.streak.currentStreakDays).toBe(0);
+      expect(achievements.streak.longestStreakDays).toBe(2);
+      expect(achievements.streak.lastActiveDate).toBe('2026-11-15');
     });
   });
 });

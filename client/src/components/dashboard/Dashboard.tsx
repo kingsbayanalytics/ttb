@@ -2,10 +2,19 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthSession } from '../../context/AuthContext';
 import { StatsService } from '../../services/api';
-import { ActivityPoint, CoverageData, TrendPoint, TrendRange } from '../../types';
+import {
+  AchievementsData,
+  ActivityPoint,
+  CoverageData,
+  TrendPoint,
+  TrendRange,
+  WeaknessReport,
+} from '../../types';
 import ActivityHeatmap from './ActivityHeatmap';
 import BookCoverage from './BookCoverage';
+import StreakAndBadges from './StreakAndBadges';
 import TrendChart from './TrendChart';
+import WeaknessAnalytics from './WeaknessAnalytics';
 
 function getCurrentYear(): number {
   return new Date().getFullYear();
@@ -20,6 +29,54 @@ function buildYearChoices(currentYear: number): number[] {
   return years;
 }
 
+const DEFAULT_WEAKNESS_REPORT: WeaknessReport = {
+  topCharacters: [],
+  topWords: [],
+  totalTrackedAttempts: 0,
+  suggestedDrillText: '',
+};
+
+const DEFAULT_ACHIEVEMENTS_DATA: AchievementsData = {
+  streak: {
+    currentStreakDays: 0,
+    longestStreakDays: 0,
+    lastActiveDate: null,
+    activeToday: false,
+  },
+  milestones: {
+    totalAttempts: 0,
+    bestWpm: 0,
+    flawlessCount: 0,
+    uniqueVersesCompleted: 0,
+    psalmsCompletedCount: 0,
+  },
+  badges: [],
+};
+
+async function fetchOptionalWeakness(): Promise<WeaknessReport> {
+  if (typeof StatsService.getWeakness !== 'function') {
+    return DEFAULT_WEAKNESS_REPORT;
+  }
+  try {
+    const result = await StatsService.getWeakness();
+    return result ?? DEFAULT_WEAKNESS_REPORT;
+  } catch {
+    return DEFAULT_WEAKNESS_REPORT;
+  }
+}
+
+async function fetchOptionalAchievements(): Promise<AchievementsData> {
+  if (typeof StatsService.getAchievements !== 'function') {
+    return DEFAULT_ACHIEVEMENTS_DATA;
+  }
+  try {
+    const result = await StatsService.getAchievements();
+    return result ?? DEFAULT_ACHIEVEMENTS_DATA;
+  } catch {
+    return DEFAULT_ACHIEVEMENTS_DATA;
+  }
+}
+
 const Dashboard: React.FC = () => {
   const currentYear = useMemo(() => getCurrentYear(), []);
   const availableYears = useMemo(() => buildYearChoices(currentYear), [currentYear]);
@@ -29,6 +86,8 @@ const Dashboard: React.FC = () => {
   const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [activity, setActivity] = useState<ActivityPoint[]>([]);
   const [coverage, setCoverage] = useState<CoverageData | null>(null);
+  const [weakness, setWeakness] = useState<WeaknessReport>(DEFAULT_WEAKNESS_REPORT);
+  const [achievements, setAchievements] = useState<AchievementsData>(DEFAULT_ACHIEVEMENTS_DATA);
   const [loading, setLoading] = useState<boolean>(true);
   const [trendLoading, setTrendLoading] = useState<boolean>(false);
   const [activityLoading, setActivityLoading] = useState<boolean>(false);
@@ -41,14 +100,19 @@ const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const [trendData, activityData, coverageData] = await Promise.all([
-        StatsService.getTrend(range),
-        StatsService.getActivity(year),
-        StatsService.getCoverage(),
-      ]);
+      const [trendData, activityData, coverageData, weaknessData, achievementsData] =
+        await Promise.all([
+          StatsService.getTrend(range),
+          StatsService.getActivity(year),
+          StatsService.getCoverage(),
+          fetchOptionalWeakness(),
+          fetchOptionalAchievements(),
+        ]);
       setTrend(trendData);
       setActivity(activityData);
       setCoverage(coverageData);
+      setWeakness(weaknessData);
+      setAchievements(achievementsData);
     } catch (err) {
       console.error('Failed to load dashboard statistics:', err);
       setError('Failed to load dashboard statistics. Please try again.');
@@ -72,15 +136,20 @@ const Dashboard: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const [trendData, activityData, coverageData] = await Promise.all([
-          StatsService.getTrend('30'),
-          StatsService.getActivity(currentYear),
-          StatsService.getCoverage(),
-        ]);
+        const [trendData, activityData, coverageData, weaknessData, achievementsData] =
+          await Promise.all([
+            StatsService.getTrend('30'),
+            StatsService.getActivity(currentYear),
+            StatsService.getCoverage(),
+            fetchOptionalWeakness(),
+            fetchOptionalAchievements(),
+          ]);
         if (!cancelled) {
           setTrend(trendData);
           setActivity(activityData);
           setCoverage(coverageData);
+          setWeakness(weaknessData);
+          setAchievements(achievementsData);
         }
       } catch (err) {
         console.error('Failed to load dashboard statistics:', err);
@@ -167,12 +236,16 @@ const Dashboard: React.FC = () => {
         </Link>
       </div>
 
+      <StreakAndBadges achievements={achievements} />
+
       <TrendChart
         data={trend}
         range={range}
         onRangeChange={handleRangeChange}
         loading={trendLoading}
       />
+
+      <WeaknessAnalytics weakness={weakness} />
 
       <ActivityHeatmap
         data={activity}

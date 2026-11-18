@@ -4,6 +4,16 @@ import mongoose from 'mongoose';
  * Result Schema
  * Represents a single typing test result
  */
+export interface IMissedChar {
+  char: string;
+  count: number;
+}
+
+export interface IMissedWord {
+  word: string;
+  count: number;
+}
+
 export interface IResult {
   user: mongoose.Types.ObjectId;
   verse: mongoose.Types.ObjectId;
@@ -16,6 +26,8 @@ export interface IResult {
   accuracy: number; // percentage
   incorrectCharacters: number;
   totalCharacters: number;
+  missedChars?: IMissedChar[];
+  missedWords?: IMissedWord[];
 }
 
 const resultSchema = new mongoose.Schema<IResult>(
@@ -65,6 +77,26 @@ const resultSchema = new mongoose.Schema<IResult>(
     totalCharacters: {
       type: Number,
       required: true
+    },
+    missedChars: {
+      type: [
+        {
+          char: { type: String, required: true },
+          count: { type: Number, required: true, min: 1 },
+          _id: false,
+        },
+      ],
+      default: [],
+    },
+    missedWords: {
+      type: [
+        {
+          word: { type: String, required: true },
+          count: { type: Number, required: true, min: 1 },
+          _id: false,
+        },
+      ],
+      default: [],
     }
   },
   {

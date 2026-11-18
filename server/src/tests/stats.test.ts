@@ -44,6 +44,8 @@ describe('Stats API (Story 2.2)', () => {
     await request(app).get('/api/stats/trend').expect(401);
     await request(app).get('/api/stats/activity').expect(401);
     await request(app).get('/api/stats/coverage').expect(401);
+    await request(app).get('/api/stats/weakness').expect(401);
+    await request(app).get('/api/stats/achievements').expect(401);
   });
 
   it('returns 400 with {success:false, message} for invalid query parameters', async () => {
@@ -342,5 +344,119 @@ describe('Stats API (Story 2.2)', () => {
     expect(trendAttempts).toBe(10000);
     expect(activityRes.body.data.length).toBeGreaterThan(0);
     expect(coverageRes.body.data.overall.completedVerses).toBe(1);
+  });
+
+  it('computes weakness analytics and achievements (streaks, milestones, 10 badges) isolated to the authenticated user', async () => {
+    const owner = await registerAndLogin('v2-owner');
+    const other = await registerAndLogin('v2-other');
+
+    const [psalm1, gen1] = await Verse.create([
+      {
+        verseOrder: 13594,
+        book: 'Psalms',
+        chapter: 1,
+        verse: 1,
+        text: "Blessed is the man who doesn't walk in the counsel of the wicked;",
+        characters: 65,
+        words: 13,
+      },
+      {
+        verseOrder: 1,
+        book: 'Genesis',
+        chapter: 1,
+        verse: 1,
+        text: 'In the beginning, God created the heavens and the earth.',
+        characters: 56,
+        words: 10,
+      },
+    ]);
+
+    // Submit result with missedChars and missedWords via POST /api/progress/result/:verseId
+    const now = new Date();
+    const submitRes = await request(app)
+      .post(`/api/progress/result/${psalm1._id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({
+        verseOrder: psalm1.verseOrder,
+        startTime: new Date(now.getTime() - 15000).toISOString(),
+        endTime: now.toISOString(),
+        duration: 15000,
+        wpm: 82,
+        cps: 5.5,
+        accuracy: 96,
+        incorrectCharacters: 2,
+        totalCharacters: 65,
+        missedChars: [
+          { char: ';', count: 2 },
+          { char: "'", count: 1 },
+        ],
+        missedWords: [
+          { word: 'wicked', count: 2 },
+          { word: "doesn't", count: 1 },
+        ],
+      })
+      .expect(201);
+
+    expect(submitRes.body.data.result.missedChars).toEqual([
+      { char: ';', count: 2 },
+      { char: "'", count: 1 },
+    ]);
+
+    // Other user's data should not leak into owner's weakness or achievements
+    await Result.create({
+      user: other.userId,
+      verse: gen1._id,
+      verseOrder: 1,
+      startTime: now,
+      endTime: now,
+      duration: 10000,
+      wpm: 130,
+      cps: 10,
+      accuracy: 100,
+      incorrectCharacters: 0,
+      totalCharacters: 56,
+      missedChars: [{ char: 'z', count: 99 }],
+      missedWords: [{ word: 'otherword', count: 99 }],
+    });
+
+    const weaknessRes = await request(app)
+      .get('/api/stats/weakness')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(200);
+
+    expect(weaknessRes.body.success).toBe(true);
+    expect(weaknessRes.body.data.totalTrackedAttempts).toBe(1);
+    expect(weaknessRes.body.data.topCharacters).toEqual([
+      { char: ';', label: 'Semicolon (;)', count: 2 },
+      { char: "'", label: "Apostrophe (')", count: 1 },
+    ]);
+    expect(weaknessRes.body.data.topWords).toEqual([
+      { word: 'wicked', count: 2 },
+      { word: "doesn't", count: 1 },
+    ]);
+    expect(weaknessRes.body.data.suggestedDrillText).toContain('wicked');
+
+    const achievementsRes = await request(app)
+      .get('/api/stats/achievements?tz=UTC')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(200);
+
+    expect(achievementsRes.body.success).toBe(true);
+    expect(achievementsRes.body.data.streak.currentStreakDays).toBe(1);
+    expect(achievementsRes.body.data.streak.activeToday).toBe(true);
+    expect(achievementsRes.body.data.milestones).toEqual({
+      totalAttempts: 1,
+      bestWpm: 82,
+      flawlessCount: 0,
+      uniqueVersesCompleted: 1,
+      psalmsCompletedCount: 1,
+    });
+    expect(achievementsRes.body.data.badges).toHaveLength(10);
+
+    const badTzRes = await request(app)
+      .get('/api/stats/achievements?tz=Invalid/Timezone')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .expect(400);
+    expect(badTzRes.body.success).toBe(false);
   });
 });

@@ -651,4 +651,33 @@ describe('TypingTest', () => {
       useLocationSpy.mockRestore();
     }
   });
+
+  it('tracks keystroke mismatch indices during typing and submits missedChars and missedWords to ProgressService.submitResult', async () => {
+    const loggedInUser = { _id: 'user123' };
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue(loggedInUser);
+
+    render(<TypingTest />);
+    const textarea = (await screen.findByPlaceholderText(
+      'Start typing the verse above...',
+      {},
+      { timeout: 2000 }
+    )) as HTMLTextAreaElement;
+
+    // Mistype comma after "beginning" as semicolon, then fix and complete
+    fireEvent.change(textarea, { target: { value: 'In the beginning;' } });
+    fireEvent.change(textarea, { target: { value: mockVerse.text } });
+
+    await waitFor(
+      () => {
+        expect(ProgressService.submitResult).toHaveBeenCalledTimes(1);
+        expect(ProgressService.submitResult).toHaveBeenCalledWith(
+          expect.objectContaining({
+            missedChars: [{ char: ',', count: 1 }],
+            missedWords: [{ word: 'beginning', count: 1 }],
+          })
+        );
+      },
+      { timeout: 2000 }
+    );
+  });
 });

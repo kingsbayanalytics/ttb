@@ -4,7 +4,9 @@ import {
   TrendRange,
   buildActivity,
   buildCoverage,
+  buildStreaksAndBadges,
   buildTrend,
+  buildWeaknessReport,
   isValidTimeZone,
   isValidTrendRange,
 } from '../services/stats';
@@ -131,6 +133,65 @@ export const getCoverageStats = asyncHandler(async (req: Request, res: Response)
   }
 
   const data = buildCoverage(completedIds, { totalByBook, verseToBook });
+
+  res.json({
+    success: true,
+    data,
+  });
+});
+
+/**
+ * @desc    Get per-character and per-word weakness analytics
+ * @route   GET /api/stats/weakness
+ * @access  Private
+ */
+export const getWeaknessStats = asyncHandler(async (req: Request, res: Response) => {
+  const rows = await Result.find({ user: req.user._id })
+    .select('missedChars missedWords')
+    .sort({ startTime: -1 })
+    .limit(500)
+    .lean();
+
+  const data = buildWeaknessReport(rows);
+
+  res.json({
+    success: true,
+    data,
+  });
+});
+
+/**
+ * @desc    Get user daily streaks, personal milestones, and editorial badges
+ * @route   GET /api/stats/achievements?tz=
+ * @access  Private
+ */
+export const getAchievementsStats = asyncHandler(async (req: Request, res: Response) => {
+  const tz = parseTimezoneParam(req.query.tz);
+  const now = new Date();
+
+  const [results, completedProgress] = await Promise.all([
+    Result.find({ user: req.user._id })
+      .select('startTime wpm accuracy incorrectCharacters')
+      .lean(),
+    Progress.find({ user: req.user._id, completed: true }).select('verse').lean(),
+  ]);
+
+  const completedVerseIds = completedProgress.map((p) => p.verse);
+  let psalmsCompletedCount = 0;
+  if (completedVerseIds.length > 0) {
+    psalmsCompletedCount = await Verse.countDocuments({
+      _id: { $in: completedVerseIds },
+      book: 'Psalms',
+    });
+  }
+
+  const data = buildStreaksAndBadges({
+    results,
+    completedProgressCount: completedVerseIds.length,
+    psalmsCompletedCount,
+    timezone: tz,
+    now,
+  });
 
   res.json({
     success: true,

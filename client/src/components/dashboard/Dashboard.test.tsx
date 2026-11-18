@@ -14,6 +14,8 @@ jest.mock('../../services/api', () => ({
     getTrend: jest.fn(),
     getActivity: jest.fn(),
     getCoverage: jest.fn(),
+    getWeakness: jest.fn(),
+    getAchievements: jest.fn(),
   },
 }));
 
@@ -92,6 +94,55 @@ describe('Dashboard & chart components (Stories 2.3–2.5)', () => {
       { date: `${currentYear}-01-02`, attempts: 4 },
     ]);
     (StatsService.getCoverage as jest.Mock).mockResolvedValue(buildSampleCoverage());
+    (StatsService.getWeakness as jest.Mock).mockResolvedValue({
+      topCharacters: [
+        { char: ';', label: 'Semicolon (;)', count: 4 },
+        { char: "'", label: "Apostrophe (')", count: 2 },
+      ],
+      topWords: [
+        { word: 'righteousness', count: 3 },
+        { word: "doesn't", count: 2 },
+      ],
+      totalTrackedAttempts: 5,
+      suggestedDrillText: "righteousness doesn't righteousness doesn't",
+    });
+    (StatsService.getAchievements as jest.Mock).mockResolvedValue({
+      streak: {
+        currentStreakDays: 3,
+        longestStreakDays: 7,
+        lastActiveDate: '2026-11-18',
+        activeToday: true,
+      },
+      milestones: {
+        totalAttempts: 18,
+        bestWpm: 84,
+        flawlessCount: 6,
+        uniqueVersesCompleted: 12,
+        psalmsCompletedCount: 4,
+      },
+      badges: [
+        {
+          id: 'first-scribe',
+          title: 'First Scribe',
+          description: 'Complete your first scripture typing transcription.',
+          category: 'consistency',
+          unlocked: true,
+          progressCurrent: 18,
+          progressTarget: 1,
+          progressPct: 100,
+        },
+        {
+          id: 'speed-100',
+          title: 'Chariot of Fire (100 WPM)',
+          description: 'Reach 100 WPM or higher on any verse.',
+          category: 'velocity',
+          unlocked: false,
+          progressCurrent: 84,
+          progressTarget: 100,
+          progressPct: 84,
+        },
+      ],
+    });
   });
 
   it('redirects to /login when unauthenticated', () => {
@@ -227,5 +278,36 @@ describe('Dashboard & chart components (Stories 2.3–2.5)', () => {
     const weeks2026 = buildCalendarWeeks(2026, []);
     const cells2026 = weeks2026.flat().filter(Boolean);
     expect(cells2026).toHaveLength(365);
+  });
+
+  it('renders Streaks, Milestones & Badges and Weakness Analytics with interactive Weak Words Drill (Epics 6 & 8)', async () => {
+    render(<Dashboard />);
+
+    expect(
+      await screen.findByRole('heading', { name: /Streaks, Milestones & Badges/i })
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('current-streak-value')).toHaveTextContent('3 Days');
+    expect(screen.getByTestId('longest-streak-value')).toHaveTextContent('7 Days');
+    expect(screen.getByTestId('best-wpm-value')).toHaveTextContent('84 WPM');
+    expect(screen.getByTestId('flawless-verses-value')).toHaveTextContent('6');
+    expect(screen.getByTestId('badge-card-first-scribe')).toHaveClass('is-unlocked');
+    expect(screen.getByTestId('badge-card-speed-100')).toHaveClass('is-locked');
+
+    expect(
+      screen.getByRole('heading', { name: /Per-Word & Per-Character Weakness Analytics/i })
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('weak-char-;')).toHaveTextContent('Semicolon (;)');
+    expect(screen.getByTestId('weak-word-righteousness')).toHaveTextContent('righteousness');
+
+    // Open and complete the interactive Weak Words Drill
+    fireEvent.click(screen.getByTestId('toggle-weak-words-drill'));
+    const drillInput = screen.getByLabelText('Weak words drill input');
+    fireEvent.change(drillInput, {
+      target: { value: "righteousness doesn't righteousness doesn't" },
+    });
+
+    expect(await screen.findByTestId('weakness-drill-result')).toHaveTextContent(
+      /Drill Complete/i
+    );
   });
 });
