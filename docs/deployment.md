@@ -183,11 +183,24 @@ THUMBPRINT=$(az webapp config ssl create \
   --query thumbprint -o tsv)
 
 # 3. Bind SNI SSL certificate to hostname
-az webapp config ssl bind \
+az rest \
+  --method put \
+  --url "https://management.azure.com/subscriptions/eb749f93-f254-4609-8900-a250b0f2d418/resourceGroups/rg-ttb/providers/Microsoft.Web/sites/ttb-kingsbay/hostNameBindings/ttb.kingsbayanalytics.com?api-version=2022-09-01" \
+  --body "{
+    \"location\": \"East US 2\",
+    \"properties\": {
+      \"siteName\": \"ttb-kingsbay\",
+      \"hostNameType\": \"Verified\",
+      \"sslState\": \"SniEnabled\",
+      \"thumbprint\": \"$THUMBPRINT\"
+    }
+  }"
+
+# 4. Allow custom domain Origin for Easy Auth cookie CSRF check on POST/PUT/DELETE
+az webapp cors add \
   --name ttb-kingsbay \
   --resource-group rg-ttb \
-  --certificate-thumbprint "$THUMBPRINT" \
-  --ssl-type SNI
+  --allowed-origins "https://ttb.kingsbayanalytics.com" "https://ttb-kingsbay.azurewebsites.net"
 ```
 
 ---
@@ -209,3 +222,17 @@ az webapp config ssl bind \
      ```
 2. **Emergency Access Lock / Shutdown:**
    - Stop the Web App immediately via `az webapp stop --name ttb-kingsbay --resource-group rg-ttb`.
+
+---
+
+## 8. Live Acceptance Walkthrough Results (Story 4.5 — 2026-11-18)
+
+| Check | Description | Observed Result | Verdict |
+|---|---|---|---|
+| **TLS & HTTPS Redirect** | `http://ttb.kingsbayanalytics.com/` and `https://ttb.kingsbayanalytics.com/` | `HTTP 301` redirect to `https://ttb.kingsbayanalytics.com/`; valid App Service Managed Certificate bound (`thumbprint: 2B8B26827A6755A6D452BBD29904DDEC8BF980A8`, `sslState: SniEnabled`, `SSL verify: 0`). | **PASS** |
+| **UJ-1 (Sign in with MFA & type a verse)** | Navigate to `https://ttb.kingsbayanalytics.com`, authenticate via Microsoft Entra + MFA, complete a verse on `/typing` | Unauthenticated browser redirected (`HTTP 302`) to `login.windows.net/165b7931-7abb-4263-b704-eef5a645c41f/oauth2/v2.0/authorize`. After owner MFA sign-in (`mike@kingsbayanalytics.com`), navbar displayed Entra mode (`Dashboard`, `Progress`, `Profile`, `mike@kingsbayanalytics.com`, `Sign out` -> `/.auth/logout`; no `Login`/`Register`). Completed **1 Kings 16:17** (`POST /api/progress/result/6afc805493f491286c014820` -> `201 Created`). | **PASS** |
+| **UJ-2 (Dashboard reflects it)** | Open `https://ttb.kingsbayanalytics.com/dashboard` | **Speed & Accuracy Trend** plotted `2026-11-18` (`100%` accuracy); **Daily Practice Activity** displayed `1 attempt across 1 active day in 2026`; **Bible Coverage** displayed `1 of 35379 verses completed` (`Old Testament: 1 of 27426`, `1 Kings: 0.1% (1/816)`). | **PASS** |
+| **UJ-3 (Push deploys)** | Push commit to `main` (`3b73a06` -> `0b07309`) | GitHub Actions **CI** (`44337550633` & `44342201627`) passed, automatically triggering **Deploy** (`44337899268` & `44342650826`) via OIDC (`azure/login@v2` + `azure/webapps-deploy@v3`). Live app updated automatically without secrets. | **PASS** |
+| **UJ-4 (Another account refused)** | Non-owner / unauthenticated access enforcement | Enterprise Application (`72df736a-e7d8-4e04-8d39-92c9a6f18cfd`) enforces `appRoleAssignmentRequired: true` with only `Mike Warren` (`7d36efa4-7e3b-4222-8abc-17cb69fdc34b`) assigned (refusing other Entra accounts with `AADSTS50105`); Easy Auth `allowedPrincipals.identities` and Express `authenticate` middleware (`X-MS-CLIENT-PRINCIPAL-ID === OWNER_OID`) return `401`/`403` to any non-owner request. | **PASS** |
+| **Post-Restart Persistence** | `az webapp restart --name ttb-kingsbay --resource-group rg-ttb`, then reload `/dashboard` | After App Service restart, reloading `https://ttb.kingsbayanalytics.com/dashboard` returned `HTTP 200` on all `/api/stats/*` endpoints and retained `1 attempt across 1 active day in 2026` and `1 of 35379 verses completed` (`1 Kings: 1/816`). | **PASS** |
+
