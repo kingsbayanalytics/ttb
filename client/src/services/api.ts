@@ -473,7 +473,7 @@ export const ProgressService = {
   // Submit a typing test result
   submitResult: async (result: Omit<Result, '_id'>): Promise<{ result: Result, progress: Progress }> => {
     try {
-      const response = await api.post('/progress/result', result);
+      const response = await api.post(`/progress/result/${result.verse}`, result);
       return response.data.data;
     } catch (error) {
       console.error('Failed to submit result:', error);

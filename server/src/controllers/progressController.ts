@@ -97,7 +97,7 @@ export const getProgressSummary = asyncHandler(async (req: Request, res: Respons
  * @access  Private
  */
 export const submitResult = asyncHandler(async (req: Request, res: Response) => {
-  const { verseId } = req.params;
+  const verseId = req.params.verseId || req.body.verse;
   const {
     verseOrder,
     startTime,
