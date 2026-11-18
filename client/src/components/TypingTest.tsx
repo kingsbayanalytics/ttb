@@ -11,6 +11,10 @@ import {
   calculateWpm,
   calculateCps,
 } from '../utils/typingMetrics';
+import {
+  extractTypingErrors,
+  recordKeystrokeMismatches,
+} from '../utils/weaknessExtractor';
 
 const TypingTest: React.FC = () => {
   const location = useLocation();
@@ -51,6 +55,7 @@ const TypingTest: React.FC = () => {
   } | null>(null);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const mismatchIndicesRef = useRef<Set<number>>(new Set());
   const navigate = useNavigate();
   const { user } = useAuthSession();
   const userId = user?._id;
@@ -69,6 +74,7 @@ const TypingTest: React.FC = () => {
         setError(null);
         setBookComplete(null);
         setTypedText('');
+        mismatchIndicesRef.current = new Set();
         setStartTime(null);
         setEndTime(null);
         setCompleted(false);
@@ -171,6 +177,7 @@ const TypingTest: React.FC = () => {
       setError(null);
       setBookComplete(null);
       setTypedText('');
+      mismatchIndicesRef.current = new Set();
       setStartTime(null);
       setEndTime(null);
       setCompleted(false);
@@ -275,6 +282,7 @@ const TypingTest: React.FC = () => {
           index: nextIndex,
         });
         setTypedText('');
+        mismatchIndicesRef.current = new Set();
         setStartTime(null);
         setEndTime(null);
         setCompleted(false);
@@ -325,10 +333,17 @@ const TypingTest: React.FC = () => {
       const completedVerseOrder = verse.verseOrder;
       const completedRef = `${verse.book} ${verse.chapter}:${verse.verse}`;
       const elapsedSeconds = (durationMs / 1000).toFixed(1);
+      const finalMismatches = recordKeystrokeMismatches(
+        verse.text,
+        typedText,
+        mismatchIndicesRef.current
+      );
+      const extractedErrors = extractTypingErrors(verse.text, finalMismatches);
 
       if (autoAdvance) {
         // Keep textarea mounted and clear input immediately for zero-flash inline transition
         setTypedText('');
+        mismatchIndicesRef.current = new Set();
         setStartTime(null);
         setEndTime(null);
         setWpm(0);
@@ -340,7 +355,14 @@ const TypingTest: React.FC = () => {
           seconds: elapsedSeconds,
         });
         if (user) {
-          submitResult(effectiveStartTime, now, wordsPerMinute, accuracyPercentage, incorrect);
+          submitResult(
+            effectiveStartTime,
+            now,
+            wordsPerMinute,
+            accuracyPercentage,
+            incorrect,
+            extractedErrors
+          );
         }
         advanceInPlanOrFetchNext(completedVerseOrder);
         return;
@@ -350,7 +372,14 @@ const TypingTest: React.FC = () => {
       setCompleted(true);
 
       if (user) {
-        submitResult(effectiveStartTime, now, wordsPerMinute, accuracyPercentage, incorrect);
+        submitResult(
+          effectiveStartTime,
+          now,
+          wordsPerMinute,
+          accuracyPercentage,
+          incorrect,
+          extractedErrors
+        );
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -361,7 +390,11 @@ const TypingTest: React.FC = () => {
     resultEndTime: Date,
     resultWpm: number,
     resultAccuracy: number,
-    incorrectChars: number
+    incorrectChars: number,
+    extractedErrors?: {
+      missedChars: Array<{ char: string; count: number }>;
+      missedWords: Array<{ word: string; count: number }>;
+    }
   ) => {
     if (!verse) return;
 
@@ -380,7 +413,9 @@ const TypingTest: React.FC = () => {
         cps,
         accuracy: resultAccuracy,
         incorrectCharacters: incorrectChars,
-        totalCharacters: verse.characters
+        totalCharacters: verse.characters,
+        missedChars: extractedErrors?.missedChars ?? [],
+        missedWords: extractedErrors?.missedWords ?? [],
       });
     } catch (err) {
       console.error('Failed to submit result:', err);
@@ -389,7 +424,15 @@ const TypingTest: React.FC = () => {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setTypedText(e.target.value);
+    const nextValue = e.target.value;
+    if (verse) {
+      mismatchIndicesRef.current = recordKeystrokeMismatches(
+        verse.text,
+        nextValue,
+        mismatchIndicesRef.current
+      );
+    }
+    setTypedText(nextValue);
   };
 
   const handleTryAnotherVerse = () => {

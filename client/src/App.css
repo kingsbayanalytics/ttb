@@ -2098,6 +2098,218 @@
     color: var(--ink-primary);
   }
 
+  /* ==========================================================================
+     Streaks, Milestones & Editorial Badges (Epic 8)
+     ========================================================================== */
+  .streak-status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.85rem;
+    border: 1px solid var(--border-stone);
+    background-color: var(--bg-bone);
+    color: var(--ink-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .streak-status-pill.is-active {
+    border-color: var(--success-color);
+    background-color: var(--success-bg);
+    color: var(--success-color);
+  }
+
+  .milestones-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1rem;
+    margin-block-end: 1.5rem;
+  }
+
+  .editorial-badge-grid {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 0.85rem;
+  }
+
+  .editorial-badge-card {
+    background-color: var(--bg-parchment);
+    border: 1px solid var(--border-stone);
+    padding: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    transition: border-color 0.15s ease;
+  }
+
+  .editorial-badge-card.is-unlocked {
+    border-inline-start: 4px solid var(--accent-terracotta);
+    background-color: var(--bg-ivory);
+  }
+
+  .editorial-badge-card.is-locked {
+    opacity: 0.82;
+  }
+
+  .editorial-badge-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+
+  .editorial-badge-category {
+    color: var(--ink-muted);
+    font-weight: 600;
+  }
+
+  .editorial-badge-status {
+    padding: 0.12rem 0.45rem;
+    border: 1px solid var(--border-stone);
+    background-color: var(--bg-bone);
+    color: var(--ink-secondary);
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  .editorial-badge-card.is-unlocked .editorial-badge-status {
+    border-color: var(--accent-terracotta);
+    color: var(--accent-terracotta);
+    background-color: var(--bg-parchment);
+  }
+
+  .editorial-badge-title {
+    font-family: var(--font-serif);
+    font-size: 1.05rem;
+    color: var(--ink-primary);
+    margin-block-end: 0;
+  }
+
+  .editorial-badge-description {
+    font-size: 0.84rem;
+    color: var(--ink-secondary);
+    margin-block-end: 0.35rem;
+    flex: 1;
+  }
+
+  .editorial-badge-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .editorial-badge-numbers {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.72rem;
+    color: var(--ink-muted);
+  }
+
+  /* ==========================================================================
+     Weakness Analytics & Targeted Drill Console (Epic 6)
+     ========================================================================== */
+  .weakness-columns-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+
+  .weakness-column-card {
+    background-color: var(--bg-parchment);
+    border: 1px solid var(--border-stone);
+    padding: 1.25rem;
+  }
+
+  .weakness-column-card h4 {
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-muted);
+    margin-block-end: 0.85rem;
+    padding-block-end: 0.45rem;
+    border-block-end: 1px solid var(--border-stone);
+  }
+
+  .weakness-column-empty {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+    margin-block-end: 0;
+  }
+
+  .weakness-badge-list {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .weakness-mono-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.7rem;
+    background-color: var(--bg-ivory);
+    border: 1px solid var(--border-stone);
+    border-inline-start: 3px solid var(--accent-terracotta);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.82rem;
+  }
+
+  .weakness-token {
+    font-weight: 600;
+    color: var(--ink-primary);
+  }
+
+  .weakness-count {
+    font-size: 0.74rem;
+    color: var(--accent-terracotta);
+    font-weight: 600;
+  }
+
+  .weakness-drill-console {
+    margin-block-start: 1.25rem;
+    padding: 1.25rem;
+    background-color: var(--bg-parchment);
+    border: 1px solid var(--border-strong);
+    border-inline-start: 4px solid var(--accent-terracotta);
+  }
+
+  .weakness-drill-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-block-end: 0.85rem;
+  }
+
+  .weakness-drill-header h4 {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-primary);
+    margin-block-end: 0;
+  }
+
+  .weakness-drill-display {
+    min-block-size: 4.5rem;
+    margin-block-end: 0.85rem;
+    padding: 1rem 1.25rem;
+  }
+
+  .weakness-drill-input {
+    min-block-size: 5rem;
+    margin-block-end: 0.5rem;
+  }
+
   /* Responsive Mobile Adjustments */
   @media (max-width: 768px) {
     .navbar-actions-mobile {

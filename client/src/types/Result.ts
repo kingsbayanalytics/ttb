@@ -1,3 +1,13 @@
+export interface MissedCharMetric {
+  char: string;
+  count: number;
+}
+
+export interface MissedWordMetric {
+  word: string;
+  count: number;
+}
+
 export interface Result {
   _id: string;
   user: string;
@@ -11,4 +21,6 @@ export interface Result {
   accuracy: number; // percentage
   incorrectCharacters: number;
   totalCharacters: number;
+  missedChars?: MissedCharMetric[];
+  missedWords?: MissedWordMetric[];
 } 

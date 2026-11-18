@@ -1,5 +1,6 @@
 import axios from 'axios';
 import {
+  AchievementsData,
   ActivityPoint,
   CoverageData,
   CuratedPlanDetail,
@@ -13,6 +14,7 @@ import {
   TrendRange,
   User,
   Verse,
+  WeaknessReport,
 } from '../types';
 import { CANONICAL_BOOKS } from '../data/books';
 import { CURATED_PLANS, getCuratedPlanById } from '../data/curatedCatalog';
@@ -583,6 +585,58 @@ export const StatsService = {
       }
 
       const response = await api.get('/stats/coverage');
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  getWeakness: async (): Promise<WeaknessReport> => {
+    try {
+      if (USE_MOCK_DATA) {
+        return {
+          topCharacters: [],
+          topWords: [],
+          totalTrackedAttempts: 0,
+          suggestedDrillText: '',
+        };
+      }
+
+      const response = await api.get('/stats/weakness');
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  getAchievements: async (tz?: string): Promise<AchievementsData> => {
+    try {
+      if (USE_MOCK_DATA) {
+        return {
+          streak: {
+            currentStreakDays: 0,
+            longestStreakDays: 0,
+            lastActiveDate: null,
+            activeToday: false,
+          },
+          milestones: {
+            totalAttempts: 0,
+            bestWpm: 0,
+            flawlessCount: 0,
+            uniqueVersesCompleted: 0,
+            psalmsCompletedCount: 0,
+          },
+          badges: [],
+        };
+      }
+
+      const response = await api.get('/stats/achievements', {
+        params: {
+          tz: tz || getBrowserTimeZone(),
+        },
+      });
       return response.data.data;
     } catch (error) {
       handleApiError(error);

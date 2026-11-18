@@ -11,6 +11,24 @@ import {
 } from './timezone';
 
 export { isValidTimeZone };
+export {
+  buildWeaknessReport,
+  describeCharacterLabel,
+  WeaknessCharacterStat,
+  WeaknessReport,
+  WeaknessWordStat,
+  WeakResultInput,
+} from './weakness';
+export {
+  AchievementsData,
+  AchievementsResultInput,
+  BadgeCategory,
+  BadgeItem,
+  BuildStreaksAndBadgesOptions,
+  buildStreaksAndBadges,
+  MilestonesSummary,
+  StreakSummary,
+} from './streaksAndBadges';
 
 export type TrendRange = '30' | '90' | '365' | 'all';
 
