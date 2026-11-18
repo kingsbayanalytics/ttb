@@ -11,6 +11,8 @@ import verseRoutes from './routes/verseRoutes';
 import userRoutes from './routes/userRoutes';
 import progressRoutes from './routes/progressRoutes';
 import statsRoutes from './routes/statsRoutes';
+import memoryRoutes from './routes/memoryRoutes';
+import planRoutes from './routes/planRoutes';
 
 export interface CreateAppOptions {
   clientBuildDir?: string;
@@ -43,7 +45,7 @@ export function createApp(
     cors({
       origin: appConfig.corsOrigins,
       credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
     })
   );
@@ -56,6 +58,8 @@ export function createApp(
   app.use('/api/users', userRoutes);
   app.use('/api/progress', progressRoutes);
   app.use('/api/stats', statsRoutes);
+  app.use('/api/memory', memoryRoutes);
+  app.use('/api/plans', planRoutes);
 
   // Unknown /api/* routes always return JSON 404
   app.use('/api', notFound);

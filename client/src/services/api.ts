@@ -2,6 +2,10 @@ import axios from 'axios';
 import {
   ActivityPoint,
   CoverageData,
+  CuratedPlanDetail,
+  CuratedPlanSummary,
+  MemoryItem,
+  MemoryStage,
   NextVerseResult,
   Progress,
   Result,
@@ -11,6 +15,7 @@ import {
   Verse,
 } from '../types';
 import { CANONICAL_BOOKS } from '../data/books';
+import { CURATED_PLANS, getCuratedPlanById } from '../data/curatedCatalog';
 import { mockVerses } from '../data/mockVerses';
 import { mockProgress, mockProgressSummary } from '../data/mockProgress';
 
@@ -584,4 +589,147 @@ export const StatsService = {
       throw error;
     }
   },
-}; 
+};
+
+export const MemoryService = {
+  getDeck: async (): Promise<MemoryItem[]> => {
+    try {
+      if (USE_MOCK_DATA) {
+        return [];
+      }
+      const response = await api.get('/memory');
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  saveVerse: async (payload: {
+    verseId?: string;
+    book?: string;
+    chapter?: number;
+    verse?: number;
+    packId?: string;
+  }): Promise<MemoryItem> => {
+    try {
+      const response = await api.post('/memory', payload);
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  addPack: async (
+    packId: string
+  ): Promise<{ packId: string; resolvedCount: number; data: MemoryItem[] }> => {
+    try {
+      const response = await api.post(`/memory/pack/${packId}`);
+      return {
+        packId: response.data.packId,
+        resolvedCount: response.data.resolvedCount,
+        data: response.data.data,
+      };
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  recordPractice: async (
+    id: string,
+    payload: { wpm: number; accuracy: number; stage: MemoryStage; advance?: boolean }
+  ): Promise<MemoryItem> => {
+    try {
+      const response = await api.post(`/memory/${id}/practice`, payload);
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  updateStage: async (id: string, stage: MemoryStage): Promise<MemoryItem> => {
+    try {
+      const response = await api.patch(`/memory/${id}`, { stage });
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  removeVerse: async (id: string): Promise<{ _id: string }> => {
+    try {
+      const response = await api.delete(`/memory/${id}`);
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+};
+
+export const PlanService = {
+  getPlans: async (): Promise<CuratedPlanSummary[]> => {
+    try {
+      if (USE_MOCK_DATA) {
+        return CURATED_PLANS.map((plan) => ({
+          id: plan.id,
+          title: plan.title,
+          subtitle: plan.subtitle,
+          category: plan.category,
+          description: plan.description,
+          contextNote: plan.contextNote,
+          totalVerses: plan.verses.length,
+          completedVerses: 0,
+          inMemoryDeckCount: 0,
+          verseRefs: plan.verses,
+        }));
+      }
+      const response = await api.get('/plans');
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  getPlanDetail: async (planId: string): Promise<CuratedPlanDetail> => {
+    try {
+      if (USE_MOCK_DATA) {
+        const plan = getCuratedPlanById(planId);
+        if (!plan) {
+          throw new Error(`Plan ${planId} not found`);
+        }
+        const resolved = plan.verses
+          .map((ref) =>
+            mockVerses.find(
+              (v) => v.book === ref.book && v.chapter === ref.chapter && v.verse === ref.verse
+            )
+          )
+          .filter((v): v is Verse => Boolean(v));
+        return {
+          id: plan.id,
+          title: plan.title,
+          subtitle: plan.subtitle,
+          category: plan.category,
+          description: plan.description,
+          contextNote: plan.contextNote,
+          totalVerses: plan.verses.length,
+          completedVerses: 0,
+          inMemoryDeckCount: 0,
+          verseRefs: plan.verses,
+          verses: resolved,
+          completedVerseIds: [],
+        };
+      }
+      const response = await api.get(`/plans/${planId}`);
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+};

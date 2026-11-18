@@ -1,7 +1,7 @@
 import { performance } from 'perf_hooks';
 import mongoose from 'mongoose';
 import { config } from '../config';
-import { Progress, Result, User, Verse } from '../models';
+import { MemoryItem, Progress, Result, User, Verse } from '../models';
 
 export interface InitDbSummary {
   collectionsInitialized: string[];
@@ -20,22 +20,31 @@ export async function initializeDatabase(
     User.createIndexes(),
     Result.createIndexes(),
     Progress.createIndexes(),
+    MemoryItem.createIndexes(),
   ]);
 
-  const [verseIndexes, userIndexes, resultIndexes, progressIndexes, verseCount] =
-    await Promise.all([
-      Verse.collection.indexes(),
-      User.collection.indexes(),
-      Result.collection.indexes(),
-      Progress.collection.indexes(),
-      Verse.countDocuments(),
-    ]);
+  const [
+    verseIndexes,
+    userIndexes,
+    resultIndexes,
+    progressIndexes,
+    memoryIndexes,
+    verseCount,
+  ] = await Promise.all([
+    Verse.collection.indexes(),
+    User.collection.indexes(),
+    Result.collection.indexes(),
+    Progress.collection.indexes(),
+    MemoryItem.collection.indexes(),
+    Verse.countDocuments(),
+  ]);
 
   const indexCounts: Record<string, number> = {
     verses: verseIndexes.length,
     users: userIndexes.length,
     results: resultIndexes.length,
     progress: progressIndexes.length,
+    memoryitems: memoryIndexes.length,
   };
 
   const durationMs = Math.round(performance.now() - start);
@@ -44,7 +53,7 @@ export async function initializeDatabase(
   );
 
   return {
-    collectionsInitialized: ['verses', 'users', 'results', 'progress'],
+    collectionsInitialized: ['verses', 'users', 'results', 'progress', 'memoryitems'],
     indexCounts,
     verseCount,
     durationMs,

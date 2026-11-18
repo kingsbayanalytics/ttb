@@ -2,6 +2,7 @@ import User, { IUser } from './User';
 import Verse, { IVerse } from './Verse';
 import Progress, { IProgress } from './Progress';
 import Result, { IResult } from './Result';
+import MemoryItem, { IMemoryItem, MemoryStageNumber } from './MemoryItem';
 
 export {
   User,
@@ -11,5 +12,8 @@ export {
   Progress,
   IProgress,
   Result,
-  IResult
-}; 
+  IResult,
+  MemoryItem,
+  IMemoryItem,
+  MemoryStageNumber,
+};

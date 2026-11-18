@@ -10,6 +10,7 @@ import TypingTest from './components/TypingTest';
 import Progress from './components/Progress';
 import Profile from './components/Profile';
 import { Dashboard } from './components/dashboard';
+import { MemoryStudio } from './components/memory';
 import './App.css';
 
 const AppRoutes: React.FC = () => {
@@ -24,6 +25,7 @@ const AppRoutes: React.FC = () => {
           {mode !== 'entra' && <Route path="/login" element={<Login />} />}
           {mode !== 'entra' && <Route path="/register" element={<Register />} />}
           <Route path="/typing" element={<TypingTest />} />
+          <Route path="/memory" element={<MemoryStudio />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/progress" element={<Progress />} />
           <Route path="/profile" element={<Profile />} />

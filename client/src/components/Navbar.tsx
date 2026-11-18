@@ -62,6 +62,12 @@ const Navbar: React.FC = () => {
           {mode === 'entra' ? (
             <>
               <li className="nav-item">
+                <Link to="/memory" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+                  Memory &amp; Plans
+                </Link>
+              </li>
+
+              <li className="nav-item">
                 <Link to="/dashboard" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
                   Dashboard
                 </Link>
@@ -101,6 +107,12 @@ const Navbar: React.FC = () => {
             </>
           ) : user ? (
             <>
+              <li className="nav-item">
+                <Link to="/memory" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+                  Memory &amp; Plans
+                </Link>
+              </li>
+
               <li className="nav-item">
                 <Link to="/dashboard" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
                   Dashboard

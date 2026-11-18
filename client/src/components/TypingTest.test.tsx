@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '../test-utils';
 import TypingTest from './TypingTest';
-import { VerseService, ProgressService, AuthService } from '../services/api';
+import { VerseService, ProgressService, AuthService, MemoryService, PlanService } from '../services/api';
 
 const mockVerse = {
   _id: '1',
@@ -29,6 +29,13 @@ jest.mock('../services/api', () => ({
   AuthService: {
     getCurrentUser: jest.fn(),
   },
+  MemoryService: {
+    getDeck: jest.fn(),
+    saveVerse: jest.fn(),
+  },
+  PlanService: {
+    getPlanDetail: jest.fn(),
+  },
 }));
 
 describe('TypingTest', () => {
@@ -41,6 +48,8 @@ describe('TypingTest', () => {
     (ProgressService.submitResult as jest.Mock).mockResolvedValue({});
     (ProgressService.getUserProgress as jest.Mock).mockResolvedValue([]);
     (AuthService.getCurrentUser as jest.Mock).mockReturnValue(null);
+    (MemoryService.getDeck as jest.Mock).mockResolvedValue([]);
+    (MemoryService.saveVerse as jest.Mock).mockResolvedValue({});
   });
 
   it('should render loading state initially, then the verse', async () => {
@@ -647,6 +656,94 @@ describe('TypingTest', () => {
       expect(screen.getByTestId('last-completed-banner')).toHaveTextContent(
         'Completed Psalms 1:1'
       );
+    } finally {
+      useLocationSpy.mockRestore();
+    }
+  });
+
+  it('saves the active verse to the Memory Deck when "★ Save to Memory Deck" is clicked', async () => {
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue({ _id: 'user123' });
+
+    render(<TypingTest />);
+    await screen.findByTestId('verse-display', {}, { timeout: 2000 });
+
+    const saveBtn = screen.getByTestId('save-memory-button');
+    expect(saveBtn).toHaveTextContent('★ Save to Memory Deck');
+
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(MemoryService.saveVerse).toHaveBeenCalledWith(
+        expect.objectContaining({
+          verseId: mockVerse._id,
+          book: mockVerse.book,
+          chapter: mockVerse.chapter,
+          verse: mockVerse.verse,
+        })
+      );
+      expect(screen.getByTestId('save-memory-button')).toHaveTextContent(
+        '✓ Saved in Memory Deck'
+      );
+    });
+  });
+
+  it('honors ?plan=<planId> query param and advances sequentially through the curated plan', async () => {
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue({ _id: 'user123' });
+    const router = require('react-router-dom');
+    const useLocationSpy = jest
+      .spyOn(router, 'useLocation')
+      .mockReturnValue({ pathname: '/typing', search: '?plan=psalms-mantras' });
+
+    const planV1 = {
+      ...mockVerse,
+      _id: 'pm-1',
+      verseOrder: 13594,
+      book: 'Psalms',
+      chapter: 1,
+      verse: 1,
+      text: 'Blessed is the man.',
+      characters: 19,
+      words: 4,
+    };
+    const planV2 = {
+      ...mockVerse,
+      _id: 'pm-2',
+      verseOrder: 13940,
+      book: 'Psalms',
+      chapter: 23,
+      verse: 1,
+      text: 'The LORD is my shepherd.',
+      characters: 24,
+      words: 5,
+    };
+
+    (PlanService.getPlanDetail as jest.Mock).mockResolvedValueOnce({
+      id: 'psalms-mantras',
+      title: 'Psalms for Daily Mantras & Focus',
+      verses: [planV1, planV2],
+      completedVerseIds: [],
+    });
+
+    try {
+      render(<TypingTest />);
+
+      const banner = await screen.findByTestId('active-plan-banner', {}, { timeout: 2000 });
+      expect(banner).toHaveTextContent('Curated Plan: Psalms for Daily Mantras & Focus');
+      expect(banner).toHaveTextContent('Verse 1 of 2');
+      expect(screen.getByTestId('verse-display')).toHaveTextContent(planV1.text);
+
+      const textarea = (await screen.findByPlaceholderText(
+        'Start typing the verse above...',
+        {},
+        { timeout: 2000 }
+      )) as HTMLTextAreaElement;
+
+      fireEvent.change(textarea, { target: { value: planV1.text } });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('active-plan-banner')).toHaveTextContent('Verse 2 of 2');
+        expect(screen.getByTestId('verse-display')).toHaveTextContent(planV2.text);
+      });
     } finally {
       useLocationSpy.mockRestore();
     }

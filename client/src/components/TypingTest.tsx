@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Verse } from '../types';
 import { CANONICAL_BOOKS } from '../data/books';
-import { VerseService, ProgressService } from '../services/api';
+import { getCuratedPlanById } from '../data/curatedCatalog';
+import { VerseService, ProgressService, MemoryService, PlanService } from '../services/api';
 import { useAuthSession } from '../context/AuthContext';
 import {
   countIncorrectCharacters,
@@ -13,12 +14,22 @@ import {
 
 const TypingTest: React.FC = () => {
   const location = useLocation();
-  const initialBook = new URLSearchParams(location.search || '').get('book')?.trim() || '';
+  const searchParams = new URLSearchParams(location.search || '');
+  const initialBook = searchParams.get('book')?.trim() || '';
+  const initialPlanId = searchParams.get('plan')?.trim() || '';
 
   const [verse, setVerse] = useState<Verse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [bookComplete, setBookComplete] = useState<string | null>(null);
+  const [activePlan, setActivePlan] = useState<{
+    id: string;
+    title: string;
+    verses: Verse[];
+    index: number;
+  } | null>(null);
+  const [savedVerseKeys, setSavedVerseKeys] = useState<Set<string>>(new Set());
+  const [savingToMemory, setSavingToMemory] = useState<boolean>(false);
   const [typedText, setTypedText] = useState<string>('');
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
@@ -29,7 +40,9 @@ const TypingTest: React.FC = () => {
     initialBook ? 'book' : 'random'
   );
   const [selectedBook, setSelectedBook] = useState<string>(initialBook);
-  const [autoAdvance, setAutoAdvance] = useState<boolean>(Boolean(initialBook));
+  const [autoAdvance, setAutoAdvance] = useState<boolean>(
+    Boolean(initialBook || initialPlanId)
+  );
   const [lastCompletedVerse, setLastCompletedVerse] = useState<{
     reference: string;
     wpm: number;
@@ -145,20 +158,135 @@ const TypingTest: React.FC = () => {
     [verseSelectionMode, selectedBook, userId]
   );
 
-  // Load initial verse or respond to ?book= query parameter changes
+  const fetchPlanVerses = useCallback(async (planId: string) => {
+    const planDef = getCuratedPlanById(planId);
+    if (!planDef) {
+      setError(`Curated plan "${planId}" not found.`);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      setBookComplete(null);
+      setTypedText('');
+      setStartTime(null);
+      setEndTime(null);
+      setCompleted(false);
+      setWpm(0);
+      setAccuracy(0);
+
+      let resolvedVerses: Verse[] = [];
+      if (PlanService?.getPlanDetail) {
+        try {
+          const detail = await PlanService.getPlanDetail(planId);
+          if (detail?.verses && detail.verses.length > 0) {
+            const completedSet = new Set(detail.completedVerseIds || []);
+            const firstUnfinishedIdx = detail.verses.findIndex(
+              (v) => !completedSet.has(v._id)
+            );
+            const startIndex = firstUnfinishedIdx >= 0 ? firstUnfinishedIdx : 0;
+            setActivePlan({
+              id: planDef.id,
+              title: planDef.title,
+              verses: detail.verses,
+              index: startIndex,
+            });
+            setVerse(detail.verses[startIndex]);
+            return;
+          }
+        } catch (_err) {
+          // Fallback to resolving first verse via VerseService below
+        }
+      }
+
+      const firstRef = planDef.verses[0];
+      const bookData = await VerseService.getVersesByBook(firstRef.book);
+      resolvedVerses = bookData.data.length > 0 ? bookData.data : [];
+      if (resolvedVerses.length === 0) {
+        const randomFallback = await VerseService.getRandomVerse();
+        resolvedVerses = [randomFallback];
+      }
+
+      setActivePlan({
+        id: planDef.id,
+        title: planDef.title,
+        verses: resolvedVerses,
+        index: 0,
+      });
+      setVerse(resolvedVerses[0]);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load study plan.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Load saved Memory Deck keys when user is logged in
   useEffect(() => {
-    if (initialBook) {
+    if (!userId || !MemoryService?.getDeck) return;
+    let cancelled = false;
+    MemoryService.getDeck()
+      .then((items) => {
+        if (cancelled || !Array.isArray(items)) return;
+        const keys = new Set<string>();
+        items.forEach((item) => {
+          if (item.verse?._id) keys.add(item.verse._id);
+          keys.add(`${item.book}:${item.chapter}:${item.verseNum}`);
+        });
+        setSavedVerseKeys(keys);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  // Load initial verse or respond to ?book= / ?plan= query parameter changes
+  useEffect(() => {
+    if (initialPlanId) {
+      setAutoAdvance(true);
+      fetchPlanVerses(initialPlanId);
+    } else if (initialBook) {
+      setActivePlan(null);
       setVerseSelectionMode('book');
       setSelectedBook(initialBook);
       setAutoAdvance(true);
       fetchVerse('book', initialBook);
     } else {
+      setActivePlan(null);
       fetchVerse('random', '');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialBook]);
+  }, [initialBook, initialPlanId]);
 
-  // Focus the textarea when verse is loaded
+  const advanceInPlanOrFetchNext = useCallback(
+    (afterVerseOrder?: number) => {
+      if (activePlan) {
+        const nextIndex = activePlan.index + 1;
+        if (nextIndex >= activePlan.verses.length) {
+          setVerse(null);
+          setBookComplete(activePlan.title);
+          return;
+        }
+        setActivePlan({
+          ...activePlan,
+          index: nextIndex,
+        });
+        setTypedText('');
+        setStartTime(null);
+        setEndTime(null);
+        setCompleted(false);
+        setWpm(0);
+        setAccuracy(0);
+        setVerse(activePlan.verses[nextIndex]);
+        return;
+      }
+      fetchVerse(verseSelectionMode, selectedBook, afterVerseOrder);
+    },
+    [activePlan, fetchVerse, selectedBook, verseSelectionMode]
+  );
   useEffect(() => {
     if (verse && inputRef.current) {
       inputRef.current.focus();
@@ -214,7 +342,7 @@ const TypingTest: React.FC = () => {
         if (user) {
           submitResult(effectiveStartTime, now, wordsPerMinute, accuracyPercentage, incorrect);
         }
-        fetchVerse(verseSelectionMode, selectedBook, completedVerseOrder);
+        advanceInPlanOrFetchNext(completedVerseOrder);
         return;
       }
 
@@ -265,7 +393,36 @@ const TypingTest: React.FC = () => {
   };
 
   const handleTryAnotherVerse = () => {
-    fetchVerse(verseSelectionMode, selectedBook, verse?.verseOrder);
+    advanceInPlanOrFetchNext(verse?.verseOrder);
+  };
+
+  const handleSaveToMemory = async () => {
+    if (!verse || !user || !MemoryService?.saveVerse) return;
+    const verseKey = `${verse.book}:${verse.chapter}:${verse.verse}`;
+    if (savedVerseKeys.has(verse._id) || savedVerseKeys.has(verseKey)) {
+      return;
+    }
+
+    try {
+      setSavingToMemory(true);
+      await MemoryService.saveVerse({
+        verseId: verse._id,
+        book: verse.book,
+        chapter: verse.chapter,
+        verse: verse.verse,
+        packId: activePlan?.id,
+      });
+      setSavedVerseKeys((prev) => {
+        const next = new Set(prev);
+        next.add(verse._id);
+        next.add(verseKey);
+        return next;
+      });
+    } catch (err) {
+      console.error('Failed to save verse to Memory Deck:', err);
+    } finally {
+      setSavingToMemory(false);
+    }
   };
 
   const handleViewProgress = () => {
@@ -421,6 +578,22 @@ const TypingTest: React.FC = () => {
         </div>
       </div>
 
+      {activePlan && (
+        <div
+          className="active-plan-banner"
+          role="status"
+          data-testid="active-plan-banner"
+        >
+          <span>
+            <strong>Curated Plan: {activePlan.title}</strong> · Verse {activePlan.index + 1} of{' '}
+            {activePlan.verses.length}
+          </span>
+          <Link to="/memory" className="secondary-button coverage-continue-link">
+            Memory Studio
+          </Link>
+        </div>
+      )}
+
       {lastCompletedVerse && (
         <div
           className="last-completed-banner"
@@ -436,11 +609,38 @@ const TypingTest: React.FC = () => {
       
       <>
         <div className="verse-reference">
-          <h2>{verse.book} {verse.chapter}:{verse.verse}</h2>
-          {loading && (
-            <span className="inline-refresh-badge" role="status" aria-live="polite">
-              Updating verse…
-            </span>
+          <div className="verse-reference-main">
+            <h2>{verse.book} {verse.chapter}:{verse.verse}</h2>
+            {loading && (
+              <span className="inline-refresh-badge" role="status" aria-live="polite">
+                Updating verse…
+              </span>
+            )}
+          </div>
+          {user && (
+            <button
+              type="button"
+              className={`memory-save-button ${
+                savedVerseKeys.has(verse._id) ||
+                savedVerseKeys.has(`${verse.book}:${verse.chapter}:${verse.verse}`)
+                  ? 'is-saved'
+                  : ''
+              }`}
+              onClick={handleSaveToMemory}
+              disabled={
+                savingToMemory ||
+                savedVerseKeys.has(verse._id) ||
+                savedVerseKeys.has(`${verse.book}:${verse.chapter}:${verse.verse}`)
+              }
+              data-testid="save-memory-button"
+            >
+              {savedVerseKeys.has(verse._id) ||
+              savedVerseKeys.has(`${verse.book}:${verse.chapter}:${verse.verse}`)
+                ? '✓ Saved in Memory Deck'
+                : savingToMemory
+                ? 'Saving...'
+                : '★ Save to Memory Deck'}
+            </button>
           )}
         </div>
         
