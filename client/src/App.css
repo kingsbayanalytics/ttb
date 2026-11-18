@@ -834,6 +834,7 @@
     border: 1px solid var(--border-stone);
     max-width: 960px;
     margin-inline: auto;
+    contain: layout style paint;
   }
 
   .verse-settings {
@@ -1417,7 +1418,30 @@
     border: 3px solid var(--border-stone);
     border-radius: 50%;
     border-inline-start-color: var(--accent-terracotta);
-    animation: spin 0.9s linear infinite;
+    @media (prefers-reduced-motion: no-preference) {
+      animation: spin 0.9s linear infinite;
+    }
+  }
+
+  .is-refreshing {
+    opacity: 0.55;
+    transition: opacity 0.15s ease-out;
+  }
+
+  .inline-refresh-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-inline-start: 0.65rem;
+    padding: 0.15rem 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent-terracotta);
+    background-color: var(--bg-bone);
+    border: 1px solid var(--border-stone);
+    vertical-align: middle;
   }
 
   .loading-text h3 {
@@ -1499,6 +1523,7 @@
     background-color: var(--bg-ivory);
     padding: 1.5rem;
     border: 1px solid var(--border-stone);
+    contain: layout style paint;
   }
 
   .dashboard-section-header {

@@ -189,9 +189,6 @@ const TypingTest: React.FC = () => {
       if (!startTime) {
         setStartTime(effectiveStartTime);
       }
-      setEndTime(now);
-      setCompleted(true);
-
       // Calculate final stats
       const durationMs = now.getTime() - effectiveStartTime.getTime();
       const wordsPerMinute = calculateWpm(verse.words, durationMs);
@@ -201,22 +198,32 @@ const TypingTest: React.FC = () => {
       const completedRef = `${verse.book} ${verse.chapter}:${verse.verse}`;
       const elapsedSeconds = (durationMs / 1000).toFixed(1);
 
-      const finishAndAdvance = async () => {
+      if (autoAdvance) {
+        // Keep textarea mounted and clear input immediately for zero-flash inline transition
+        setTypedText('');
+        setStartTime(null);
+        setEndTime(null);
+        setWpm(0);
+        setAccuracy(0);
+        setLastCompletedVerse({
+          reference: completedRef,
+          wpm: wordsPerMinute,
+          accuracy: accuracyPercentage,
+          seconds: elapsedSeconds,
+        });
         if (user) {
-          await submitResult(effectiveStartTime, now, wordsPerMinute, accuracyPercentage, incorrect);
+          submitResult(effectiveStartTime, now, wordsPerMinute, accuracyPercentage, incorrect);
         }
-        if (autoAdvance) {
-          setLastCompletedVerse({
-            reference: completedRef,
-            wpm: wordsPerMinute,
-            accuracy: accuracyPercentage,
-            seconds: elapsedSeconds,
-          });
-          await fetchVerse(verseSelectionMode, selectedBook, completedVerseOrder);
-        }
-      };
+        fetchVerse(verseSelectionMode, selectedBook, completedVerseOrder);
+        return;
+      }
 
-      finishAndAdvance();
+      setEndTime(now);
+      setCompleted(true);
+
+      if (user) {
+        submitResult(effectiveStartTime, now, wordsPerMinute, accuracyPercentage, incorrect);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [typedText, verse, completed, startTime, user?._id, autoAdvance, verseSelectionMode, selectedBook]);
@@ -271,7 +278,12 @@ const TypingTest: React.FC = () => {
   };
 
   const handleBookChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedBook(e.target.value);
+    const nextBook = e.target.value;
+    setSelectedBook(nextBook);
+    if (nextBook) {
+      setLastCompletedVerse(null);
+      fetchVerse('book', nextBook);
+    }
   };
 
   const handleFetchVerseClick = () => {
@@ -279,7 +291,7 @@ const TypingTest: React.FC = () => {
     fetchVerse();
   };
 
-  if (loading) {
+  if (loading && !verse && !bookComplete) {
     return <div className="loading">Loading verse...</div>;
   }
 
@@ -425,9 +437,19 @@ const TypingTest: React.FC = () => {
       <>
         <div className="verse-reference">
           <h2>{verse.book} {verse.chapter}:{verse.verse}</h2>
+          {loading && (
+            <span className="inline-refresh-badge" role="status" aria-live="polite">
+              Updating verse…
+            </span>
+          )}
         </div>
         
-        <div className="verse-display" data-testid="verse-display">{renderVerse()}</div>
+        <div
+          className={`verse-display ${loading ? 'is-refreshing' : ''}`}
+          data-testid="verse-display"
+        >
+          {renderVerse()}
+        </div>
         
         <div className="typing-stats">
           {startTime && !completed && (

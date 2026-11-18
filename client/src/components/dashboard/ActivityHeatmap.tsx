@@ -117,14 +117,18 @@ const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
         </div>
       </div>
 
-      {loading ? (
+      {loading && data.length === 0 ? (
         <div className="dashboard-inline-loading" role="status">
           Loading activity calendar...
         </div>
       ) : (
-        <>
+        <div className={loading ? 'is-refreshing' : ''}>
           <div className="heatmap-status-bar" aria-live="polite">
-            {hoveredCell ? (
+            {loading ? (
+              <span className="inline-refresh-badge" role="status">
+                Updating activity calendar…
+              </span>
+            ) : hoveredCell ? (
               <span>
                 <strong>{hoveredCell.date}:</strong> {hoveredCell.attempts}{' '}
                 {hoveredCell.attempts === 1 ? 'attempt' : 'attempts'}
@@ -233,7 +237,7 @@ const ActivityHeatmap: React.FC<ActivityHeatmapProps> = ({
               </table>
             )}
           </div>
-        </>
+        </div>
       )}
     </section>
   );

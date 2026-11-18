@@ -37,7 +37,14 @@ const TrendChart: React.FC<TrendChartProps> = ({
     <section className="dashboard-section" aria-labelledby="trend-heading">
       <div className="dashboard-section-header">
         <div>
-          <h3 id="trend-heading">Speed &amp; Accuracy Trend</h3>
+          <h3 id="trend-heading">
+            Speed &amp; Accuracy Trend
+            {loading && data.length > 0 && (
+              <span className="inline-refresh-badge" role="status" aria-live="polite">
+                Updating…
+              </span>
+            )}
+          </h3>
           <p className="dashboard-section-subtitle">
             Daily average WPM and accuracy across active practice days
           </p>
@@ -58,7 +65,7 @@ const TrendChart: React.FC<TrendChartProps> = ({
         </div>
       </div>
 
-      {loading ? (
+      {loading && data.length === 0 ? (
         <div className="dashboard-inline-loading" role="status">
           Loading trend data...
         </div>
@@ -68,7 +75,10 @@ const TrendChart: React.FC<TrendChartProps> = ({
         </div>
       ) : (
         <>
-          <div className="dashboard-chart-wrapper" data-testid="trend-chart-container">
+          <div
+            className={`dashboard-chart-wrapper ${loading ? 'is-refreshing' : ''}`}
+            data-testid="trend-chart-container"
+          >
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-stone, #D6D0C4)" />

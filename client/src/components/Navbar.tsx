@@ -12,8 +12,6 @@ const Navbar: React.FC = () => {
   const handleLogout = () => {
     AuthService.logout();
     navigate('/');
-    // Force a page reload to clear any user-dependent states
-    window.location.reload();
   };
 
   const toggleMobileMenu = () => {
