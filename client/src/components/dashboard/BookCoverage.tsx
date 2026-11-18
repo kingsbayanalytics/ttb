@@ -93,16 +93,21 @@ const BookCoverage: React.FC<BookCoverageProps> = ({ coverage }) => {
             data={coverage.testaments}
             margin={{ top: 10, right: 20, left: 0, bottom: 5 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-            <XAxis dataKey="testament" />
-            <YAxis domain={[0, 100]} unit="%" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-stone, #D6D0C4)" />
+            <XAxis dataKey="testament" stroke="var(--ink-secondary, #57534E)" />
+            <YAxis domain={[0, 100]} unit="%" stroke="var(--ink-secondary, #57534E)" />
             <Tooltip
               formatter={(value: unknown) => {
                 const numeric = typeof value === 'number' ? value : Number(value);
                 return [`${Number.isNaN(numeric) ? value : numeric.toFixed(1)}%`, 'Coverage'];
               }}
             />
-            <Bar dataKey="percentage" name="Coverage (%)" fill="#3f51b5" isAnimationActive={false} />
+            <Bar
+              dataKey="percentage"
+              name="Coverage (%)"
+              fill="var(--accent-terracotta, #B84A39)"
+              isAnimationActive={false}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>

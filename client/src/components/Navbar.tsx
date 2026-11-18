@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthService } from '../services/api';
 import { useAuthSession } from '../context/AuthContext';
+import ThemeToggle from './ThemeToggle';
 
 const Navbar: React.FC = () => {
   const { mode, user } = useAuthSession();
@@ -22,16 +23,29 @@ const Navbar: React.FC = () => {
   return (
     <nav className="navbar">
       <div className="navbar-container">
-        <Link to="/" className="navbar-logo">
-          Type the Bible
-        </Link>
+        <div className="navbar-brand">
+          <span className="navbar-emblem" aria-hidden="true">
+            §
+          </span>
+          <div className="navbar-title-group">
+            <Link to="/" className="navbar-logo">
+              Type the Bible
+            </Link>
+            <span className="navbar-subtitle">
+              Scripture Typing &amp; Mastery Atlas
+            </span>
+          </div>
+        </div>
 
-        <div className="mobile-menu-icon" onClick={toggleMobileMenu}>
-          {mobileMenuOpen ? (
-            <i className="fas fa-times" />
-          ) : (
-            <i className="fas fa-bars" />
-          )}
+        <div className="navbar-actions-mobile">
+          <ThemeToggle />
+          <div className="mobile-menu-icon" onClick={toggleMobileMenu}>
+            {mobileMenuOpen ? (
+              <i className="fas fa-times" />
+            ) : (
+              <i className="fas fa-bars" />
+            )}
+          </div>
         </div>
 
         <ul className={`nav-menu ${mobileMenuOpen ? 'active' : ''}`}>
@@ -65,6 +79,10 @@ const Navbar: React.FC = () => {
                 <Link to="/profile" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
                   Profile
                 </Link>
+              </li>
+
+              <li className="nav-item nav-theme-desktop">
+                <ThemeToggle />
               </li>
 
               <li className="nav-item">
@@ -103,6 +121,10 @@ const Navbar: React.FC = () => {
                 </Link>
               </li>
 
+              <li className="nav-item nav-theme-desktop">
+                <ThemeToggle />
+              </li>
+
               <li className="nav-item">
                 <button onClick={handleLogout} className="nav-link logout-button">
                   Logout
@@ -111,6 +133,10 @@ const Navbar: React.FC = () => {
             </>
           ) : (
             <>
+              <li className="nav-item nav-theme-desktop">
+                <ThemeToggle />
+              </li>
+
               <li className="nav-item">
                 <Link to="/login" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
                   Login

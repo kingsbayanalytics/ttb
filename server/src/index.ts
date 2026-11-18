@@ -25,7 +25,19 @@ export function createApp(
   app.set('appConfig', appConfig);
 
   // Security headers and CORS
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+          'script-src': [
+            "'self'",
+            "'sha256-4bOLYhNW9l8wdl1cImo9FJKWTTIJDdzQ3TUUdsvCOHY='",
+          ],
+        },
+      },
+    })
+  );
   app.use(
     cors({
       origin: appConfig.corsOrigins,

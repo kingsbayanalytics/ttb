@@ -71,16 +71,18 @@ const TrendChart: React.FC<TrendChartProps> = ({
           <div className="dashboard-chart-wrapper" data-testid="trend-chart-container">
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="date" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-stone, #D6D0C4)" />
+                <XAxis dataKey="date" stroke="var(--ink-secondary, #57534E)" />
                 <YAxis
                   yAxisId="wpm"
+                  stroke="var(--ink-secondary, #57534E)"
                   label={{ value: 'WPM', angle: -90, position: 'insideLeft' }}
                 />
                 <YAxis
                   yAxisId="accuracy"
                   orientation="right"
                   domain={[0, 100]}
+                  stroke="var(--ink-secondary, #57534E)"
                   label={{ value: 'Accuracy %', angle: 90, position: 'insideRight' }}
                 />
                 <Tooltip
@@ -99,7 +101,7 @@ const TrendChart: React.FC<TrendChartProps> = ({
                   type="monotone"
                   dataKey="avgWpm"
                   name="Avg WPM"
-                  stroke="#3f51b5"
+                  stroke="var(--accent-terracotta, #B84A39)"
                   strokeWidth={2}
                   dot={{ r: 3 }}
                   isAnimationActive={false}
@@ -109,7 +111,7 @@ const TrendChart: React.FC<TrendChartProps> = ({
                   type="monotone"
                   dataKey="avgAccuracy"
                   name="Avg Accuracy (%)"
-                  stroke="#2e7d32"
+                  stroke="var(--accent-slate-blue, #345474)"
                   strokeWidth={2}
                   strokeDasharray="5 3"
                   dot={{ r: 3 }}
