@@ -72,7 +72,16 @@ export const getNextVerse = asyncHandler(async (req: Request, res: Response) => 
   const completedProgress = await Progress.find(progressFilter).select('verse').lean();
   const completedVerseIds = new Set(completedProgress.map((p) => p.verse.toString()));
 
-  const nextMeta = orderedVerses.find((v) => !completedVerseIds.has(v._id.toString()));
+  const rawAfter = req.query.afterVerseOrder;
+  const afterVerseOrder =
+    typeof rawAfter === 'string' && /^\d+$/.test(rawAfter) ? Number(rawAfter) : undefined;
+
+  const nextMeta =
+    (afterVerseOrder !== undefined
+      ? orderedVerses.find(
+          (v) => v.verseOrder > afterVerseOrder && !completedVerseIds.has(v._id.toString())
+        )
+      : undefined) ?? orderedVerses.find((v) => !completedVerseIds.has(v._id.toString()));
   if (!nextMeta) {
     return res.json({
       success: true,

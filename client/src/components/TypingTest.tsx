@@ -29,6 +29,13 @@ const TypingTest: React.FC = () => {
     initialBook ? 'book' : 'random'
   );
   const [selectedBook, setSelectedBook] = useState<string>(initialBook);
+  const [autoAdvance, setAutoAdvance] = useState<boolean>(Boolean(initialBook));
+  const [lastCompletedVerse, setLastCompletedVerse] = useState<{
+    reference: string;
+    wpm: number;
+    accuracy: number;
+    seconds: string;
+  } | null>(null);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
@@ -38,7 +45,8 @@ const TypingTest: React.FC = () => {
   const fetchVerse = useCallback(
     async (
       modeOverride?: 'random' | 'book' | 'sequential',
-      bookOverride?: string
+      bookOverride?: string,
+      afterVerseOrder?: number
     ) => {
       const mode = modeOverride ?? verseSelectionMode;
       const bookToFetch = bookOverride ?? selectedBook;
@@ -65,7 +73,10 @@ const TypingTest: React.FC = () => {
             }
             if (userId) {
               try {
-                const nextResult = await VerseService.getNextVerse(bookToFetch);
+                const nextResult =
+                  afterVerseOrder !== undefined
+                    ? await VerseService.getNextVerse(bookToFetch, afterVerseOrder)
+                    : await VerseService.getNextVerse(bookToFetch);
                 if (nextResult.complete || !nextResult.verse) {
                   setVerse(null);
                   setBookComplete(bookToFetch);
@@ -84,8 +95,12 @@ const TypingTest: React.FC = () => {
                   setLoading(false);
                   return;
                 }
-                const randomBookIndex = Math.floor(Math.random() * bookResults.data.length);
-                data = bookResults.data[randomBookIndex];
+                const sorted = [...bookResults.data].sort((a, b) => a.verseOrder - b.verseOrder);
+                const nextInBook =
+                  afterVerseOrder !== undefined
+                    ? sorted.find((v) => v.verseOrder > afterVerseOrder) ?? sorted[0]
+                    : sorted[0];
+                data = nextInBook;
               } catch (err) {
                 throw new Error(`Failed to fetch verse from ${bookToFetch}.`);
               }
@@ -94,15 +109,19 @@ const TypingTest: React.FC = () => {
 
           case 'sequential':
             try {
-              const progress = userId ? await ProgressService.getUserProgress() : [];
+              if (afterVerseOrder !== undefined) {
+                data = await VerseService.getVerseByOrder(afterVerseOrder + 1);
+              } else {
+                const progress = userId ? await ProgressService.getUserProgress() : [];
 
-              let nextVerseOrder = 1;
-              if (progress.length > 0) {
-                const maxVerseOrder = Math.max(...progress.map((p) => p.verseOrder));
-                nextVerseOrder = maxVerseOrder + 1;
+                let nextVerseOrder = 1;
+                if (progress.length > 0) {
+                  const maxVerseOrder = Math.max(...progress.map((p) => p.verseOrder));
+                  nextVerseOrder = maxVerseOrder + 1;
+                }
+
+                data = await VerseService.getVerseByOrder(nextVerseOrder);
               }
-
-              data = await VerseService.getVerseByOrder(nextVerseOrder);
             } catch (err) {
               console.error('Failed to get sequential verse, falling back to random:', err);
               data = await VerseService.getRandomVerse();
@@ -131,6 +150,7 @@ const TypingTest: React.FC = () => {
     if (initialBook) {
       setVerseSelectionMode('book');
       setSelectedBook(initialBook);
+      setAutoAdvance(true);
       fetchVerse('book', initialBook);
     } else {
       fetchVerse('random', '');
@@ -177,13 +197,29 @@ const TypingTest: React.FC = () => {
       const wordsPerMinute = calculateWpm(verse.words, durationMs);
       setWpm(wordsPerMinute);
 
-      // Submit result if logged in
-      if (user) {
-        submitResult(effectiveStartTime, now, wordsPerMinute, accuracyPercentage, incorrect);
-      }
+      const completedVerseOrder = verse.verseOrder;
+      const completedRef = `${verse.book} ${verse.chapter}:${verse.verse}`;
+      const elapsedSeconds = (durationMs / 1000).toFixed(1);
+
+      const finishAndAdvance = async () => {
+        if (user) {
+          await submitResult(effectiveStartTime, now, wordsPerMinute, accuracyPercentage, incorrect);
+        }
+        if (autoAdvance) {
+          setLastCompletedVerse({
+            reference: completedRef,
+            wpm: wordsPerMinute,
+            accuracy: accuracyPercentage,
+            seconds: elapsedSeconds,
+          });
+          await fetchVerse(verseSelectionMode, selectedBook, completedVerseOrder);
+        }
+      };
+
+      finishAndAdvance();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [typedText, verse, completed, startTime, user?._id]);
+  }, [typedText, verse, completed, startTime, user?._id, autoAdvance, verseSelectionMode, selectedBook]);
 
   const submitResult = async (
     resultStartTime: Date,
@@ -222,7 +258,7 @@ const TypingTest: React.FC = () => {
   };
 
   const handleTryAnotherVerse = () => {
-    fetchVerse();
+    fetchVerse(verseSelectionMode, selectedBook, verse?.verseOrder);
   };
 
   const handleViewProgress = () => {
@@ -231,6 +267,7 @@ const TypingTest: React.FC = () => {
 
   const handleVerseSelectionModeChange = (mode: 'random' | 'book' | 'sequential') => {
     setVerseSelectionMode(mode);
+    setAutoAdvance(mode === 'book' || mode === 'sequential');
   };
 
   const handleBookChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -238,6 +275,7 @@ const TypingTest: React.FC = () => {
   };
 
   const handleFetchVerseClick = () => {
+    setLastCompletedVerse(null);
     fetchVerse();
   };
 
@@ -357,7 +395,32 @@ const TypingTest: React.FC = () => {
             Get Verse
           </button>
         </div>
+
+        <div className="continuity-controls">
+          <label className={`auto-advance-toggle ${autoAdvance ? 'is-active' : ''}`}>
+            <input
+              type="checkbox"
+              className="visually-hidden"
+              checked={autoAdvance}
+              onChange={(e) => setAutoAdvance(e.target.checked)}
+            />
+            <span>Auto-advance to next verse on completion</span>
+          </label>
+        </div>
       </div>
+
+      {lastCompletedVerse && (
+        <div
+          className="last-completed-banner"
+          role="status"
+          data-testid="last-completed-banner"
+        >
+          <span>
+            <strong>Completed {lastCompletedVerse.reference}</strong> — {lastCompletedVerse.wpm} WPM ·{' '}
+            {lastCompletedVerse.accuracy}% Accuracy · {lastCompletedVerse.seconds}s
+          </span>
+        </div>
+      )}
       
       <>
         <div className="verse-reference">

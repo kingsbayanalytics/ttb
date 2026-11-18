@@ -586,4 +586,69 @@ describe('TypingTest', () => {
       useLocationSpy.mockRestore();
     }
   });
+
+  it('auto-advances to the next verse in the book after completing a verse in By Book mode', async () => {
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue({ _id: 'user123' });
+    const router = require('react-router-dom');
+    const useLocationSpy = jest
+      .spyOn(router, 'useLocation')
+      .mockReturnValue({ pathname: '/typing', search: '?book=Psalms' });
+
+    const psalm1 = {
+      ...mockVerse,
+      _id: 'ps1',
+      verseOrder: 13594,
+      book: 'Psalms',
+      chapter: 1,
+      verse: 1,
+      text: "Blessed is the man who doesn't walk in the counsel of the wicked;",
+      characters: 65,
+      words: 13,
+    };
+    const psalm2 = {
+      ...mockVerse,
+      _id: 'ps2',
+      verseOrder: 13595,
+      book: 'Psalms',
+      chapter: 1,
+      verse: 2,
+      text: "but his delight is in Yahweh's law.",
+      characters: 35,
+      words: 7,
+    };
+
+    (VerseService.getNextVerse as jest.Mock)
+      .mockResolvedValueOnce({ complete: false, verse: psalm1 })
+      .mockResolvedValueOnce({ complete: false, verse: psalm2 });
+
+    try {
+      render(<TypingTest />);
+
+      const verseDisplay = await screen.findByTestId('verse-display', {}, { timeout: 2000 });
+      expect(verseDisplay).toHaveTextContent(psalm1.text);
+
+      const textarea = (await screen.findByPlaceholderText(
+        'Start typing the verse above...',
+        {},
+        { timeout: 2000 }
+      )) as HTMLTextAreaElement;
+
+      fireEvent.change(textarea, { target: { value: psalm1.text } });
+
+      await waitFor(
+        () => {
+          expect(ProgressService.submitResult).toHaveBeenCalledTimes(1);
+          expect(VerseService.getNextVerse).toHaveBeenCalledWith('Psalms', 13594);
+          expect(screen.getByTestId('verse-display')).toHaveTextContent(psalm2.text);
+        },
+        { timeout: 2000 }
+      );
+
+      expect(screen.getByTestId('last-completed-banner')).toHaveTextContent(
+        'Completed Psalms 1:1'
+      );
+    } finally {
+      useLocationSpy.mockRestore();
+    }
+  });
 });

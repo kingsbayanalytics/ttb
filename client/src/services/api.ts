@@ -230,19 +230,27 @@ export const VerseService = {
   },
 
   // Get next untyped verse (overall or scoped to a book)
-  getNextVerse: async (book?: string): Promise<NextVerseResult> => {
+  getNextVerse: async (book?: string, afterVerseOrder?: number): Promise<NextVerseResult> => {
     try {
       if (USE_MOCK_DATA) {
         const candidates = book
           ? mockVerses.filter((v) => v.book.toLowerCase() === book.toLowerCase())
           : mockVerses;
-        return candidates.length > 0
-          ? { complete: false, verse: candidates[0] }
+        const sorted = [...candidates].sort((a, b) => a.verseOrder - b.verseOrder);
+        const nextAfter =
+          afterVerseOrder !== undefined
+            ? sorted.find((v) => v.verseOrder > afterVerseOrder) ?? sorted[0]
+            : sorted[0];
+        return sorted.length > 0
+          ? { complete: false, verse: nextAfter }
           : { complete: true, verse: null };
       }
 
+      const params: Record<string, string | number> = {};
+      if (book) params.book = book;
+      if (afterVerseOrder !== undefined) params.afterVerseOrder = afterVerseOrder;
       const response = await api.get('/verses/next', {
-        params: book ? { book } : undefined,
+        params: Object.keys(params).length > 0 ? params : undefined,
       });
       return response.data.data;
     } catch (error) {
