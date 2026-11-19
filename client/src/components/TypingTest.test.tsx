@@ -25,6 +25,7 @@ jest.mock('../services/api', () => ({
   ProgressService: {
     submitResult: jest.fn(),
     getUserProgress: jest.fn(),
+    getBookChapterProgress: jest.fn(),
   },
   AuthService: {
     getCurrentUser: jest.fn(),
@@ -47,6 +48,16 @@ describe('TypingTest', () => {
     (VerseService.getNextVerse as jest.Mock).mockResolvedValue({ complete: false, verse: mockVerse });
     (ProgressService.submitResult as jest.Mock).mockResolvedValue({});
     (ProgressService.getUserProgress as jest.Mock).mockResolvedValue([]);
+    (ProgressService.getBookChapterProgress as jest.Mock).mockResolvedValue({
+      book: 'Genesis',
+      chapter: 1,
+      chapterCompleted: 21,
+      chapterTotal: 31,
+      chapterPercentage: 67.7,
+      bookCompleted: 21,
+      bookTotal: 1533,
+      bookPercentage: 1.4,
+    });
     (AuthService.getCurrentUser as jest.Mock).mockReturnValue(null);
     (MemoryService.getDeck as jest.Mock).mockResolvedValue([]);
     (MemoryService.saveVerse as jest.Mock).mockResolvedValue({});
@@ -832,5 +843,64 @@ describe('TypingTest', () => {
     } finally {
       useLocationSpy.mockRestore();
     }
+  });
+
+  it('displays live chapter and book completion percentages and refreshes after completing a verse', async () => {
+    const loggedInUser = { _id: 'user123' };
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue(loggedInUser);
+    (ProgressService.getBookChapterProgress as jest.Mock)
+      .mockResolvedValueOnce({
+        book: 'Genesis',
+        chapter: 1,
+        chapterCompleted: 21,
+        chapterTotal: 31,
+        chapterPercentage: 67.7,
+        bookCompleted: 21,
+        bookTotal: 1533,
+        bookPercentage: 1.4,
+      })
+      .mockResolvedValueOnce({
+        book: 'Genesis',
+        chapter: 1,
+        chapterCompleted: 22,
+        chapterTotal: 31,
+        chapterPercentage: 71.0,
+        bookCompleted: 22,
+        bookTotal: 1533,
+        bookPercentage: 1.4,
+      });
+
+    render(<TypingTest />);
+
+    const strip = await screen.findByTestId('chapter-book-progress', {}, { timeout: 2000 });
+    expect(strip).toHaveTextContent('Chapter 1');
+    expect(strip).toHaveTextContent('21 / 31 verses');
+    expect(strip).toHaveTextContent('67.7%');
+    expect(strip).toHaveTextContent('Genesis');
+    expect(strip).toHaveTextContent('21 / 1,533 verses');
+    expect(strip).toHaveTextContent('1.4%');
+
+    const chapterBar = screen.getByLabelText('Chapter 1') as HTMLProgressElement;
+    const bookBar = screen.getByLabelText('Genesis') as HTMLProgressElement;
+    expect(chapterBar.value).toBe(21);
+    expect(chapterBar.max).toBe(31);
+    expect(bookBar.value).toBe(21);
+    expect(bookBar.max).toBe(1533);
+
+    const textarea = (await screen.findByPlaceholderText(
+      'Start typing the verse above...',
+      {},
+      { timeout: 2000 }
+    )) as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: mockVerse.text } });
+
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('chapter-book-progress')).toHaveTextContent('22 / 31 verses');
+        expect(screen.getByTestId('chapter-book-progress')).toHaveTextContent('71.0%');
+        expect(screen.getByTestId('chapter-book-progress')).toHaveTextContent('22 / 1,533 verses');
+      },
+      { timeout: 2000 }
+    );
   });
 });

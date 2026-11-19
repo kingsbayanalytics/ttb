@@ -4,6 +4,7 @@ import {
   getUserResults,
   getVerseProgress,
   getProgressSummary,
+  getBookChapterProgress,
   submitResult,
   updateResult,
   deleteResult,
@@ -24,6 +25,9 @@ router.get('/results', getUserResults);
 
 // Get progress summary
 router.get('/summary', getProgressSummary);
+
+// Get completion counts & percentages for current book and chapter
+router.get('/book-context', getBookChapterProgress);
 
 // Get or delete progress for a specific verse
 router.get('/verse/:verseId', getVerseProgress);

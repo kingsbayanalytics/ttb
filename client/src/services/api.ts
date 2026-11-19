@@ -2,6 +2,7 @@ import axios from 'axios';
 import {
   AchievementsData,
   ActivityPoint,
+  BookChapterProgress,
   CoverageData,
   CuratedPlanDetail,
   CuratedPlanSummary,
@@ -564,6 +565,50 @@ export const ProgressService = {
   ): Promise<{ verseId: string; deletedResultsCount: number }> => {
     try {
       const response = await api.delete(`/progress/verse/${verseId}`);
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  // Get chapter & book completion counts and percentages for the active verse
+  getBookChapterProgress: async (
+    book: string,
+    chapter: number
+  ): Promise<BookChapterProgress> => {
+    try {
+      if (USE_MOCK_DATA) {
+        const bookVerses = mockVerses.filter(
+          (v) => v.book.toLowerCase() === book.toLowerCase()
+        );
+        const chapterVerses = bookVerses.filter((v) => v.chapter === chapter);
+        const completedIds = new Set(
+          mockProgress.filter((p) => p.completed).map((p) => String(p.verse))
+        );
+        const bookCompleted = bookVerses.filter((v) => completedIds.has(v._id)).length;
+        const chapterCompleted = chapterVerses.filter((v) => completedIds.has(v._id)).length;
+        return {
+          book,
+          chapter,
+          chapterCompleted,
+          chapterTotal: chapterVerses.length,
+          chapterPercentage:
+            chapterVerses.length > 0
+              ? Math.round((chapterCompleted / chapterVerses.length) * 1000) / 10
+              : 0,
+          bookCompleted,
+          bookTotal: bookVerses.length,
+          bookPercentage:
+            bookVerses.length > 0
+              ? Math.round((bookCompleted / bookVerses.length) * 1000) / 10
+              : 0,
+        };
+      }
+
+      const response = await api.get('/progress/book-context', {
+        params: { book, chapter },
+      });
       return response.data.data;
     } catch (error) {
       handleApiError(error);

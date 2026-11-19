@@ -1268,6 +1268,97 @@
     margin-block-end: 0;
   }
 
+  .completion-progress-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.9rem 1.5rem;
+    padding: 0.75rem 1rem;
+    margin-block-end: 1rem;
+    background-color: var(--bg-ivory);
+    border: 1px solid var(--border-stone);
+  }
+
+  .completion-meter {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+
+  .completion-meter-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .completion-meter-label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-primary);
+  }
+
+  .completion-meter-stats {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.75rem;
+    color: var(--ink-secondary);
+  }
+
+  .completion-meter-stats strong {
+    color: var(--ink-primary);
+    font-weight: 700;
+  }
+
+  .completion-progress-bar {
+    --progress-bar-radius: 2px;
+    --progress-bar-fill: var(--accent-terracotta);
+    --progress-bar-transition: inline-size 0.3s ease-out;
+    appearance: none;
+    display: block;
+    inline-size: 100%;
+    block-size: 6px;
+    border: 0 solid;
+    border-radius: var(--progress-bar-radius);
+    overflow: clip;
+    background: var(--bg-bone);
+    box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .completion-progress-bar {
+      --progress-bar-transition: none;
+    }
+  }
+
+  .completion-progress-bar-chapter {
+    --progress-bar-fill: var(--accent-terracotta);
+  }
+
+  .completion-progress-bar-book {
+    --progress-bar-fill: var(--accent-slate-blue);
+  }
+
+  .completion-progress-bar::-webkit-progress-bar {
+    background: transparent;
+  }
+
+  .completion-progress-bar::-webkit-progress-value {
+    background: var(--progress-bar-fill);
+    border-radius: var(--progress-bar-radius);
+    transition: var(--progress-bar-transition);
+  }
+
+  .completion-progress-bar::-moz-progress-bar {
+    background: var(--progress-bar-fill);
+    border-radius: var(--progress-bar-radius);
+    transition: var(--progress-bar-transition);
+  }
+
   .verse-display {
     font-family: var(--font-serif);
     font-size: clamp(1.2rem, 1.05rem + 0.6vw, 1.55rem);

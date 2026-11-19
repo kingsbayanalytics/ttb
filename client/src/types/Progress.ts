@@ -8,4 +8,15 @@ export interface Progress {
   bestWPM: number;
   bestAccuracy: number;
   lastAttemptDate: string;
-} 
+}
+
+export interface BookChapterProgress {
+  book: string;
+  chapter: number;
+  chapterCompleted: number;
+  chapterTotal: number;
+  chapterPercentage: number;
+  bookCompleted: number;
+  bookTotal: number;
+  bookPercentage: number;
+}

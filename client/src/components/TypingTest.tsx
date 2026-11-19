@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Verse } from '../types';
+import { BookChapterProgress, Verse } from '../types';
 import { CANONICAL_BOOKS } from '../data/books';
 import { getCuratedPlanById } from '../data/curatedCatalog';
 import { VerseService, ProgressService, MemoryService, PlanService } from '../services/api';
@@ -15,6 +15,14 @@ import {
   extractTypingErrors,
   recordKeystrokeMismatches,
 } from '../utils/weaknessExtractor';
+
+function formatCompletionPercent(completed: number, total: number): string {
+  if (total <= 0 || completed <= 0) return '0%';
+  if (completed >= total) return '100%';
+  const raw = (completed / total) * 100;
+  if (raw < 0.1) return '<0.1%';
+  return `${raw.toFixed(1)}%`;
+}
 
 const TypingTest: React.FC = () => {
   const location = useLocation();
@@ -56,6 +64,8 @@ const TypingTest: React.FC = () => {
     accuracy: number;
     seconds: string;
   } | null>(null);
+  const [bookChapterProgress, setBookChapterProgress] = useState<BookChapterProgress | null>(null);
+  const [completionRefreshNonce, setCompletionRefreshNonce] = useState<number>(0);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const bookSelectRef = useRef<HTMLSelectElement>(null);
@@ -254,6 +264,33 @@ const TypingTest: React.FC = () => {
     };
   }, [userId]);
 
+  // Fetch live chapter & book completion counts for the current verse
+  useEffect(() => {
+    if (
+      !userId ||
+      !verse?.book ||
+      !verse?.chapter ||
+      typeof ProgressService.getBookChapterProgress !== 'function'
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    ProgressService.getBookChapterProgress(verse.book, verse.chapter)
+      .then((data) => {
+        if (!cancelled && data) {
+          setBookChapterProgress(data);
+        }
+      })
+      .catch(() => {
+        // Keep existing completion display silently if lookup fails
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, verse?.book, verse?.chapter, completionRefreshNonce]);
+
   // Load initial verse or respond to ?book= / ?plan= / ?mode= query parameter changes
   useEffect(() => {
     if (initialPlanId) {
@@ -440,6 +477,7 @@ const TypingTest: React.FC = () => {
         missedChars: extractedErrors?.missedChars ?? [],
         missedWords: extractedErrors?.missedWords ?? [],
       });
+      setCompletionRefreshNonce((n) => n + 1);
     } catch (err) {
       console.error('Failed to submit result:', err);
       // We'll continue even if result submission fails
@@ -714,6 +752,67 @@ const TypingTest: React.FC = () => {
             </button>
           )}
         </div>
+
+        {user && bookChapterProgress && bookChapterProgress.bookTotal > 0 && (
+          <div
+            className="completion-progress-strip"
+            data-testid="chapter-book-progress"
+          >
+            <div className="completion-meter completion-meter-chapter">
+              <div className="completion-meter-header">
+                <label
+                  htmlFor="chapter-completion-bar"
+                  className="completion-meter-label"
+                >
+                  Chapter {bookChapterProgress.chapter}
+                </label>
+                <span className="completion-meter-stats">
+                  {bookChapterProgress.chapterCompleted.toLocaleString()} /{' '}
+                  {bookChapterProgress.chapterTotal.toLocaleString()} verses ·{' '}
+                  <strong>
+                    {formatCompletionPercent(
+                      bookChapterProgress.chapterCompleted,
+                      bookChapterProgress.chapterTotal
+                    )}
+                  </strong>
+                </span>
+              </div>
+              <progress
+                id="chapter-completion-bar"
+                className="completion-progress-bar completion-progress-bar-chapter"
+                value={bookChapterProgress.chapterCompleted}
+                max={Math.max(1, bookChapterProgress.chapterTotal)}
+              />
+            </div>
+
+            <div className="completion-meter completion-meter-book">
+              <div className="completion-meter-header">
+                <label
+                  htmlFor="book-completion-bar"
+                  className="completion-meter-label"
+                >
+                  {bookChapterProgress.book}
+                </label>
+                <span className="completion-meter-stats">
+                  {bookChapterProgress.bookCompleted.toLocaleString()} /{' '}
+                  {bookChapterProgress.bookTotal.toLocaleString()} verses ·{' '}
+                  <strong>
+                    {formatCompletionPercent(
+                      bookChapterProgress.bookCompleted,
+                      bookChapterProgress.bookTotal
+                    )}
+                  </strong>
+                </span>
+              </div>
+              <progress
+                id="book-completion-bar"
+                className="completion-progress-bar completion-progress-bar-book"
+                value={bookChapterProgress.bookCompleted}
+                max={Math.max(1, bookChapterProgress.bookTotal)}
+              />
+            </div>
+          </div>
+        )}
         
         <div
           className={`verse-display ${loading ? 'is-refreshing' : ''}`}

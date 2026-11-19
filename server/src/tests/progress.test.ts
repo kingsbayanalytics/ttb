@@ -309,4 +309,60 @@ describe('Progress API', () => {
       .expect(200);
     expect(progressAfter.body.data).toHaveLength(0);
   });
+
+  it('returns accurate chapter and book completion counts and percentages scoped to the authenticated user', async () => {
+    const [owner, other] = await User.create([
+      { username: 'reader1', email: 'reader1@example.com', password: 'password123' },
+      { username: 'reader2', email: 'reader2@example.com', password: 'password123' },
+    ]);
+
+    const verses = await Verse.create([
+      { verseOrder: 1, book: 'Genesis', chapter: 1, verse: 1, text: 'Gen 1:1', characters: 7, words: 2 },
+      { verseOrder: 2, book: 'Genesis', chapter: 1, verse: 2, text: 'Gen 1:2', characters: 7, words: 2 },
+      { verseOrder: 3, book: 'Genesis', chapter: 2, verse: 1, text: 'Gen 2:1', characters: 7, words: 2 },
+      { verseOrder: 4, book: 'Genesis', chapter: 2, verse: 2, text: 'Gen 2:2', characters: 7, words: 2 },
+      { verseOrder: 5, book: 'Psalms', chapter: 1, verse: 1, text: 'Psa 1:1', characters: 7, words: 2 },
+    ]);
+
+    // Owner completed Genesis 1:1 and Genesis 2:1; Other user completed Genesis 1:2
+    await Progress.create([
+      { user: owner._id, verse: verses[0]._id, verseOrder: 1, completed: true, attempts: 1, bestWPM: 55, bestAccuracy: 100 },
+      { user: owner._id, verse: verses[2]._id, verseOrder: 3, completed: true, attempts: 1, bestWPM: 60, bestAccuracy: 98 },
+      { user: other._id, verse: verses[1]._id, verseOrder: 2, completed: true, attempts: 1, bestWPM: 70, bestAccuracy: 100 },
+    ]);
+
+    const loginRes = await request(app)
+      .post('/api/users/login')
+      .send({ email: 'reader1@example.com', password: 'password123' })
+      .expect(200);
+    const token = loginRes.body.data.token;
+
+    // Missing or invalid query params -> 400
+    await request(app)
+      .get('/api/progress/book-context')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+    await request(app)
+      .get('/api/progress/book-context?book=Genesis&chapter=0')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+
+    // Valid Genesis Chapter 1 lookup -> 1/2 chapter (50%), 2/4 book (50%)
+    const ctxRes = await request(app)
+      .get('/api/progress/book-context?book=Genesis&chapter=1')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(ctxRes.body.success).toBe(true);
+    expect(ctxRes.body.data).toEqual({
+      book: 'Genesis',
+      chapter: 1,
+      chapterCompleted: 1,
+      chapterTotal: 2,
+      chapterPercentage: 50,
+      bookCompleted: 2,
+      bookTotal: 4,
+      bookPercentage: 50,
+    });
+  });
 });

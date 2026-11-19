@@ -399,3 +399,75 @@ export const deleteVerseProgress = asyncHandler(async (req: Request, res: Respon
     },
   });
 });
+
+/**
+ * @desc    Get completion counts and percentages for a specific book and chapter
+ * @route   GET /api/progress/book-context?book=Genesis&chapter=1
+ * @access  Private
+ */
+export const getBookChapterProgress = asyncHandler(async (req: Request, res: Response) => {
+  const book = typeof req.query.book === 'string' ? req.query.book.trim() : '';
+  const chapterRaw = typeof req.query.chapter === 'string' ? req.query.chapter.trim() : '';
+  const chapterNum = Number(chapterRaw);
+
+  if (!book) {
+    throw new ApiError('Query parameter "book" is required', 400);
+  }
+  if (!chapterRaw || !Number.isInteger(chapterNum) || chapterNum < 1) {
+    throw new ApiError('Query parameter "chapter" must be a positive integer', 400);
+  }
+
+  const bookVerses = await Verse.find({ book }, { _id: 1, chapter: 1 }).lean();
+  const bookTotal = bookVerses.length;
+  const chapterVerseIds = new Set<string>();
+  const bookVerseObjectIds: mongoose.Types.ObjectId[] = [];
+
+  for (const v of bookVerses) {
+    bookVerseObjectIds.push(v._id as mongoose.Types.ObjectId);
+    if (v.chapter === chapterNum) {
+      chapterVerseIds.add(String(v._id));
+    }
+  }
+
+  const chapterTotal = chapterVerseIds.size;
+
+  let bookCompleted = 0;
+  let chapterCompleted = 0;
+
+  if (bookVerseObjectIds.length > 0) {
+    const completedDocs = await Progress.find(
+      {
+        user: req.user._id,
+        completed: true,
+        verse: { $in: bookVerseObjectIds },
+      },
+      { verse: 1 }
+    ).lean();
+
+    bookCompleted = completedDocs.length;
+    for (const doc of completedDocs) {
+      if (chapterVerseIds.has(String(doc.verse))) {
+        chapterCompleted += 1;
+      }
+    }
+  }
+
+  const chapterPercentage =
+    chapterTotal > 0 ? Math.round((chapterCompleted / chapterTotal) * 1000) / 10 : 0;
+  const bookPercentage =
+    bookTotal > 0 ? Math.round((bookCompleted / bookTotal) * 1000) / 10 : 0;
+
+  res.json({
+    success: true,
+    data: {
+      book,
+      chapter: chapterNum,
+      chapterCompleted,
+      chapterTotal,
+      chapterPercentage,
+      bookCompleted,
+      bookTotal,
+      bookPercentage,
+    },
+  });
+});
