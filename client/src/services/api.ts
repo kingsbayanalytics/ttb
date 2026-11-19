@@ -10,6 +10,7 @@ import {
   NextVerseResult,
   Progress,
   Result,
+  ResultHistoryItem,
   TrendPoint,
   TrendRange,
   User,
@@ -512,6 +513,61 @@ export const ProgressService = {
       };
       
       return { result: mockResult, progress: mockProgress };
+    }
+  },
+
+  // Get individual typing test results history
+  getUserResults: async (): Promise<ResultHistoryItem[]> => {
+    try {
+      if (USE_MOCK_DATA) {
+        return [];
+      }
+
+      const response = await api.get('/progress/results');
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  // Modify an individual typing test result
+  updateResult: async (
+    resultId: string,
+    updates: { wpm?: number; accuracy?: number; duration?: number; incorrectCharacters?: number }
+  ): Promise<{ result: ResultHistoryItem; progress: Progress | null }> => {
+    try {
+      const response = await api.patch(`/progress/result/${resultId}`, updates);
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  // Delete an individual typing test result
+  deleteResult: async (
+    resultId: string
+  ): Promise<{ deletedResultId: string; progress: Progress | null }> => {
+    try {
+      const response = await api.delete(`/progress/result/${resultId}`);
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  // Delete all results & progress for a verse
+  deleteVerseProgress: async (
+    verseId: string
+  ): Promise<{ verseId: string; deletedResultsCount: number }> => {
+    try {
+      const response = await api.delete(`/progress/verse/${verseId}`);
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
     }
   },
 };

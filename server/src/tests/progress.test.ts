@@ -190,4 +190,123 @@ describe('Progress API', () => {
     expect(summaryRes.body.data.averageAccuracy).toBe(98);
     expect(summaryRes.body.data.totalTests).toBe(1);
   });
+
+  it('lists individual results, modifies a result with Progress recomputation, and deletes results cleanly', async () => {
+    const verse = await Verse.create({
+      verseOrder: 9001,
+      book: '1 Kings',
+      chapter: 16,
+      verse: 17,
+      text: 'Omri went up from Gibbethon, and all Israel with him, and they besieged Tirzah.',
+      characters: 79,
+      words: 14,
+    });
+    const verseId = verse._id.toString();
+
+    const ownerReg = await request(app)
+      .post('/api/users')
+      .send({ username: 'owner', email: 'owner@example.com', password: 'password123' })
+      .expect(201);
+    const ownerToken = ownerReg.body.data.token;
+
+    const otherReg = await request(app)
+      .post('/api/users')
+      .send({ username: 'other', email: 'other@example.com', password: 'password123' })
+      .expect(201);
+    const otherToken = otherReg.body.data.token;
+
+    // Submit outlier attempt (8842 WPM) and a normal attempt (54 WPM)
+    const outlierRes = await request(app)
+      .post(`/api/progress/result/${verseId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({
+        verseOrder: verse.verseOrder,
+        startTime: new Date('2026-11-18T10:00:00Z'),
+        endTime: new Date('2026-11-18T10:00:00.100Z'),
+        duration: 100,
+        wpm: 8842,
+        cps: 790,
+        accuracy: 100,
+        incorrectCharacters: 0,
+        totalCharacters: 79,
+      })
+      .expect(201);
+    const outlierId = outlierRes.body.data.result._id;
+
+    const normalRes = await request(app)
+      .post(`/api/progress/result/${verseId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({
+        verseOrder: verse.verseOrder,
+        startTime: new Date('2026-11-18T11:00:00Z'),
+        endTime: new Date('2026-11-18T11:00:16Z'),
+        duration: 16000,
+        wpm: 54,
+        cps: 4.94,
+        accuracy: 96,
+        incorrectCharacters: 3,
+        totalCharacters: 79,
+      })
+      .expect(201);
+    const normalId = normalRes.body.data.result._id;
+
+    // List individual results
+    const listRes = await request(app)
+      .get('/api/progress/results')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    expect(listRes.body.data).toHaveLength(2);
+    expect(listRes.body.data[0].verse.book).toBe('1 Kings');
+
+    // Other user cannot modify or delete owner's result
+    await request(app)
+      .patch(`/api/progress/result/${outlierId}`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .send({ wpm: 60 })
+      .expect(404);
+    await request(app)
+      .delete(`/api/progress/result/${outlierId}`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .expect(404);
+
+    // Reject out-of-range WPM
+    await request(app)
+      .patch(`/api/progress/result/${normalId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ wpm: 9999 })
+      .expect(400);
+
+    // Delete the 8842 WPM outlier -> Progress recomputes bestWPM to 54 and attempts to 1
+    const delOutlier = await request(app)
+      .delete(`/api/progress/result/${outlierId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    expect(delOutlier.body.data.progress.attempts).toBe(1);
+    expect(delOutlier.body.data.progress.bestWPM).toBe(54);
+    expect(delOutlier.body.data.progress.bestAccuracy).toBe(96);
+
+    // Modify the remaining attempt -> Progress recomputes bestWPM to 62 and bestAccuracy to 99
+    const patchRes = await request(app)
+      .patch(`/api/progress/result/${normalId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ wpm: 62, accuracy: 99, duration: 14000 })
+      .expect(200);
+    expect(patchRes.body.data.result.wpm).toBe(62);
+    expect(patchRes.body.data.result.accuracy).toBe(99);
+    expect(patchRes.body.data.progress.bestWPM).toBe(62);
+    expect(patchRes.body.data.progress.bestAccuracy).toBe(99);
+
+    // Delete the last remaining attempt -> Progress document is removed completely
+    const delLast = await request(app)
+      .delete(`/api/progress/result/${normalId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    expect(delLast.body.data.progress).toBeNull();
+
+    const progressAfter = await request(app)
+      .get('/api/progress')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(200);
+    expect(progressAfter.body.data).toHaveLength(0);
+  });
 });

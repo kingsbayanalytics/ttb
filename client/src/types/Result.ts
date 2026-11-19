@@ -8,6 +8,15 @@ export interface MissedWordMetric {
   count: number;
 }
 
+export interface ResultVerseSummary {
+  _id: string;
+  book: string;
+  chapter: number;
+  verse: number;
+  verseOrder?: number;
+  text?: string;
+}
+
 export interface Result {
   _id: string;
   user: string;
@@ -23,4 +32,8 @@ export interface Result {
   totalCharacters: number;
   missedChars?: MissedCharMetric[];
   missedWords?: MissedWordMetric[];
-} 
+}
+
+export interface ResultHistoryItem extends Omit<Result, 'verse'> {
+  verse: string | ResultVerseSummary;
+}
