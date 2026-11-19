@@ -1,5 +1,5 @@
 import { Verse } from './Verse';
-import { CuratedVerseRef } from '../data/curatedCatalog';
+import { CuratedPlanCategory, CuratedVerseRef } from '../data/curatedCatalog';
 
 export type MemoryStage = 1 | 2 | 3 | 4 | 5;
 
@@ -21,7 +21,7 @@ export interface CuratedPlanSummary {
   id: string;
   title: string;
   subtitle: string;
-  category: 'Mantra' | 'Anchor' | 'Wisdom' | 'Study Plan';
+  category: CuratedPlanCategory;
   description: string;
   contextNote: string;
   totalVerses: number;
@@ -31,6 +31,23 @@ export interface CuratedPlanSummary {
 }
 
 export interface CuratedPlanDetail extends CuratedPlanSummary {
+  verses: Verse[];
+  completedVerseIds: string[];
+}
+
+export interface CustomPlanSummary {
+  _id: string;
+  title: string;
+  description: string;
+  totalVerses: number;
+  completedVerses: number;
+  inMemoryDeckCount: number;
+  verseRefs: CuratedVerseRef[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CustomPlanDetail extends CustomPlanSummary {
   verses: Verse[];
   completedVerseIds: string[];
 }

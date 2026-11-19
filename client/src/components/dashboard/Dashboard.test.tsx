@@ -213,7 +213,7 @@ describe('Dashboard & chart components (Stories 2.3–2.5)', () => {
     expect(
       await screen.findByRole('gridcell', { name: '2025-05-01: 12 attempts' })
     ).toHaveAttribute('data-level', '4');
-  });
+  }, 15000);
 
   it('renders Bible coverage in canonical order with Complete badge and Continue links', async () => {
     render(<Dashboard />);

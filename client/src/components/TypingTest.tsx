@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { BookChapterProgress, Verse } from '../types';
+import {
+  BookChapterInfo,
+  BookChapterProgress,
+  CustomPlanSummary,
+  Verse,
+  VerseContext,
+} from '../types';
 import { CANONICAL_BOOKS } from '../data/books';
 import { getCuratedPlanById } from '../data/curatedCatalog';
 import { VerseService, ProgressService, MemoryService, PlanService } from '../services/api';
@@ -28,7 +34,12 @@ const TypingTest: React.FC = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search || '');
   const initialBook = searchParams.get('book')?.trim() || '';
+  const rawChapter = searchParams.get('chapter')?.trim() || '';
+  const initialChapter = /^\d+$/.test(rawChapter) && Number(rawChapter) >= 1 ? rawChapter : '';
+  const rawVerseNum = searchParams.get('verse')?.trim() || '';
+  const initialVerseNum = /^\d+$/.test(rawVerseNum) && Number(rawVerseNum) >= 1 ? rawVerseNum : '';
   const initialPlanId = searchParams.get('plan')?.trim() || '';
+  const initialCustomPlanId = searchParams.get('customPlan')?.trim() || '';
   const rawMode = searchParams.get('mode')?.trim().toLowerCase() || '';
   const initialMode: 'random' | 'book' | 'sequential' | '' =
     rawMode === 'random' || rawMode === 'book' || rawMode === 'sequential' ? rawMode : '';
@@ -40,11 +51,14 @@ const TypingTest: React.FC = () => {
   const [activePlan, setActivePlan] = useState<{
     id: string;
     title: string;
+    kind: 'curated' | 'custom';
     verses: Verse[];
     index: number;
   } | null>(null);
   const [savedVerseKeys, setSavedVerseKeys] = useState<Set<string>>(new Set());
   const [savingToMemory, setSavingToMemory] = useState<boolean>(false);
+  const [customPlans, setCustomPlans] = useState<CustomPlanSummary[]>([]);
+  const [playlistFeedback, setPlaylistFeedback] = useState<string | null>(null);
   const [typedText, setTypedText] = useState<string>('');
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
@@ -55,9 +69,26 @@ const TypingTest: React.FC = () => {
     initialBook ? 'book' : initialMode || 'random'
   );
   const [selectedBook, setSelectedBook] = useState<string>(initialBook);
+  const [bookChapters, setBookChapters] = useState<BookChapterInfo[]>([]);
+  const [selectedChapter, setSelectedChapter] = useState<string>(initialChapter);
+  const [selectedVerseNum, setSelectedVerseNum] = useState<string>(initialVerseNum);
   const [autoAdvance, setAutoAdvance] = useState<boolean>(
-    Boolean(initialBook || initialPlanId || initialMode === 'book' || initialMode === 'sequential')
+    Boolean(
+      initialBook ||
+        initialPlanId ||
+        initialCustomPlanId ||
+        initialMode === 'book' ||
+        initialMode === 'sequential'
+    )
   );
+  const [passageFlow, setPassageFlow] = useState<boolean>(
+    Boolean(initialBook || initialMode === 'book' || initialMode === 'sequential')
+  );
+  const [inlineTyping, setInlineTyping] = useState<boolean>(true);
+  const [strictMode, setStrictMode] = useState<boolean>(false);
+  const [zenMode, setZenMode] = useState<boolean>(false);
+  const [inputFocused, setInputFocused] = useState<boolean>(false);
+  const [verseContext, setVerseContext] = useState<VerseContext>({ prev: null, next: null });
   const [lastCompletedVerse, setLastCompletedVerse] = useState<{
     reference: string;
     wpm: number;
@@ -78,10 +109,14 @@ const TypingTest: React.FC = () => {
     async (
       modeOverride?: 'random' | 'book' | 'sequential',
       bookOverride?: string,
-      afterVerseOrder?: number
+      afterVerseOrder?: number,
+      chapterOverride?: string,
+      verseNumOverride?: string
     ) => {
       const mode = modeOverride ?? verseSelectionMode;
       const bookToFetch = bookOverride ?? selectedBook;
+      const chapterToFetch = chapterOverride !== undefined ? chapterOverride : selectedChapter;
+      const verseNumToFetch = verseNumOverride !== undefined ? verseNumOverride : selectedVerseNum;
 
       try {
         setLoading(true);
@@ -103,6 +138,42 @@ const TypingTest: React.FC = () => {
               setError('Please select a book');
               setLoading(false);
               return;
+            }
+            if (chapterToFetch && afterVerseOrder === undefined) {
+              const chapterNum = Number(chapterToFetch);
+              const chapterVerses = await VerseService.getVersesByBookAndChapter(
+                bookToFetch,
+                chapterNum
+              );
+              if (!Array.isArray(chapterVerses) || chapterVerses.length === 0) {
+                setError(`No verses found for ${bookToFetch} ${chapterNum}`);
+                setLoading(false);
+                return;
+              }
+              const sorted = [...chapterVerses].sort((a, b) => a.verse - b.verse);
+              const targetVerseNum = verseNumToFetch ? Number(verseNumToFetch) : 1;
+              data = sorted.find((v) => v.verse === targetVerseNum) ?? sorted[0];
+              break;
+            }
+            if (chapterToFetch && afterVerseOrder !== undefined) {
+              try {
+                const nextSequential = await VerseService.getVerseByOrder(afterVerseOrder + 1);
+                if (nextSequential && nextSequential.book.toLowerCase() === bookToFetch.toLowerCase()) {
+                  data = nextSequential;
+                  setSelectedChapter(String(nextSequential.chapter));
+                  setSelectedVerseNum(String(nextSequential.verse));
+                  break;
+                }
+                setVerse(null);
+                setBookComplete(bookToFetch);
+                setLoading(false);
+                return;
+              } catch {
+                setVerse(null);
+                setBookComplete(bookToFetch);
+                setLoading(false);
+                return;
+              }
             }
             if (userId) {
               try {
@@ -175,7 +246,7 @@ const TypingTest: React.FC = () => {
         setLoading(false);
       }
     },
-    [verseSelectionMode, selectedBook, userId]
+    [verseSelectionMode, selectedBook, selectedChapter, selectedVerseNum, userId]
   );
 
   const fetchPlanVerses = useCallback(async (planId: string) => {
@@ -211,6 +282,7 @@ const TypingTest: React.FC = () => {
             setActivePlan({
               id: planDef.id,
               title: planDef.title,
+              kind: 'curated',
               verses: detail.verses,
               index: startIndex,
             });
@@ -233,6 +305,7 @@ const TypingTest: React.FC = () => {
       setActivePlan({
         id: planDef.id,
         title: planDef.title,
+        kind: 'curated',
         verses: resolvedVerses,
         index: 0,
       });
@@ -244,25 +317,144 @@ const TypingTest: React.FC = () => {
     }
   }, []);
 
-  // Load saved Memory Deck keys when user is logged in
+  const fetchCustomPlanVerses = useCallback(async (customPlanId: string) => {
+    if (!PlanService?.getCustomPlanDetail) {
+      setError('Custom playlists are unavailable.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      setBookComplete(null);
+      setTypedText('');
+      mismatchIndicesRef.current = new Set();
+      setStartTime(null);
+      setEndTime(null);
+      setCompleted(false);
+      setWpm(0);
+      setAccuracy(0);
+
+      const detail = await PlanService.getCustomPlanDetail(customPlanId);
+      if (!detail?.verses || detail.verses.length === 0) {
+        setError(`Custom playlist "${detail?.title || customPlanId}" has no verses yet.`);
+        setLoading(false);
+        return;
+      }
+      const completedSet = new Set(detail.completedVerseIds || []);
+      const firstUnfinishedIdx = detail.verses.findIndex((v) => !completedSet.has(v._id));
+      const startIndex = firstUnfinishedIdx >= 0 ? firstUnfinishedIdx : 0;
+      setActivePlan({
+        id: detail._id,
+        title: detail.title,
+        kind: 'custom',
+        verses: detail.verses,
+        index: startIndex,
+      });
+      setVerse(detail.verses[startIndex]);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || err?.message || 'Failed to load custom playlist.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Load saved Memory Deck keys & custom playlists when user is logged in
   useEffect(() => {
-    if (!userId || !MemoryService?.getDeck) return;
+    if (!userId) return;
     let cancelled = false;
-    MemoryService.getDeck()
-      .then((items) => {
-        if (cancelled || !Array.isArray(items)) return;
-        const keys = new Set<string>();
-        items.forEach((item) => {
-          if (item.verse?._id) keys.add(item.verse._id);
-          keys.add(`${item.book}:${item.chapter}:${item.verseNum}`);
-        });
-        setSavedVerseKeys(keys);
-      })
-      .catch(() => {});
+    if (MemoryService?.getDeck) {
+      MemoryService.getDeck()
+        .then((items) => {
+          if (cancelled || !Array.isArray(items)) return;
+          const keys = new Set<string>();
+          items.forEach((item) => {
+            if (item.verse?._id) keys.add(item.verse._id);
+            keys.add(`${item.book}:${item.chapter}:${item.verseNum}`);
+          });
+          setSavedVerseKeys(keys);
+        })
+        .catch(() => {});
+    }
+    if (PlanService?.getCustomPlans) {
+      PlanService.getCustomPlans()
+        .then((items) => {
+          if (!cancelled && Array.isArray(items)) {
+            setCustomPlans(items);
+          }
+        })
+        .catch(() => {});
+    }
     return () => {
       cancelled = true;
     };
   }, [userId]);
+
+  // Load chapter metadata whenever selectedBook changes
+  useEffect(() => {
+    if (!selectedBook || typeof VerseService.getBookChapters !== 'function') {
+      setBookChapters([]);
+      return;
+    }
+    let cancelled = false;
+    VerseService.getBookChapters(selectedBook)
+      .then((chapters) => {
+        if (!cancelled && Array.isArray(chapters)) {
+          setBookChapters(chapters);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setBookChapters([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedBook]);
+
+  // Fetch immediate prev/next verse previews when Passage Flow is enabled
+  useEffect(() => {
+    if (
+      !passageFlow ||
+      !verse?.verseOrder ||
+      typeof VerseService.getVerseContext !== 'function'
+    ) {
+      setVerseContext({ prev: null, next: null });
+      return;
+    }
+    let cancelled = false;
+    VerseService.getVerseContext(verse.verseOrder)
+      .then((ctx) => {
+        if (!cancelled && ctx) {
+          setVerseContext(ctx);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setVerseContext({ prev: null, next: null });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [passageFlow, verse?.verseOrder]);
+
+  // Sync Zen Mode with documentElement and Escape shortcut
+  useEffect(() => {
+    if (zenMode) {
+      document.documentElement.dataset.zen = 'true';
+    } else {
+      delete document.documentElement.dataset.zen;
+    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && zenMode) {
+        setZenMode(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      delete document.documentElement.dataset.zen;
+    };
+  }, [zenMode]);
 
   // Fetch live chapter & book completion counts for the current verse
   useEffect(() => {
@@ -291,38 +483,52 @@ const TypingTest: React.FC = () => {
     };
   }, [userId, verse?.book, verse?.chapter, completionRefreshNonce]);
 
-  // Load initial verse or respond to ?book= / ?plan= / ?mode= query parameter changes
+  // Load initial verse or respond to ?book= / ?chapter= / ?verse= / ?plan= / ?customPlan= / ?mode= query parameter changes
   useEffect(() => {
-    if (initialPlanId) {
+    if (initialCustomPlanId) {
+      setAutoAdvance(true);
+      fetchCustomPlanVerses(initialCustomPlanId);
+    } else if (initialPlanId) {
       setAutoAdvance(true);
       fetchPlanVerses(initialPlanId);
     } else if (initialBook) {
       setActivePlan(null);
       setVerseSelectionMode('book');
       setSelectedBook(initialBook);
+      setSelectedChapter(initialChapter);
+      setSelectedVerseNum(initialVerseNum);
       setAutoAdvance(true);
-      fetchVerse('book', initialBook);
+      setPassageFlow(true);
+      fetchVerse('book', initialBook, undefined, initialChapter, initialVerseNum);
     } else if (initialMode === 'sequential') {
       setActivePlan(null);
       setVerseSelectionMode('sequential');
       setSelectedBook('');
+      setSelectedChapter('');
+      setSelectedVerseNum('');
       setAutoAdvance(true);
+      setPassageFlow(true);
       fetchVerse('sequential', '');
     } else if (initialMode === 'book') {
       setActivePlan(null);
       setVerseSelectionMode('book');
       setSelectedBook('');
+      setSelectedChapter('');
+      setSelectedVerseNum('');
       setAutoAdvance(true);
+      setPassageFlow(true);
       fetchVerse('random', '');
     } else {
       setActivePlan(null);
       setVerseSelectionMode('random');
       setSelectedBook('');
+      setSelectedChapter('');
+      setSelectedVerseNum('');
       setAutoAdvance(false);
       fetchVerse('random', '');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialBook, initialPlanId, initialMode]);
+  }, [initialBook, initialChapter, initialVerseNum, initialPlanId, initialCustomPlanId, initialMode]);
 
   const advanceInPlanOrFetchNext = useCallback(
     (afterVerseOrder?: number) => {
@@ -378,8 +584,11 @@ const TypingTest: React.FC = () => {
 
     if (!typedText) return;
 
-    // Check for completion
+    // Check for completion (in Strict Mode, require zero remaining typos)
     if (typedText.length >= verse.text.length && !completed) {
+      if (strictMode && incorrect > 0) {
+        return;
+      }
       const now = new Date();
       const effectiveStartTime = startTime || now;
       if (!startTime) {
@@ -443,7 +652,7 @@ const TypingTest: React.FC = () => {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [typedText, verse, completed, startTime, user?._id, autoAdvance, verseSelectionMode, selectedBook]);
+  }, [typedText, verse, completed, startTime, user?._id, autoAdvance, strictMode, verseSelectionMode, selectedBook]);
 
   const submitResult = async (
     resultStartTime: Date,
@@ -535,15 +744,60 @@ const TypingTest: React.FC = () => {
 
   const handleVerseSelectionModeChange = (mode: 'random' | 'book' | 'sequential') => {
     setVerseSelectionMode(mode);
-    setAutoAdvance(mode === 'book' || mode === 'sequential');
+    const isSequentialFlow = mode === 'book' || mode === 'sequential';
+    setAutoAdvance(isSequentialFlow);
+    setPassageFlow(isSequentialFlow);
   };
 
   const handleBookChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const nextBook = e.target.value;
     setSelectedBook(nextBook);
+    setSelectedChapter('');
+    setSelectedVerseNum('');
     if (nextBook) {
       setLastCompletedVerse(null);
-      fetchVerse('book', nextBook);
+      setActivePlan(null);
+      fetchVerse('book', nextBook, undefined, '', '');
+    }
+  };
+
+  const handleChapterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const nextChapter = e.target.value;
+    setSelectedChapter(nextChapter);
+    setSelectedVerseNum('');
+    if (selectedBook) {
+      setLastCompletedVerse(null);
+      setActivePlan(null);
+      fetchVerse('book', selectedBook, undefined, nextChapter, '');
+    }
+  };
+
+  const handleVerseNumChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const nextVerseNum = e.target.value;
+    setSelectedVerseNum(nextVerseNum);
+    if (selectedBook && selectedChapter) {
+      setLastCompletedVerse(null);
+      setActivePlan(null);
+      fetchVerse('book', selectedBook, undefined, selectedChapter, nextVerseNum);
+    }
+  };
+
+  const handleAddVerseToCustomPlan = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const planId = e.target.value;
+    e.target.value = '';
+    if (!planId || !verse || !PlanService?.updateCustomPlan) return;
+    const targetPlan = customPlans.find((p) => p._id === planId);
+    try {
+      const updated = await PlanService.updateCustomPlan(planId, {
+        addVerse: { book: verse.book, chapter: verse.chapter, verse: verse.verse },
+      });
+      setCustomPlans((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
+      setPlaylistFeedback(
+        `Added ${verse.book} ${verse.chapter}:${verse.verse} to "${targetPlan?.title || updated.title}"`
+      );
+      setTimeout(() => setPlaylistFeedback(null), 3500);
+    } catch (err) {
+      console.error('Failed to add verse to playlist:', err);
     }
   };
 
@@ -594,19 +848,21 @@ const TypingTest: React.FC = () => {
     );
   }
 
-  // Highlight correct/incorrect characters in the verse
+  // Highlight correct/incorrect characters and live caret directly on the verse
   const renderVerse = () => {
     if (!verse) return null;
-    
+
     return verse.text.split('').map((char, index) => {
-      let className = '';
-      
+      const classes: string[] = [];
+
       if (index < typedText.length) {
-        className = typedText[index] === char ? 'correct' : 'incorrect';
+        classes.push(typedText[index] === char ? 'correct' : 'incorrect');
+      } else if (index === typedText.length && !completed) {
+        classes.push('current-char');
       }
-      
+
       return (
-        <span key={index} className={className}>
+        <span key={index} className={classes.join(' ')}>
           {char}
         </span>
       );
@@ -617,75 +873,185 @@ const TypingTest: React.FC = () => {
     return <div className="error">No verse found</div>;
   }
 
+  const activeChapterInfo = selectedChapter
+    ? bookChapters.find((c) => c.chapter === Number(selectedChapter))
+    : undefined;
+  const currentIncorrectCount = countIncorrectCharacters(typedText, verse.text);
+  const strictBlocked =
+    strictMode && !completed && typedText.length >= verse.text.length && currentIncorrectCount > 0;
+  const showPrevContext =
+    passageFlow && verseContext.prev && verseContext.prev.book === verse.book;
+  const showNextContext =
+    passageFlow && verseContext.next && verseContext.next.book === verse.book;
+
   return (
-    <div className="typing-test-container">
-      <div className="verse-settings">
-        <div className="selection-controls">
-          <div className="mode-selector">
-            <label>Verse Selection Mode:</label>
-            <div className="mode-buttons">
-              <button 
-                className={`selection-button ${verseSelectionMode === 'random' ? 'active' : ''}`}
-                onClick={() => handleVerseSelectionModeChange('random')}
-              >
-                Random
-              </button>
-              
-              <button 
-                className={`selection-button ${verseSelectionMode === 'book' ? 'active' : ''}`}
-                onClick={() => handleVerseSelectionModeChange('book')}
-              >
-                By Book
-              </button>
-              
-              <button 
-                className={`selection-button ${verseSelectionMode === 'sequential' ? 'active' : ''}`}
-                onClick={() => handleVerseSelectionModeChange('sequential')}
-                disabled={!user}
-                title={!user ? "Login to use sequential mode" : ""}
-              >
-                Sequential
-              </button>
-            </div>
-          </div>
-          
-          {verseSelectionMode === 'book' && (
-            <div className="book-selector">
-              <select
-                ref={bookSelectRef}
-                aria-label="Select a Bible book"
-                value={selectedBook}
-                onChange={handleBookChange}
-              >
-                <option value="">-- Select a Book --</option>
-                {CANONICAL_BOOKS.map(book => (
-                  <option key={book} value={book}>{book}</option>
-                ))}
-              </select>
-            </div>
-          )}
-          
-          <button 
-            className="primary-button"
-            onClick={handleFetchVerseClick}
-            disabled={verseSelectionMode === 'book' && !selectedBook}
+    <div className={`typing-test-container ${zenMode ? 'is-zen-mode' : ''}`}>
+      {zenMode && (
+        <div className="zen-topbar" data-testid="zen-topbar">
+          <span className="zen-badge">Zen Mode · Focus Canvas</span>
+          <button
+            type="button"
+            className="secondary-button zen-exit-button"
+            onClick={() => setZenMode(false)}
+            data-testid="exit-zen-button"
           >
-            Get Verse
+            Exit Zen (Esc)
           </button>
         </div>
+      )}
 
-        <div className="continuity-controls">
-          <label className={`auto-advance-toggle ${autoAdvance ? 'is-active' : ''}`}>
-            <input
-              type="checkbox"
-              className="visually-hidden"
-              checked={autoAdvance}
-              onChange={(e) => setAutoAdvance(e.target.checked)}
-            />
-            <span>Auto-advance to next verse on completion</span>
-          </label>
+      {!zenMode && (
+        <div className="verse-settings">
+          <div className="selection-controls">
+            <div className="mode-selector">
+              <label>Verse Selection Mode:</label>
+              <div className="mode-buttons">
+                <button
+                  className={`selection-button ${verseSelectionMode === 'random' ? 'active' : ''}`}
+                  onClick={() => handleVerseSelectionModeChange('random')}
+                >
+                  Random
+                </button>
+
+                <button
+                  className={`selection-button ${verseSelectionMode === 'book' ? 'active' : ''}`}
+                  onClick={() => handleVerseSelectionModeChange('book')}
+                >
+                  By Book
+                </button>
+
+                <button
+                  className={`selection-button ${verseSelectionMode === 'sequential' ? 'active' : ''}`}
+                  onClick={() => handleVerseSelectionModeChange('sequential')}
+                  disabled={!user}
+                  title={!user ? 'Login to use sequential mode' : ''}
+                >
+                  Sequential
+                </button>
+              </div>
+            </div>
+
+            {verseSelectionMode === 'book' && (
+              <div className="book-selector-group">
+                <div className="book-selector">
+                  <select
+                    ref={bookSelectRef}
+                    aria-label="Select a Bible book"
+                    value={selectedBook}
+                    onChange={handleBookChange}
+                  >
+                    <option value="">-- Select a Book --</option>
+                    {CANONICAL_BOOKS.map((book) => (
+                      <option key={book} value={book}>
+                        {book}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedBook && bookChapters.length > 0 && (
+                  <div className="chapter-selector">
+                    <select
+                      aria-label="Select a chapter"
+                      value={selectedChapter}
+                      onChange={handleChapterChange}
+                    >
+                      <option value="">Next untyped</option>
+                      {bookChapters.map((c) => (
+                        <option key={c.chapter} value={String(c.chapter)}>
+                          Ch. {c.chapter} ({c.verseCount}v)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {selectedBook && selectedChapter && activeChapterInfo && (
+                  <div className="verse-num-selector">
+                    <select
+                      aria-label="Select a verse"
+                      value={selectedVerseNum}
+                      onChange={handleVerseNumChange}
+                    >
+                      <option value="">v. 1</option>
+                      {Array.from({ length: activeChapterInfo.verseCount }, (_, idx) => idx + 1).map(
+                        (vNum) => (
+                          <option key={vNum} value={String(vNum)}>
+                            v. {vNum}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <button
+              className="primary-button"
+              onClick={handleFetchVerseClick}
+              disabled={verseSelectionMode === 'book' && !selectedBook}
+            >
+              Get Verse
+            </button>
+          </div>
+
+          <div className="continuity-controls">
+            <label className="studio-switch-label">
+              <input
+                type="checkbox"
+                {...({ switch: '' } as any)}
+                className="studio-switch-input"
+                checked={autoAdvance}
+                onChange={(e) => setAutoAdvance(e.target.checked)}
+              />
+              <span>Auto-advance</span>
+            </label>
+
+            <label className="studio-switch-label">
+              <input
+                type="checkbox"
+                {...({ switch: '' } as any)}
+                className="studio-switch-input"
+                checked={passageFlow}
+                onChange={(e) => setPassageFlow(e.target.checked)}
+              />
+              <span>Passage Flow</span>
+            </label>
+
+            <label className="studio-switch-label">
+              <input
+                type="checkbox"
+                {...({ switch: '' } as any)}
+                className="studio-switch-input"
+                checked={inlineTyping}
+                onChange={(e) => setInlineTyping(e.target.checked)}
+              />
+              <span>Inline Caret</span>
+            </label>
+
+            <label className="studio-switch-label">
+              <input
+                type="checkbox"
+                {...({ switch: '' } as any)}
+                className="studio-switch-input"
+                checked={strictMode}
+                onChange={(e) => setStrictMode(e.target.checked)}
+              />
+              <span>Strict Mode</span>
+            </label>
+
+            <button
+              type="button"
+              className="selection-button zen-toggle-button"
+              onClick={() => setZenMode(true)}
+              data-testid="enter-zen-button"
+            >
+              Zen Mode
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {activePlan && (
         <div
@@ -694,8 +1060,11 @@ const TypingTest: React.FC = () => {
           data-testid="active-plan-banner"
         >
           <span>
-            <strong>Curated Plan: {activePlan.title}</strong> · Verse {activePlan.index + 1} of{' '}
-            {activePlan.verses.length}
+            <strong>
+              {activePlan.kind === 'custom' ? 'Custom Playlist' : 'Curated Plan'}:{' '}
+              {activePlan.title}
+            </strong>{' '}
+            · Verse {activePlan.index + 1} of {activePlan.verses.length}
           </span>
           <Link to="/memory" className="secondary-button coverage-continue-link">
             Memory Studio
@@ -715,11 +1084,19 @@ const TypingTest: React.FC = () => {
           </span>
         </div>
       )}
-      
+
+      {playlistFeedback && (
+        <div className="last-completed-banner" role="status" data-testid="playlist-feedback-banner">
+          <span>{playlistFeedback}</span>
+        </div>
+      )}
+
       <>
         <div className="verse-reference">
           <div className="verse-reference-main">
-            <h2>{verse.book} {verse.chapter}:{verse.verse}</h2>
+            <h2>
+              {verse.book} {verse.chapter}:{verse.verse}
+            </h2>
             {loading && (
               <span className="inline-refresh-badge" role="status" aria-live="polite">
                 Updating verse…
@@ -727,29 +1104,46 @@ const TypingTest: React.FC = () => {
             )}
           </div>
           {user && (
-            <button
-              type="button"
-              className={`memory-save-button ${
-                savedVerseKeys.has(verse._id) ||
+            <div className="verse-reference-actions">
+              {customPlans.length > 0 && (
+                <select
+                  aria-label="Add verse to custom playlist"
+                  className="playlist-quick-add-select"
+                  defaultValue=""
+                  onChange={handleAddVerseToCustomPlan}
+                >
+                  <option value="">＋ Add to Playlist…</option>
+                  {customPlans.map((cp) => (
+                    <option key={cp._id} value={cp._id}>
+                      {cp.title}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <button
+                type="button"
+                className={`memory-save-button ${
+                  savedVerseKeys.has(verse._id) ||
+                  savedVerseKeys.has(`${verse.book}:${verse.chapter}:${verse.verse}`)
+                    ? 'is-saved'
+                    : ''
+                }`}
+                onClick={handleSaveToMemory}
+                disabled={
+                  savingToMemory ||
+                  savedVerseKeys.has(verse._id) ||
+                  savedVerseKeys.has(`${verse.book}:${verse.chapter}:${verse.verse}`)
+                }
+                data-testid="save-memory-button"
+              >
+                {savedVerseKeys.has(verse._id) ||
                 savedVerseKeys.has(`${verse.book}:${verse.chapter}:${verse.verse}`)
-                  ? 'is-saved'
-                  : ''
-              }`}
-              onClick={handleSaveToMemory}
-              disabled={
-                savingToMemory ||
-                savedVerseKeys.has(verse._id) ||
-                savedVerseKeys.has(`${verse.book}:${verse.chapter}:${verse.verse}`)
-              }
-              data-testid="save-memory-button"
-            >
-              {savedVerseKeys.has(verse._id) ||
-              savedVerseKeys.has(`${verse.book}:${verse.chapter}:${verse.verse}`)
-                ? '✓ Saved in Memory Deck'
-                : savingToMemory
-                ? 'Saving...'
-                : '★ Save to Memory Deck'}
-            </button>
+                  ? '✓ Saved in Memory Deck'
+                  : savingToMemory
+                  ? 'Saving...'
+                  : '★ Save to Memory Deck'}
+              </button>
+            </div>
           )}
         </div>
 
@@ -813,14 +1207,84 @@ const TypingTest: React.FC = () => {
             </div>
           </div>
         )}
-        
-        <div
-          className={`verse-display ${loading ? 'is-refreshing' : ''}`}
-          data-testid="verse-display"
-        >
-          {renderVerse()}
+
+        <div className="passage-flow-stage">
+          {showPrevContext && verseContext.prev && (
+            <p
+              className="passage-context-line passage-context-prev"
+              aria-hidden="true"
+              data-testid="passage-context-prev"
+            >
+              <span className="passage-context-ref">
+                {verseContext.prev.chapter}:{verseContext.prev.verse}
+              </span>{' '}
+              {verseContext.prev.text}
+            </p>
+          )}
+
+          <div
+            className={`typing-canvas ${inlineTyping ? 'is-inline-mode' : ''} ${
+              inputFocused ? 'is-focused' : ''
+            }`}
+            onClick={() => {
+              if (!completed) {
+                inputRef.current?.focus();
+              }
+            }}
+          >
+            <div
+              className={`verse-display ${loading ? 'is-refreshing' : ''} ${
+                inlineTyping && inputFocused ? 'is-inline-focused' : ''
+              }`}
+              data-testid="verse-display"
+            >
+              {renderVerse()}
+            </div>
+
+            {!completed && inlineTyping && (
+              <textarea
+                ref={inputRef}
+                className="typing-input typing-input-inline"
+                value={typedText}
+                onChange={handleInputChange}
+                onFocus={() => setInputFocused(true)}
+                onBlur={() => setInputFocused(false)}
+                placeholder="Start typing the verse above..."
+                aria-label="Type the active Bible verse"
+                disabled={completed}
+                autoFocus
+              />
+            )}
+          </div>
+
+          {!completed && inlineTyping && !inputFocused && typedText.length === 0 && (
+            <p className="inline-typing-hint" aria-hidden="true">
+              Click the verse above and start typing — your live caret moves directly across the scripture.
+            </p>
+          )}
+
+          {showNextContext && verseContext.next && (
+            <p
+              className="passage-context-line passage-context-next"
+              aria-hidden="true"
+              data-testid="passage-context-next"
+            >
+              <span className="passage-context-ref">
+                {verseContext.next.chapter}:{verseContext.next.verse}
+              </span>{' '}
+              {verseContext.next.text}
+            </p>
+          )}
         </div>
-        
+
+        {strictBlocked && (
+          <div className="strict-mode-alert" role="status" data-testid="strict-mode-alert">
+            Strict Mode: fix {currentIncorrectCount}{' '}
+            {currentIncorrectCount === 1 ? 'highlighted typo' : 'highlighted typos'} to complete this
+            verse.
+          </div>
+        )}
+
         <div className="typing-stats">
           {startTime && !completed && (
             <>
@@ -837,22 +1301,22 @@ const TypingTest: React.FC = () => {
             </>
           )}
         </div>
-        
+
         {completed ? (
           <div className="results-container">
             <h3>Verse Completed!</h3>
-            
+
             <div className="results">
               <div className="result-item">
                 <span className="result-label">Words Per Minute:</span>
                 <span className="result-value">{wpm}</span>
               </div>
-              
+
               <div className="result-item">
                 <span className="result-label">Accuracy:</span>
                 <span className="result-value">{accuracy}%</span>
               </div>
-              
+
               <div className="result-item">
                 <span className="result-label">Time:</span>
                 <span className="result-value">
@@ -862,12 +1326,12 @@ const TypingTest: React.FC = () => {
                 </span>
               </div>
             </div>
-            
+
             <div className="results-actions">
               <button onClick={handleTryAnotherVerse} className="primary-button">
                 Try Another Verse
               </button>
-              
+
               {user && (
                 <button onClick={handleViewProgress} className="secondary-button">
                   View Progress
@@ -876,17 +1340,22 @@ const TypingTest: React.FC = () => {
             </div>
           </div>
         ) : (
-          <textarea
-            ref={inputRef}
-            className="typing-input"
-            value={typedText}
-            onChange={handleInputChange}
-            placeholder="Start typing the verse above..."
-            disabled={completed}
-            autoFocus
-          />
+          !inlineTyping && (
+            <textarea
+              ref={inputRef}
+              className="typing-input"
+              value={typedText}
+              onChange={handleInputChange}
+              onFocus={() => setInputFocused(true)}
+              onBlur={() => setInputFocused(false)}
+              placeholder="Start typing the verse above..."
+              aria-label="Type the active Bible verse"
+              disabled={completed}
+              autoFocus
+            />
+          )
         )}
-        
+
         {!completed && (
           <button onClick={handleTryAnotherVerse} className="secondary-button mt-4">
             Get Another Verse
@@ -897,4 +1366,4 @@ const TypingTest: React.FC = () => {
   );
 };
 
-export default TypingTest; 
+export default TypingTest;

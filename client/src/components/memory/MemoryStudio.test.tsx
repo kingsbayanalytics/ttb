@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '../../test-utils';
 import { MemoryStudio } from './MemoryStudio';
-import { MemoryService, PlanService, ProgressService, AuthService } from '../../services/api';
+import { MemoryService, PlanService, ProgressService, AuthService, VerseService } from '../../services/api';
 import { MemoryItem } from '../../types';
 
 jest.mock('../../services/api', () => ({
@@ -16,6 +16,14 @@ jest.mock('../../services/api', () => ({
   PlanService: {
     getPlans: jest.fn(),
     getPlanDetail: jest.fn(),
+    getCustomPlans: jest.fn(),
+    createCustomPlan: jest.fn(),
+    updateCustomPlan: jest.fn(),
+    deleteCustomPlan: jest.fn(),
+    addCustomPlanToMemory: jest.fn(),
+  },
+  VerseService: {
+    getBookChapters: jest.fn(),
   },
   ProgressService: {
     submitResult: jest.fn(),
@@ -59,13 +67,17 @@ describe('MemoryStudio (Epics 5 & 7)', () => {
     });
     (MemoryService.getDeck as jest.Mock).mockResolvedValue([sampleMemoryItem]);
     (PlanService.getPlans as jest.Mock).mockResolvedValue([]);
+    (PlanService.getCustomPlans as jest.Mock).mockResolvedValue([]);
+    (VerseService.getBookChapters as jest.Mock).mockResolvedValue([
+      { chapter: 23, verseCount: 6 },
+    ]);
     (ProgressService.submitResult as jest.Mock).mockResolvedValue({});
   });
 
   it('renders saved Memory Deck verses, all 5 progressive stages, and the 4 curated study plans', async () => {
     render(<MemoryStudio />);
 
-    expect(await screen.findByTestId('memory-verse-display')).toHaveTextContent(
+    expect(await screen.findByTestId('memory-verse-display', {}, { timeout: 3000 })).toHaveTextContent(
       'The LORD is my shepherd.'
     );
     expect(screen.getByTestId('memory-deck-count')).toHaveTextContent('1 Verse in Deck');
@@ -157,6 +169,63 @@ describe('MemoryStudio (Epics 5 & 7)', () => {
     await waitFor(() => {
       expect(MemoryService.removeVerse).toHaveBeenCalledWith('mem-1');
       expect(screen.getByTestId('memory-empty-state')).toBeInTheDocument();
+    });
+  });
+
+  it('filters expanded 10 curated plans by category and creates & deletes a custom playlist', async () => {
+    const createdPlan = {
+      _id: 'custom-1',
+      title: 'Evening Psalms',
+      description: 'Calm night verses',
+      totalVerses: 1,
+      completedVerses: 0,
+      inMemoryDeckCount: 1,
+      verseRefs: [{ book: 'Psalms', chapter: 23, verse: 1 }],
+    };
+    (PlanService.createCustomPlan as jest.Mock).mockResolvedValue(createdPlan);
+    (PlanService.deleteCustomPlan as jest.Mock).mockResolvedValue({ deletedPlanId: 'custom-1' });
+
+    render(<MemoryStudio />);
+    await screen.findByTestId('memory-verse-display');
+
+    // Expanded plans present
+    expect(screen.getByTestId('curated-plan-psalm-23-complete')).toBeInTheDocument();
+    expect(screen.getByTestId('curated-plan-gospel-of-john')).toBeInTheDocument();
+    expect(screen.getByTestId('curated-plan-romans-8-assurance')).toBeInTheDocument();
+
+    // Filter to Gospels only
+    fireEvent.click(screen.getByTestId('filter-category-gospels'));
+    expect(screen.getByTestId('curated-plan-gospel-of-john')).toBeInTheDocument();
+    expect(screen.queryByTestId('curated-plan-psalm-23-complete')).not.toBeInTheDocument();
+
+    // Reset filter to All
+    fireEvent.click(screen.getByTestId('filter-category-all'));
+    expect(screen.getByTestId('curated-plan-psalm-23-complete')).toBeInTheDocument();
+
+    // Create custom playlist
+    fireEvent.click(screen.getByTestId('new-playlist-button'));
+    fireEvent.change(screen.getByLabelText('Playlist Title'), {
+      target: { value: 'Evening Psalms' },
+    });
+    fireEvent.change(screen.getByLabelText('Description (optional)'), {
+      target: { value: 'Calm night verses' },
+    });
+    fireEvent.click(screen.getByTestId('add-verse-to-playlist-btn'));
+    fireEvent.click(screen.getByTestId('save-playlist-submit'));
+
+    expect(await screen.findByTestId('custom-plan-custom-1')).toBeInTheDocument();
+    expect(screen.getByTestId('practice-custom-plan-custom-1')).toHaveAttribute(
+      'href',
+      '/typing?customPlan=custom-1'
+    );
+
+    // Delete custom playlist via confirmation dialog
+    fireEvent.click(screen.getByTestId('delete-custom-plan-custom-1'));
+    fireEvent.click(screen.getByTestId('confirm-delete-playlist-btn'));
+
+    await waitFor(() => {
+      expect(PlanService.deleteCustomPlan).toHaveBeenCalledWith('custom-1');
+      expect(screen.queryByTestId('custom-plan-custom-1')).not.toBeInTheDocument();
     });
   });
 });

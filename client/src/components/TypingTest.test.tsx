@@ -19,6 +19,9 @@ jest.mock('../services/api', () => ({
   VerseService: {
     getRandomVerse: jest.fn(),
     getVersesByBook: jest.fn(),
+    getVersesByBookAndChapter: jest.fn(),
+    getBookChapters: jest.fn(),
+    getVerseContext: jest.fn(),
     getVerseByOrder: jest.fn(),
     getNextVerse: jest.fn(),
   },
@@ -36,6 +39,9 @@ jest.mock('../services/api', () => ({
   },
   PlanService: {
     getPlanDetail: jest.fn(),
+    getCustomPlans: jest.fn(),
+    getCustomPlanDetail: jest.fn(),
+    updateCustomPlan: jest.fn(),
   },
 }));
 
@@ -44,8 +50,15 @@ describe('TypingTest', () => {
     jest.clearAllMocks();
     (VerseService.getRandomVerse as jest.Mock).mockResolvedValue(mockVerse);
     (VerseService.getVersesByBook as jest.Mock).mockResolvedValue({ data: [mockVerse] });
+    (VerseService.getVersesByBookAndChapter as jest.Mock).mockResolvedValue([mockVerse]);
+    (VerseService.getBookChapters as jest.Mock).mockResolvedValue([
+      { chapter: 1, verseCount: 31 },
+      { chapter: 23, verseCount: 6 },
+    ]);
+    (VerseService.getVerseContext as jest.Mock).mockResolvedValue({ prev: null, next: null });
     (VerseService.getVerseByOrder as jest.Mock).mockResolvedValue(mockVerse);
     (VerseService.getNextVerse as jest.Mock).mockResolvedValue({ complete: false, verse: mockVerse });
+    (PlanService.getCustomPlans as jest.Mock).mockResolvedValue([]);
     (ProgressService.submitResult as jest.Mock).mockResolvedValue({});
     (ProgressService.getUserProgress as jest.Mock).mockResolvedValue([]);
     (ProgressService.getBookChapterProgress as jest.Mock).mockResolvedValue({
@@ -568,7 +581,9 @@ describe('TypingTest', () => {
       expect(verseDisplay).toHaveTextContent(psalmVerse.text);
       expect(VerseService.getNextVerse).toHaveBeenCalledWith('Psalms');
 
-      const select = screen.getByRole('combobox') as HTMLSelectElement;
+      const select = screen.getByRole('combobox', {
+        name: 'Select a Bible book',
+      }) as HTMLSelectElement;
       expect(select.value).toBe('Psalms');
       // 73 canonical books + 1 placeholder option
       expect(select.options).toHaveLength(74);
@@ -902,5 +917,125 @@ describe('TypingTest', () => {
       },
       { timeout: 2000 }
     );
+  });
+
+  it('supports Chapter/Verse picker, Passage Flow previews, Strict Mode typo gating, and Zen Mode (Esc)', async () => {
+    const psalm23v1 = {
+      _id: 'p23-1',
+      verseOrder: 13940,
+      book: 'Psalms',
+      chapter: 23,
+      verse: 1,
+      text: 'Yahweh is my shepherd.',
+      characters: 22,
+      words: 4,
+    };
+    const psalm23v2 = {
+      _id: 'p23-2',
+      verseOrder: 13941,
+      book: 'Psalms',
+      chapter: 23,
+      verse: 2,
+      text: 'He makes me lie down in green pastures.',
+      characters: 39,
+      words: 8,
+    };
+    (VerseService.getVersesByBookAndChapter as jest.Mock).mockResolvedValue([psalm23v1, psalm23v2]);
+    (VerseService.getVerseContext as jest.Mock).mockResolvedValue({
+      prev: { verseOrder: 13940, book: 'Psalms', chapter: 23, verse: 1, text: psalm23v1.text },
+      next: { verseOrder: 13942, book: 'Psalms', chapter: 23, verse: 3, text: 'He restores my soul.' },
+    });
+
+    render(<TypingTest />);
+    await screen.findByTestId('verse-display', {}, { timeout: 2000 });
+
+    // Switch to By Book -> select Psalms -> pick Chapter 23 -> pick v. 2
+    fireEvent.click(screen.getByRole('button', { name: 'By Book' }));
+    const bookSelect = screen.getByLabelText('Select a Bible book');
+    fireEvent.change(bookSelect, { target: { value: 'Psalms' } });
+
+    const chapterSelect = await screen.findByLabelText('Select a chapter', {}, { timeout: 2000 });
+    fireEvent.change(chapterSelect, { target: { value: '23' } });
+
+    const verseSelect = await screen.findByLabelText('Select a verse', {}, { timeout: 2000 });
+    fireEvent.change(verseSelect, { target: { value: '2' } });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('verse-display')).toHaveTextContent(psalm23v2.text);
+    });
+
+    // Passage Flow shows prev & next verses
+    expect(await screen.findByTestId('passage-context-prev')).toHaveTextContent(psalm23v1.text);
+    expect(screen.getByTestId('passage-context-next')).toHaveTextContent('He restores my soul.');
+
+    // Enable Strict Mode & turn off Auto-advance to verify typo gating
+    fireEvent.click(screen.getByLabelText('Auto-advance'));
+    fireEvent.click(screen.getByLabelText('Strict Mode'));
+
+    const input = screen.getByPlaceholderText('Start typing the verse above...');
+    const wrongText = 'X' + psalm23v2.text.slice(1);
+    fireEvent.change(input, { target: { value: wrongText } });
+
+    expect(await screen.findByTestId('strict-mode-alert')).toHaveTextContent(
+      'Strict Mode: fix 1 highlighted typo'
+    );
+    expect(screen.queryByRole('heading', { name: /Verse Completed!/i })).not.toBeInTheDocument();
+
+    // Fix typo -> completes cleanly
+    fireEvent.change(input, { target: { value: psalm23v2.text } });
+    expect(await screen.findByRole('heading', { name: /Verse Completed!/i })).toBeInTheDocument();
+
+    // Zen Mode toggle & Escape exit
+    fireEvent.click(screen.getByTestId('enter-zen-button'));
+    expect(document.documentElement.dataset.zen).toBe('true');
+    expect(screen.getByTestId('zen-topbar')).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => {
+      expect(document.documentElement.dataset.zen).toBeUndefined();
+    });
+  });
+
+  it('loads and practices a custom playlist when navigated to /typing?customPlan=<id>', async () => {
+    const router = require('react-router-dom');
+    const useLocationSpy = jest.spyOn(router, 'useLocation').mockReturnValue({
+      pathname: '/typing',
+      search: '?customPlan=cp-1',
+      hash: '',
+      state: null,
+      key: 'custom-plan-test',
+    });
+
+    try {
+      const v1 = {
+        _id: 'cp-v1',
+        verseOrder: 13940,
+        book: 'Psalms',
+        chapter: 23,
+        verse: 1,
+        text: 'Yahweh is my shepherd.',
+        characters: 22,
+        words: 4,
+      };
+      (PlanService.getCustomPlanDetail as jest.Mock).mockResolvedValue({
+        _id: 'cp-1',
+        title: 'My Morning Mantras',
+        description: 'Focus verses',
+        totalVerses: 1,
+        completedVerses: 0,
+        inMemoryDeckCount: 0,
+        verseRefs: [{ book: 'Psalms', chapter: 23, verse: 1 }],
+        verses: [v1],
+        completedVerseIds: [],
+      });
+
+      render(<TypingTest />);
+
+      const banner = await screen.findByTestId('active-plan-banner', {}, { timeout: 2000 });
+      expect(banner).toHaveTextContent('Custom Playlist: My Morning Mantras');
+      expect(screen.getByTestId('verse-display')).toHaveTextContent(v1.text);
+    } finally {
+      useLocationSpy.mockRestore();
+    }
   });
 });

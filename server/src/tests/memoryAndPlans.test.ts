@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { setupTestApp, connectTestDB, disconnectTestDB } from './test-setup';
-import { User, Verse, Progress, MemoryItem } from '../models';
+import { User, Verse, Progress, MemoryItem, CustomPlan } from '../models';
 
 describe('Memory Deck & Curated Study Plans API (Epics 5 & 7)', () => {
   const app = setupTestApp();
@@ -21,6 +21,7 @@ describe('Memory Deck & Curated Study Plans API (Epics 5 & 7)', () => {
       Verse.deleteMany({}),
       Progress.deleteMany({}),
       MemoryItem.deleteMany({}),
+      CustomPlan.deleteMany({}),
     ]);
 
     const reg = await request(app)
@@ -182,14 +183,14 @@ describe('Memory Deck & Curated Study Plans API (Epics 5 & 7)', () => {
     expect(packRes.body.data[0].verseOrder).toBe(13594);
     expect(packRes.body.data[1].verseOrder).toBe(13940);
 
-    // GET /api/plans lists all 4 curated plans with completion & memory deck counts
+    // GET /api/plans lists all 10 curated plans with completion & memory deck counts
     const plansRes = await request(app)
       .get('/api/plans')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
     expect(plansRes.body.success).toBe(true);
-    expect(plansRes.body.data).toHaveLength(4);
+    expect(plansRes.body.data).toHaveLength(10);
 
     const psalmsPlan = plansRes.body.data.find((p: any) => p.id === 'psalms-mantras');
     expect(psalmsPlan).toBeDefined();
@@ -216,5 +217,132 @@ describe('Memory Deck & Curated Study Plans API (Epics 5 & 7)', () => {
       .get('/api/plans/does-not-exist')
       .set('Authorization', `Bearer ${token}`)
       .expect(404);
+  });
+
+  it('supports full Custom Playlist CRUD, user isolation, and add-to-memory', async () => {
+    const [p23v1, p23v2, jhn316] = await Verse.create([
+      {
+        verseOrder: 13940,
+        book: 'Psalms',
+        chapter: 23,
+        verse: 1,
+        text: 'Yahweh is my shepherd: I shall lack nothing.',
+        characters: 44,
+        words: 8,
+      },
+      {
+        verseOrder: 13941,
+        book: 'Psalms',
+        chapter: 23,
+        verse: 2,
+        text: 'He makes me lie down in green pastures.',
+        characters: 39,
+        words: 8,
+      },
+      {
+        verseOrder: 26137,
+        book: 'John',
+        chapter: 3,
+        verse: 16,
+        text: 'For God so loved the world...',
+        characters: 29,
+        words: 6,
+      },
+    ]);
+
+    const otherReg = await request(app)
+      .post('/api/users')
+      .send({ username: 'other2', email: 'other2@example.com', password: 'password123' })
+      .expect(201);
+    const otherToken = otherReg.body.data.token;
+
+    // Create custom playlist
+    const createRes = await request(app)
+      .post('/api/plans/custom')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        title: 'Morning Mantras',
+        description: 'My daily anchor verses',
+        verses: [{ book: 'Psalms', chapter: 23, verse: 1 }],
+      })
+      .expect(201);
+
+    const planId = createRes.body.data._id;
+    expect(createRes.body.data.title).toBe('Morning Mantras');
+    expect(createRes.body.data.totalVerses).toBe(1);
+
+    // Other user cannot view or modify
+    await request(app)
+      .get(`/api/plans/custom/${planId}`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .expect(404);
+    await request(app)
+      .patch(`/api/plans/custom/${planId}`)
+      .set('Authorization', `Bearer ${otherToken}`)
+      .send({ title: 'Hijacked' })
+      .expect(404);
+
+    // Add a verse via PATCH addVerse
+    const addRes = await request(app)
+      .patch(`/api/plans/custom/${planId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ addVerse: { book: 'John', chapter: 3, verse: 16 } })
+      .expect(200);
+    expect(addRes.body.data.totalVerses).toBe(2);
+
+    // Mark p23v1 completed -> detail reflects completedVerseIds & resolved verses
+    await Progress.create({
+      user: userId,
+      verse: p23v1._id,
+      verseOrder: p23v1.verseOrder,
+      completed: true,
+      attempts: 1,
+      bestWPM: 62,
+      bestAccuracy: 99,
+    });
+
+    const detailRes = await request(app)
+      .get(`/api/plans/custom/${planId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(detailRes.body.data.verses.map((v: any) => v._id)).toEqual([
+      p23v1._id.toString(),
+      jhn316._id.toString(),
+    ]);
+    expect(detailRes.body.data.completedVerseIds).toEqual([p23v1._id.toString()]);
+
+    // Add custom playlist to Memory Deck
+    const memRes = await request(app)
+      .post(`/api/plans/custom/${planId}/add-to-memory`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(memRes.body.addedCount).toBe(2);
+    expect(memRes.body.totalInDeck).toBe(2);
+
+    // Replace verses & rename
+    const patchRes = await request(app)
+      .patch(`/api/plans/custom/${planId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        title: 'Evening Peace',
+        verses: [{ book: 'Psalms', chapter: 23, verse: 2 }],
+      })
+      .expect(200);
+    expect(patchRes.body.data.title).toBe('Evening Peace');
+    expect(patchRes.body.data.totalVerses).toBe(1);
+    expect(patchRes.body.data.verseRefs).toEqual([{ book: 'Psalms', chapter: 23, verse: 2 }]);
+    expect(p23v2._id).toBeDefined();
+
+    // Delete custom playlist
+    await request(app)
+      .delete(`/api/plans/custom/${planId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    const listAfter = await request(app)
+      .get('/api/plans/custom')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(listAfter.body.data).toHaveLength(0);
   });
 });

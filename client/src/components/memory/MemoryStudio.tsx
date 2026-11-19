@@ -1,9 +1,20 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { CuratedPlanSummary, MemoryItem, MemoryStage } from '../../types';
-import { MemoryService, PlanService, ProgressService } from '../../services/api';
+import {
+  BookChapterInfo,
+  CuratedPlanSummary,
+  CustomPlanSummary,
+  MemoryItem,
+  MemoryStage,
+} from '../../types';
+import { MemoryService, PlanService, ProgressService, VerseService } from '../../services/api';
 import { useAuthSession } from '../../context/AuthContext';
-import { CURATED_PLANS } from '../../data/curatedCatalog';
+import { CANONICAL_BOOKS } from '../../data/books';
+import {
+  CURATED_PLANS,
+  CuratedPlanCategory,
+  CuratedVerseRef,
+} from '../../data/curatedCatalog';
 import {
   MEMORY_STAGES,
   renderMaskedVerseCharacters,
@@ -14,6 +25,38 @@ import {
   calculateWpm,
   calculateCps,
 } from '../../utils/typingMetrics';
+
+const PLAN_CATEGORIES: ReadonlyArray<'All' | CuratedPlanCategory> = [
+  'All',
+  'Mantra',
+  'Anchor',
+  'Wisdom',
+  'Study Plan',
+  'Gospels',
+  'Epistles',
+];
+
+function openNativeDialog(dialog: HTMLDialogElement | null) {
+  if (!dialog) return;
+  if (typeof dialog.showModal === 'function') {
+    if (!dialog.open) {
+      dialog.showModal();
+    }
+  } else {
+    dialog.setAttribute('open', '');
+  }
+}
+
+function closeNativeDialog(dialog: HTMLDialogElement | null) {
+  if (!dialog) return;
+  if (typeof dialog.close === 'function') {
+    if (dialog.open) {
+      dialog.close();
+    }
+  } else {
+    dialog.removeAttribute('open');
+  }
+}
 
 const FALLBACK_PLANS: CuratedPlanSummary[] = CURATED_PLANS.map((plan) => ({
   id: plan.id,
@@ -32,6 +75,8 @@ export const MemoryStudio: React.FC = () => {
   const { mode, user, loading: authLoading } = useAuthSession();
   const [deck, setDeck] = useState<MemoryItem[]>([]);
   const [plans, setPlans] = useState<CuratedPlanSummary[]>(FALLBACK_PLANS);
+  const [customPlans, setCustomPlans] = useState<CustomPlanSummary[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<'All' | CuratedPlanCategory>('All');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -49,7 +94,24 @@ export const MemoryStudio: React.FC = () => {
   const [addingPackId, setAddingPackId] = useState<string | null>(null);
   const [packStatusMessage, setPackStatusMessage] = useState<string | null>(null);
 
+  // Custom Playlist modal state
+  const [editingCustomPlan, setEditingCustomPlan] = useState<CustomPlanSummary | null>(null);
+  const [playlistTitle, setPlaylistTitle] = useState<string>('');
+  const [playlistDescription, setPlaylistDescription] = useState<string>('');
+  const [playlistVerses, setPlaylistVerses] = useState<CuratedVerseRef[]>([]);
+  const [pickerBook, setPickerBook] = useState<string>('Psalms');
+  const [pickerChapters, setPickerChapters] = useState<BookChapterInfo[]>([]);
+  const [pickerChapter, setPickerChapter] = useState<string>('23');
+  const [pickerVerse, setPickerVerse] = useState<string>('1');
+  const [playlistError, setPlaylistError] = useState<string | null>(null);
+  const [savingPlaylist, setSavingPlaylist] = useState<boolean>(false);
+  const [playlistStatusMessage, setPlaylistStatusMessage] = useState<string | null>(null);
+  const [deletingPlaylist, setDeletingPlaylist] = useState<CustomPlanSummary | null>(null);
+  const [isDeletingPlaylist, setIsDeletingPlaylist] = useState<boolean>(false);
+
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const playlistDialogRef = useRef<HTMLDialogElement>(null);
+  const deletePlaylistDialogRef = useRef<HTMLDialogElement>(null);
 
   const loadData = useCallback(async () => {
     if (!MemoryService?.getDeck) {
@@ -59,17 +121,21 @@ export const MemoryStudio: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const [deckData, plansData] = await Promise.all([
+      const [deckData, plansData, customPlansData] = await Promise.all([
         MemoryService.getDeck(),
         PlanService?.getPlans
           ? PlanService.getPlans().catch(() => FALLBACK_PLANS)
           : Promise.resolve(FALLBACK_PLANS),
+        PlanService?.getCustomPlans
+          ? PlanService.getCustomPlans().catch(() => [])
+          : Promise.resolve([]),
       ]);
       const normalizedDeck = Array.isArray(deckData) ? deckData : [];
       const normalizedPlans =
         Array.isArray(plansData) && plansData.length > 0 ? plansData : FALLBACK_PLANS;
       setDeck(normalizedDeck);
       setPlans(normalizedPlans);
+      setCustomPlans(Array.isArray(customPlansData) ? customPlansData : []);
       if (normalizedDeck.length > 0) {
         setSelectedItemId((prev) => {
           const existing = prev
@@ -111,11 +177,14 @@ export const MemoryStudio: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const [deckData, plansData] = await Promise.all([
+        const [deckData, plansData, customPlansData] = await Promise.all([
           MemoryService.getDeck(),
           PlanService?.getPlans
             ? PlanService.getPlans().catch(() => FALLBACK_PLANS)
             : Promise.resolve(FALLBACK_PLANS),
+          PlanService?.getCustomPlans
+            ? PlanService.getCustomPlans().catch(() => [])
+            : Promise.resolve([]),
         ]);
         if (cancelled) return;
         const normalizedDeck = Array.isArray(deckData) ? deckData : [];
@@ -123,6 +192,7 @@ export const MemoryStudio: React.FC = () => {
           Array.isArray(plansData) && plansData.length > 0 ? plansData : FALLBACK_PLANS;
         setDeck(normalizedDeck);
         setPlans(normalizedPlans);
+        setCustomPlans(Array.isArray(customPlansData) ? customPlansData : []);
         if (normalizedDeck.length > 0) {
           setSelectedItemId(normalizedDeck[0]._id);
           setActiveStage(normalizedDeck[0].stage);
@@ -149,6 +219,26 @@ export const MemoryStudio: React.FC = () => {
       cancelled = true;
     };
   }, [authLoading, mode, user]);
+
+  useEffect(() => {
+    if (!pickerBook || !VerseService?.getBookChapters) {
+      setPickerChapters([]);
+      return;
+    }
+    let cancelled = false;
+    VerseService.getBookChapters(pickerBook)
+      .then((chapters) => {
+        if (!cancelled && Array.isArray(chapters)) {
+          setPickerChapters(chapters);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setPickerChapters([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pickerBook]);
 
   const selectedItem = deck.find((item) => item._id === selectedItemId) ?? deck[0] ?? null;
 
@@ -296,6 +386,174 @@ export const MemoryStudio: React.FC = () => {
       }
     }
   };
+
+  const handleOpenCreatePlaylist = () => {
+    setEditingCustomPlan(null);
+    setPlaylistTitle('');
+    setPlaylistDescription('');
+    setPlaylistVerses([]);
+    setPlaylistError(null);
+    openNativeDialog(playlistDialogRef.current);
+  };
+
+  const handleOpenEditPlaylist = (plan: CustomPlanSummary) => {
+    setEditingCustomPlan(plan);
+    setPlaylistTitle(plan.title);
+    setPlaylistDescription(plan.description || '');
+    setPlaylistVerses([...plan.verseRefs]);
+    setPlaylistError(null);
+    openNativeDialog(playlistDialogRef.current);
+  };
+
+  const handleClosePlaylistModal = () => {
+    closeNativeDialog(playlistDialogRef.current);
+    setPlaylistError(null);
+  };
+
+  const handleAddPickerVerse = () => {
+    const ch = Number(pickerChapter);
+    const vs = Number(pickerVerse);
+    if (!pickerBook || !Number.isInteger(ch) || ch < 1 || !Number.isInteger(vs) || vs < 1) {
+      setPlaylistError('Choose a valid book, chapter, and verse number.');
+      return;
+    }
+    const exists = playlistVerses.some(
+      (v) => v.book === pickerBook && v.chapter === ch && v.verse === vs
+    );
+    if (!exists) {
+      setPlaylistVerses((prev) => [...prev, { book: pickerBook, chapter: ch, verse: vs }]);
+    }
+    setPlaylistError(null);
+  };
+
+  const handleAddMemoryItemToPlaylist = (item: MemoryItem) => {
+    const exists = playlistVerses.some(
+      (v) => v.book === item.book && v.chapter === item.chapter && v.verse === item.verseNum
+    );
+    if (!exists) {
+      setPlaylistVerses((prev) => [
+        ...prev,
+        { book: item.book, chapter: item.chapter, verse: item.verseNum },
+      ]);
+    }
+  };
+
+  const handleRemovePlaylistVerse = (idx: number) => {
+    setPlaylistVerses((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleMovePlaylistVerse = (idx: number, direction: -1 | 1) => {
+    const target = idx + direction;
+    if (target < 0 || target >= playlistVerses.length) return;
+    setPlaylistVerses((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(idx, 1);
+      next.splice(target, 0, moved);
+      return next;
+    });
+  };
+
+  const handleSavePlaylist = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedTitle = playlistTitle.trim();
+    if (!trimmedTitle) {
+      setPlaylistError('Please enter a playlist title.');
+      return;
+    }
+    if (!PlanService?.createCustomPlan || !PlanService?.updateCustomPlan) {
+      setPlaylistError('Custom playlist service is unavailable.');
+      return;
+    }
+
+    try {
+      setSavingPlaylist(true);
+      setPlaylistError(null);
+      if (editingCustomPlan) {
+        const updated = await PlanService.updateCustomPlan(editingCustomPlan._id, {
+          title: trimmedTitle,
+          description: playlistDescription.trim(),
+          verses: playlistVerses,
+        });
+        setCustomPlans((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
+        setPlaylistStatusMessage(`Updated custom playlist "${updated.title}".`);
+      } else {
+        const created = await PlanService.createCustomPlan({
+          title: trimmedTitle,
+          description: playlistDescription.trim(),
+          verses: playlistVerses,
+        });
+        setCustomPlans((prev) => [created, ...prev]);
+        setPlaylistStatusMessage(`Created custom playlist "${created.title}".`);
+      }
+      closeNativeDialog(playlistDialogRef.current);
+    } catch (err: any) {
+      setPlaylistError(
+        err?.response?.data?.message || err?.message || 'Failed to save custom playlist.'
+      );
+    } finally {
+      setSavingPlaylist(false);
+    }
+  };
+
+  const handleRequestDeletePlaylist = (plan: CustomPlanSummary) => {
+    setDeletingPlaylist(plan);
+    openNativeDialog(deletePlaylistDialogRef.current);
+  };
+
+  const handleConfirmDeletePlaylist = async () => {
+    if (!deletingPlaylist || !PlanService?.deleteCustomPlan) return;
+    try {
+      setIsDeletingPlaylist(true);
+      await PlanService.deleteCustomPlan(deletingPlaylist._id);
+      setCustomPlans((prev) => prev.filter((p) => p._id !== deletingPlaylist._id));
+      setPlaylistStatusMessage(`Deleted custom playlist "${deletingPlaylist.title}".`);
+      closeNativeDialog(deletePlaylistDialogRef.current);
+      setDeletingPlaylist(null);
+    } catch (err: any) {
+      setPlaylistStatusMessage(
+        err?.response?.data?.message || err?.message || 'Failed to delete playlist.'
+      );
+    } finally {
+      setIsDeletingPlaylist(false);
+    }
+  };
+
+  const handleAddCustomPlanToMemory = async (plan: CustomPlanSummary) => {
+    if (!PlanService?.addCustomPlanToMemory) return;
+    try {
+      setAddingPackId(plan._id);
+      const res = await PlanService.addCustomPlanToMemory(plan._id);
+      setDeck(res.data);
+      if (res.data.length > 0 && !selectedItemId) {
+        setSelectedItemId(res.data[0]._id);
+        setActiveStage(res.data[0].stage);
+      }
+      setPlaylistStatusMessage(
+        `Added ${res.addedCount} new ${
+          res.addedCount === 1 ? 'verse' : 'verses'
+        } from "${plan.title}" to your Memory Deck.`
+      );
+      if (PlanService.getCustomPlans) {
+        const refreshed = await PlanService.getCustomPlans().catch(() => customPlans);
+        setCustomPlans(refreshed);
+      }
+    } catch (err: any) {
+      setPlaylistStatusMessage(
+        err?.response?.data?.message || err?.message || 'Failed to add playlist to Memory Deck.'
+      );
+    } finally {
+      setAddingPackId(null);
+    }
+  };
+
+  const filteredPlans =
+    selectedCategory === 'All'
+      ? plans
+      : plans.filter((p) => p.category === selectedCategory);
+
+  const selectedPickerChapterInfo = pickerChapters.find(
+    (c) => c.chapter === Number(pickerChapter)
+  );
 
   const currentStageMeta =
     MEMORY_STAGES.find((s) => s.stage === activeStage) ?? MEMORY_STAGES[0];
@@ -511,16 +769,149 @@ export const MemoryStudio: React.FC = () => {
         )}
       </section>
 
-      {/* Section 2: Curated Mantras & Study Plans Knowledgebase */}
+      {/* Section 2: My Custom Mantra & Study Playlists */}
+      <section className="dashboard-section" aria-labelledby="custom-playlists-heading">
+        <div className="dashboard-section-header">
+          <div>
+            <h3 id="custom-playlists-heading">My Custom Playlists</h3>
+            <p className="dashboard-section-subtitle">
+              Build your own named mantra playlists from any of the 73 books or your Memory Deck.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={handleOpenCreatePlaylist}
+            data-testid="new-playlist-button"
+          >
+            ＋ New Playlist
+          </button>
+        </div>
+
+        {playlistStatusMessage && (
+          <div
+            className="last-completed-banner"
+            role="status"
+            data-testid="playlist-status-message"
+          >
+            <span>{playlistStatusMessage}</span>
+          </div>
+        )}
+
+        {customPlans.length === 0 ? (
+          <div className="dashboard-empty-state" data-testid="custom-playlists-empty">
+            <p>
+              No custom playlists yet. Create a personal mantra or study list (like{' '}
+              <strong>Morning Psalms</strong> or <strong>Anchor Verses</strong>) and practice it in
+              sequence.
+            </p>
+          </div>
+        ) : (
+          <div className="curated-plans-grid" data-testid="custom-playlists-grid">
+            {customPlans.map((cp) => (
+              <article
+                key={cp._id}
+                className="curated-plan-card custom-playlist-card"
+                data-testid={`custom-plan-${cp._id}`}
+              >
+                <div className="curated-plan-header">
+                  <span className="curated-plan-category">Custom Playlist</span>
+                  <span className="curated-plan-count">
+                    {cp.completedVerses}/{cp.totalVerses} typed · {cp.inMemoryDeckCount} in deck
+                  </span>
+                </div>
+                <h4>{cp.title}</h4>
+                {cp.description && <p className="curated-plan-description">{cp.description}</p>}
+                {cp.verseRefs.length > 0 && (
+                  <div className="playlist-ref-chips">
+                    {cp.verseRefs.slice(0, 6).map((ref) => (
+                      <span
+                        key={`${ref.book}:${ref.chapter}:${ref.verse}`}
+                        className="playlist-ref-chip"
+                      >
+                        {ref.book} {ref.chapter}:{ref.verse}
+                      </span>
+                    ))}
+                    {cp.verseRefs.length > 6 && (
+                      <span className="playlist-ref-chip">+{cp.verseRefs.length - 6} more</span>
+                    )}
+                  </div>
+                )}
+                <div className="curated-plan-actions">
+                  {cp.totalVerses > 0 && (
+                    <Link
+                      to={`/typing?customPlan=${encodeURIComponent(cp._id)}`}
+                      className="primary-button"
+                      data-testid={`practice-custom-plan-${cp._id}`}
+                    >
+                      Practice Playlist
+                    </Link>
+                  )}
+                  {cp.totalVerses > 0 && (
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => handleAddCustomPlanToMemory(cp)}
+                      disabled={addingPackId === cp._id}
+                    >
+                      {addingPackId === cp._id ? 'Adding...' : 'Add to Memory Deck'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={() => handleOpenEditPlaylist(cp)}
+                    data-testid={`edit-custom-plan-${cp._id}`}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button danger-outline-button"
+                    onClick={() => handleRequestDeletePlaylist(cp)}
+                    data-testid={`delete-custom-plan-${cp._id}`}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Section 3: Curated Mantras & Study Plans Knowledgebase */}
       <section className="dashboard-section" aria-labelledby="curated-plans-heading">
         <div className="dashboard-section-header">
           <div>
             <h3 id="curated-plans-heading">Curated Mantras &amp; Study Plans Knowledgebase</h3>
             <p className="dashboard-section-subtitle">
-              Hand-picked collections of noteworthy Psalms, Proverbs, Gospels, and anchor passages
-              from the World English Bible.
+              Hand-picked collections of noteworthy Psalms, Proverbs, Gospels, Epistles, and anchor
+              passages from the World English Bible.
             </p>
           </div>
+        </div>
+
+        <div
+          className="plan-category-filters"
+          role="group"
+          aria-label="Filter curated study plans by category"
+          data-testid="plan-category-filters"
+        >
+          {PLAN_CATEGORIES.map((category) => (
+            <button
+              key={category}
+              type="button"
+              className={`selection-button plan-filter-chip ${
+                selectedCategory === category ? 'active' : ''
+              }`}
+              aria-pressed={selectedCategory === category}
+              onClick={() => setSelectedCategory(category)}
+              data-testid={`filter-category-${category.toLowerCase().replace(/\s+/g, '-')}`}
+            >
+              {category}
+            </button>
+          ))}
         </div>
 
         {packStatusMessage && (
@@ -534,7 +925,7 @@ export const MemoryStudio: React.FC = () => {
         )}
 
         <div className="curated-plans-grid" data-testid="curated-plans-grid">
-          {plans.map((plan) => (
+          {filteredPlans.map((plan) => (
             <article
               key={plan.id}
               className="curated-plan-card"
@@ -572,6 +963,281 @@ export const MemoryStudio: React.FC = () => {
           ))}
         </div>
       </section>
+
+      {/* Native <dialog>: Create / Edit Custom Playlist */}
+      <dialog
+        ref={playlistDialogRef}
+        className="editorial-dialog playlist-editor-dialog"
+        aria-labelledby="playlist-dialog-title"
+        onClose={(e) => {
+          e.currentTarget.returnValue = '';
+        }}
+      >
+        <div className="editorial-dialog-header">
+          <h3 id="playlist-dialog-title">
+            {editingCustomPlan ? 'Edit Custom Playlist' : 'Create Custom Playlist'}
+          </h3>
+          <button
+            type="button"
+            className="dialog-close-button"
+            aria-label="Close playlist editor"
+            onClick={handleClosePlaylistModal}
+          >
+            ×
+          </button>
+        </div>
+
+        <form onSubmit={handleSavePlaylist} className="editorial-dialog-form">
+          {playlistError && (
+            <p className="error-message" role="alert">
+              {playlistError}
+            </p>
+          )}
+
+          <div className="form-group">
+            <label htmlFor="playlist-title-input">Playlist Title</label>
+            <input
+              id="playlist-title-input"
+              type="text"
+              value={playlistTitle}
+              onChange={(e) => setPlaylistTitle(e.target.value)}
+              placeholder="e.g., Morning Psalms Mantras"
+              maxLength={100}
+              required
+              autoFocus
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="playlist-desc-input">Description (optional)</label>
+            <input
+              id="playlist-desc-input"
+              type="text"
+              value={playlistDescription}
+              onChange={(e) => setPlaylistDescription(e.target.value)}
+              placeholder="Short note on when or why you practice these verses"
+              maxLength={300}
+            />
+          </div>
+
+          <fieldset className="playlist-verse-picker">
+            <legend>Add Verses to Playlist</legend>
+            <div className="playlist-picker-row">
+              <select
+                aria-label="Playlist verse book"
+                value={pickerBook}
+                onChange={(e) => {
+                  setPickerBook(e.target.value);
+                  setPickerChapter('1');
+                  setPickerVerse('1');
+                }}
+              >
+                {CANONICAL_BOOKS.map((book) => (
+                  <option key={book} value={book}>
+                    {book}
+                  </option>
+                ))}
+              </select>
+
+              {pickerChapters.length > 0 ? (
+                <select
+                  aria-label="Playlist verse chapter"
+                  value={pickerChapter}
+                  onChange={(e) => {
+                    setPickerChapter(e.target.value);
+                    setPickerVerse('1');
+                  }}
+                >
+                  {pickerChapters.map((c) => (
+                    <option key={c.chapter} value={String(c.chapter)}>
+                      Ch. {c.chapter}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="number"
+                  min={1}
+                  aria-label="Playlist verse chapter"
+                  value={pickerChapter}
+                  onChange={(e) => setPickerChapter(e.target.value)}
+                  placeholder="Ch."
+                />
+              )}
+
+              {selectedPickerChapterInfo ? (
+                <select
+                  aria-label="Playlist verse number"
+                  value={pickerVerse}
+                  onChange={(e) => setPickerVerse(e.target.value)}
+                >
+                  {Array.from(
+                    { length: selectedPickerChapterInfo.verseCount },
+                    (_, i) => i + 1
+                  ).map((vNum) => (
+                    <option key={vNum} value={String(vNum)}>
+                      v. {vNum}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="number"
+                  min={1}
+                  aria-label="Playlist verse number"
+                  value={pickerVerse}
+                  onChange={(e) => setPickerVerse(e.target.value)}
+                  placeholder="Verse"
+                />
+              )}
+
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={handleAddPickerVerse}
+                data-testid="add-verse-to-playlist-btn"
+              >
+                Add Verse
+              </button>
+            </div>
+
+            {deck.length > 0 && (
+              <div className="playlist-from-deck">
+                <span className="playlist-from-deck-label">Quick add from Memory Deck:</span>
+                <div className="playlist-ref-chips">
+                  {deck.slice(0, 8).map((item) => (
+                    <button
+                      key={item._id}
+                      type="button"
+                      className="playlist-ref-chip playlist-ref-chip-btn"
+                      onClick={() => handleAddMemoryItemToPlaylist(item)}
+                    >
+                      ＋ {item.book} {item.chapter}:{item.verseNum}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </fieldset>
+
+          <div className="playlist-draft-list" data-testid="playlist-draft-verses">
+            <span className="playlist-from-deck-label">
+              Selected Verses ({playlistVerses.length})
+            </span>
+            {playlistVerses.length === 0 ? (
+              <p className="playlist-draft-empty">No verses added yet.</p>
+            ) : (
+              <ul className="playlist-verse-items">
+                {playlistVerses.map((ref, idx) => (
+                  <li
+                    key={`${ref.book}:${ref.chapter}:${ref.verse}`}
+                    className="playlist-verse-item"
+                  >
+                    <span>
+                      {idx + 1}. {ref.book} {ref.chapter}:{ref.verse}
+                    </span>
+                    <div className="playlist-verse-item-actions">
+                      <button
+                        type="button"
+                        className="table-action-btn"
+                        aria-label={`Move ${ref.book} ${ref.chapter}:${ref.verse} up`}
+                        disabled={idx === 0}
+                        onClick={() => handleMovePlaylistVerse(idx, -1)}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="table-action-btn"
+                        aria-label={`Move ${ref.book} ${ref.chapter}:${ref.verse} down`}
+                        disabled={idx === playlistVerses.length - 1}
+                        onClick={() => handleMovePlaylistVerse(idx, 1)}
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        className="table-action-btn table-action-delete"
+                        aria-label={`Remove ${ref.book} ${ref.chapter}:${ref.verse}`}
+                        onClick={() => handleRemovePlaylistVerse(idx)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="editorial-dialog-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleClosePlaylistModal}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={savingPlaylist}
+              data-testid="save-playlist-submit"
+            >
+              {savingPlaylist
+                ? 'Saving...'
+                : editingCustomPlan
+                ? 'Save Changes'
+                : 'Create Playlist'}
+            </button>
+          </div>
+        </form>
+      </dialog>
+
+      {/* Native <dialog>: Delete Custom Playlist Confirmation */}
+      <dialog
+        ref={deletePlaylistDialogRef}
+        className="editorial-dialog"
+        aria-labelledby="delete-playlist-dialog-title"
+        onClose={(e) => {
+          e.currentTarget.returnValue = '';
+        }}
+      >
+        <div className="editorial-dialog-header">
+          <h3 id="delete-playlist-dialog-title">Delete Custom Playlist?</h3>
+          <button
+            type="button"
+            className="dialog-close-button"
+            aria-label="Close delete confirmation"
+            onClick={() => closeNativeDialog(deletePlaylistDialogRef.current)}
+          >
+            ×
+          </button>
+        </div>
+        <p className="editorial-dialog-body">
+          Delete <strong>{deletingPlaylist?.title}</strong>? Your typing history and Memory Deck
+          items will stay intact.
+        </p>
+        <div className="editorial-dialog-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            autoFocus
+            onClick={() => closeNativeDialog(deletePlaylistDialogRef.current)}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="primary-button danger-solid-button"
+            disabled={isDeletingPlaylist}
+            onClick={handleConfirmDeletePlaylist}
+            data-testid="confirm-delete-playlist-btn"
+          >
+            {isDeletingPlaylist ? 'Deleting...' : 'Confirm Delete'}
+          </button>
+        </div>
+      </dialog>
     </div>
   );
 };

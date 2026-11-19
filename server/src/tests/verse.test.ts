@@ -249,4 +249,37 @@ describe('Verse API', () => {
       expect(res.body.message).toBe('No verses found for this book');
     });
   });
-}); 
+
+  describe('GET /api/verses/book/:book/chapters & GET /api/verses/context/:verseOrder', () => {
+    it('returns sorted chapter verse counts for a book and immediate neighbor context around a verseOrder', async () => {
+      await Verse.create([
+        { verseOrder: 10, book: 'Psalms', chapter: 1, verse: 1, text: 'Psalm 1:1 text', characters: 14, words: 3 },
+        { verseOrder: 11, book: 'Psalms', chapter: 1, verse: 2, text: 'Psalm 1:2 text', characters: 14, words: 3 },
+        { verseOrder: 12, book: 'Psalms', chapter: 23, verse: 1, text: 'Psalm 23:1 text', characters: 15, words: 3 },
+      ]);
+
+      const chaptersRes = await request(app)
+        .get('/api/verses/book/Psalms/chapters')
+        .expect(200);
+
+      expect(chaptersRes.body.success).toBe(true);
+      expect(chaptersRes.body.data).toEqual([
+        { chapter: 1, verseCount: 2 },
+        { chapter: 23, verseCount: 1 },
+      ]);
+
+      const ctxRes = await request(app)
+        .get('/api/verses/context/11')
+        .expect(200);
+
+      expect(ctxRes.body.success).toBe(true);
+      expect(ctxRes.body.data.prev.verseOrder).toBe(10);
+      expect(ctxRes.body.data.prev.text).toBe('Psalm 1:1 text');
+      expect(ctxRes.body.data.next.verseOrder).toBe(12);
+      expect(ctxRes.body.data.next.text).toBe('Psalm 23:1 text');
+
+      await request(app).get('/api/verses/context/0').expect(400);
+      await request(app).get('/api/verses/book/NotABook/chapters').expect(404);
+    });
+  });
+});

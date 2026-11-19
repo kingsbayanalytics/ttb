@@ -221,4 +221,64 @@ export const getVersesByBookAndChapter = asyncHandler(async (req: Request, res: 
     count: verses.length,
     data: verses
   });
-}); 
+});
+
+/**
+ * @desc    Get chapter list and verse counts for a specific book
+ * @route   GET /api/verses/book/:book/chapters
+ * @access  Public
+ */
+export const getBookChapters = asyncHandler(async (req: Request, res: Response) => {
+  const book = req.params.book;
+  const rows = await Verse.find({ book }, { chapter: 1 }).lean();
+
+  if (rows.length === 0) {
+    throw new ApiError('No verses found for this book', 404);
+  }
+
+  const countsByChapter = new Map<number, number>();
+  for (const row of rows) {
+    countsByChapter.set(row.chapter, (countsByChapter.get(row.chapter) ?? 0) + 1);
+  }
+
+  const chapters = Array.from(countsByChapter.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([chapter, verseCount]) => ({ chapter, verseCount }));
+
+  res.json({
+    success: true,
+    book,
+    count: chapters.length,
+    data: chapters,
+  });
+});
+
+/**
+ * @desc    Get immediate previous and next verses around a verseOrder for passage flow preview
+ * @route   GET /api/verses/context/:verseOrder
+ * @access  Public
+ */
+export const getVerseContext = asyncHandler(async (req: Request, res: Response) => {
+  const verseOrder = parseInt(req.params.verseOrder, 10);
+
+  if (isNaN(verseOrder) || verseOrder < 1) {
+    throw new ApiError('Invalid verse order number', 400);
+  }
+
+  const neighbors = await Verse.find({
+    verseOrder: { $in: [verseOrder - 1, verseOrder + 1] },
+  })
+    .select('verseOrder book chapter verse text')
+    .lean();
+
+  const prev = neighbors.find((v) => v.verseOrder === verseOrder - 1) ?? null;
+  const next = neighbors.find((v) => v.verseOrder === verseOrder + 1) ?? null;
+
+  res.json({
+    success: true,
+    data: {
+      prev,
+      next,
+    },
+  });
+});

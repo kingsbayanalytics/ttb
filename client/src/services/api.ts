@@ -2,10 +2,13 @@ import axios from 'axios';
 import {
   AchievementsData,
   ActivityPoint,
+  BookChapterInfo,
   BookChapterProgress,
   CoverageData,
   CuratedPlanDetail,
   CuratedPlanSummary,
+  CustomPlanDetail,
+  CustomPlanSummary,
   MemoryItem,
   MemoryStage,
   NextVerseResult,
@@ -16,10 +19,11 @@ import {
   TrendRange,
   User,
   Verse,
+  VerseContext,
   WeaknessReport,
 } from '../types';
 import { CANONICAL_BOOKS } from '../data/books';
-import { CURATED_PLANS, getCuratedPlanById } from '../data/curatedCatalog';
+import { CURATED_PLANS, CuratedVerseRef, getCuratedPlanById } from '../data/curatedCatalog';
 import { mockVerses } from '../data/mockVerses';
 import { mockProgress, mockProgressSummary } from '../data/mockProgress';
 
@@ -265,6 +269,41 @@ export const VerseService = {
     } catch (error) {
       handleApiError(error);
       throw error;
+    }
+  },
+
+  // Get chapter list and verse counts for a book
+  getBookChapters: async (book: string): Promise<BookChapterInfo[]> => {
+    try {
+      if (USE_MOCK_DATA) {
+        const counts = new Map<number, number>();
+        mockVerses
+          .filter((v) => v.book.toLowerCase() === book.toLowerCase())
+          .forEach((v) => counts.set(v.chapter, (counts.get(v.chapter) ?? 0) + 1));
+        return Array.from(counts.entries())
+          .sort((a, b) => a[0] - b[0])
+          .map(([chapter, verseCount]) => ({ chapter, verseCount }));
+      }
+      const response = await api.get(`/verses/book/${encodeURIComponent(book)}/chapters`);
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  // Get immediate previous and next verses around a verseOrder for passage flow
+  getVerseContext: async (verseOrder: number): Promise<VerseContext> => {
+    try {
+      if (USE_MOCK_DATA) {
+        const prev = mockVerses.find((v) => v.verseOrder === verseOrder - 1) ?? null;
+        const next = mockVerses.find((v) => v.verseOrder === verseOrder + 1) ?? null;
+        return { prev, next };
+      }
+      const response = await api.get(`/verses/context/${verseOrder}`);
+      return response.data.data;
+    } catch (error) {
+      return { prev: null, next: null };
     }
   },
 };
@@ -882,6 +921,88 @@ export const PlanService = {
       }
       const response = await api.get(`/plans/${planId}`);
       return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  getCustomPlans: async (): Promise<CustomPlanSummary[]> => {
+    try {
+      if (USE_MOCK_DATA) {
+        return [];
+      }
+      const response = await api.get('/plans/custom');
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  createCustomPlan: async (payload: {
+    title: string;
+    description?: string;
+    verses?: CuratedVerseRef[];
+  }): Promise<CustomPlanSummary> => {
+    try {
+      const response = await api.post('/plans/custom', payload);
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  getCustomPlanDetail: async (planId: string): Promise<CustomPlanDetail> => {
+    try {
+      const response = await api.get(`/plans/custom/${planId}`);
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  updateCustomPlan: async (
+    planId: string,
+    payload: {
+      title?: string;
+      description?: string;
+      verses?: CuratedVerseRef[];
+      addVerse?: CuratedVerseRef;
+      removeVerse?: CuratedVerseRef;
+    }
+  ): Promise<CustomPlanSummary> => {
+    try {
+      const response = await api.patch(`/plans/custom/${planId}`, payload);
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  deleteCustomPlan: async (planId: string): Promise<{ deletedPlanId: string }> => {
+    try {
+      const response = await api.delete(`/plans/custom/${planId}`);
+      return response.data.data;
+    } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  addCustomPlanToMemory: async (
+    planId: string
+  ): Promise<{ addedCount: number; totalInDeck: number; data: MemoryItem[] }> => {
+    try {
+      const response = await api.post(`/plans/custom/${planId}/add-to-memory`);
+      return {
+        addedCount: response.data.addedCount,
+        totalInDeck: response.data.totalInDeck,
+        data: response.data.data,
+      };
     } catch (error) {
       handleApiError(error);
       throw error;

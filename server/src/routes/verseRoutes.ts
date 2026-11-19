@@ -6,7 +6,9 @@ import {
   getRandomVerse,
   getNextVerse,
   getVersesByBook,
-  getVersesByBookAndChapter
+  getVersesByBookAndChapter,
+  getBookChapters,
+  getVerseContext
 } from '../controllers/verseController';
 import { protect } from '../middleware/authMiddleware';
 
@@ -23,6 +25,12 @@ router.get('/next', protect, getNextVerse);
 
 // Get a verse by its order number
 router.get('/order/:verseOrder', getVerseByOrder);
+
+// Get immediate previous & next verses for passage flow context
+router.get('/context/:verseOrder', getVerseContext);
+
+// Get chapter list and verse counts for a book (mounted before /book/:book)
+router.get('/book/:book/chapters', getBookChapters);
 
 // Get verses by book
 router.get('/book/:book', getVersesByBook);
