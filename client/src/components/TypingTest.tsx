@@ -21,6 +21,9 @@ const TypingTest: React.FC = () => {
   const searchParams = new URLSearchParams(location.search || '');
   const initialBook = searchParams.get('book')?.trim() || '';
   const initialPlanId = searchParams.get('plan')?.trim() || '';
+  const rawMode = searchParams.get('mode')?.trim().toLowerCase() || '';
+  const initialMode: 'random' | 'book' | 'sequential' | '' =
+    rawMode === 'random' || rawMode === 'book' || rawMode === 'sequential' ? rawMode : '';
 
   const [verse, setVerse] = useState<Verse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -41,11 +44,11 @@ const TypingTest: React.FC = () => {
   const [wpm, setWpm] = useState<number>(0);
   const [accuracy, setAccuracy] = useState<number>(0);
   const [verseSelectionMode, setVerseSelectionMode] = useState<'random' | 'book' | 'sequential'>(
-    initialBook ? 'book' : 'random'
+    initialBook ? 'book' : initialMode || 'random'
   );
   const [selectedBook, setSelectedBook] = useState<string>(initialBook);
   const [autoAdvance, setAutoAdvance] = useState<boolean>(
-    Boolean(initialBook || initialPlanId)
+    Boolean(initialBook || initialPlanId || initialMode === 'book' || initialMode === 'sequential')
   );
   const [lastCompletedVerse, setLastCompletedVerse] = useState<{
     reference: string;
@@ -55,6 +58,7 @@ const TypingTest: React.FC = () => {
   } | null>(null);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const bookSelectRef = useRef<HTMLSelectElement>(null);
   const mismatchIndicesRef = useRef<Set<number>>(new Set());
   const navigate = useNavigate();
   const { user } = useAuthSession();
@@ -250,7 +254,7 @@ const TypingTest: React.FC = () => {
     };
   }, [userId]);
 
-  // Load initial verse or respond to ?book= / ?plan= query parameter changes
+  // Load initial verse or respond to ?book= / ?plan= / ?mode= query parameter changes
   useEffect(() => {
     if (initialPlanId) {
       setAutoAdvance(true);
@@ -261,12 +265,27 @@ const TypingTest: React.FC = () => {
       setSelectedBook(initialBook);
       setAutoAdvance(true);
       fetchVerse('book', initialBook);
+    } else if (initialMode === 'sequential') {
+      setActivePlan(null);
+      setVerseSelectionMode('sequential');
+      setSelectedBook('');
+      setAutoAdvance(true);
+      fetchVerse('sequential', '');
+    } else if (initialMode === 'book') {
+      setActivePlan(null);
+      setVerseSelectionMode('book');
+      setSelectedBook('');
+      setAutoAdvance(true);
+      fetchVerse('random', '');
     } else {
       setActivePlan(null);
+      setVerseSelectionMode('random');
+      setSelectedBook('');
+      setAutoAdvance(false);
       fetchVerse('random', '');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialBook, initialPlanId]);
+  }, [initialBook, initialPlanId, initialMode]);
 
   const advanceInPlanOrFetchNext = useCallback(
     (afterVerseOrder?: number) => {
@@ -296,10 +315,14 @@ const TypingTest: React.FC = () => {
     [activePlan, fetchVerse, selectedBook, verseSelectionMode]
   );
   useEffect(() => {
-    if (verse && inputRef.current) {
-      inputRef.current.focus();
+    if (verse) {
+      if (initialMode === 'book' && !selectedBook && bookSelectRef.current) {
+        bookSelectRef.current.focus();
+      } else if (inputRef.current) {
+        inputRef.current.focus();
+      }
     }
-  }, [verse]);
+  }, [verse, initialMode, selectedBook]);
 
   // Set start time on first keystroke
   useEffect(() => {
@@ -590,7 +613,12 @@ const TypingTest: React.FC = () => {
           
           {verseSelectionMode === 'book' && (
             <div className="book-selector">
-              <select value={selectedBook} onChange={handleBookChange}>
+              <select
+                ref={bookSelectRef}
+                aria-label="Select a Bible book"
+                value={selectedBook}
+                onChange={handleBookChange}
+              >
                 <option value="">-- Select a Book --</option>
                 {CANONICAL_BOOKS.map(book => (
                   <option key={book} value={book}>{book}</option>

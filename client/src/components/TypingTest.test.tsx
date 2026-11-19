@@ -777,4 +777,60 @@ describe('TypingTest', () => {
       { timeout: 2000 }
     );
   });
+
+  it('starts in sequential mode with auto-advance when navigated to /typing?mode=sequential', async () => {
+    const router = require('react-router-dom');
+    const useLocationSpy = jest.spyOn(router, 'useLocation').mockReturnValue({
+      pathname: '/typing',
+      search: '?mode=sequential',
+      hash: '',
+      state: null,
+      key: 'seq-mode-test',
+    });
+
+    try {
+      const loggedInUser = { _id: 'user123' };
+      (AuthService.getCurrentUser as jest.Mock).mockReturnValue(loggedInUser);
+      (ProgressService.getUserProgress as jest.Mock).mockResolvedValue([
+        { verseOrder: 10 },
+      ]);
+      const seqVerse = {
+        ...mockVerse,
+        _id: 'v11',
+        verseOrder: 11,
+        text: 'God said, Let the earth yield grass.',
+      };
+      (VerseService.getVerseByOrder as jest.Mock).mockResolvedValue(seqVerse);
+
+      render(<TypingTest />);
+
+      const verseDisplay = await screen.findByTestId('verse-display', {}, { timeout: 2000 });
+      expect(verseDisplay).toHaveTextContent(seqVerse.text);
+      expect(VerseService.getVerseByOrder).toHaveBeenCalledWith(11);
+      expect(screen.getByRole('button', { name: 'Sequential' })).toHaveClass('active');
+    } finally {
+      useLocationSpy.mockRestore();
+    }
+  });
+
+  it('opens the book selector cleanly when navigated to /typing?mode=book without a book param', async () => {
+    const router = require('react-router-dom');
+    const useLocationSpy = jest.spyOn(router, 'useLocation').mockReturnValue({
+      pathname: '/typing',
+      search: '?mode=book',
+      hash: '',
+      state: null,
+      key: 'book-mode-test',
+    });
+
+    try {
+      render(<TypingTest />);
+
+      const bookSelect = await screen.findByLabelText('Select a Bible book', {}, { timeout: 2000 });
+      expect(bookSelect).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'By Book' })).toHaveClass('active');
+    } finally {
+      useLocationSpy.mockRestore();
+    }
+  });
 });
