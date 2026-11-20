@@ -1,0 +1,1103 @@
+/* ==========================================================================
+   Companion Reading Room Drawer & Chapter Bloom Surfaces (Stories 11.2, 11.3)
+   Editorial Atlas Visual Grammar — Parchment Light / Obsidian Dark
+   ========================================================================== */
+
+/* Native <dialog> — NEVER set display unconditionally; scope to dialog[open] */
+dialog.companion-drawer {
+  padding: 0;
+  margin: 0;
+  margin-inline-start: auto;
+  border: 0;
+  border-inline-start: 1px solid var(--border-strong);
+  border-radius: 0;
+  background: var(--bg-ivory);
+  color: var(--ink-primary);
+  inline-size: min(560px, 46vw);
+  max-inline-size: 100vw;
+  block-size: 100dvh;
+  max-block-size: 100dvh;
+  box-shadow: -8px 0 28px rgba(20, 20, 19, 0.18);
+  overflow: hidden;
+}
+
+dialog.companion-drawer[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+/* MANDATORY per prevent-page-scroll-under-modal-dialog: contain scroll chaining without body overflow hacks */
+dialog.companion-drawer:modal {
+  overscroll-behavior: contain;
+}
+
+dialog.companion-drawer::backdrop {
+  background: rgba(20, 20, 19, 0.42);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+/* Opt-in slide motion ONLY when user has no reduced-motion preference (motion guide) */
+@media (prefers-reduced-motion: no-preference) {
+  dialog.companion-drawer[open] {
+    animation: companion-drawer-slide-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+@keyframes companion-drawer-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Tablet breakpoint: 600px - 959px */
+@media (max-width: 959px) and (min-width: 600px) {
+  dialog.companion-drawer {
+    inline-size: min(520px, 88vw);
+  }
+}
+
+/* Mobile breakpoint: < 600px bottom/full viewport sheet */
+@media (max-width: 599px) {
+  dialog.companion-drawer {
+    margin-inline-start: 0;
+    margin-block-start: auto;
+    inline-size: 100vw;
+    block-size: auto;
+    max-block-size: 92dvh;
+    border-inline-start: 0;
+    border-block-start: 1px solid var(--border-strong);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    dialog.companion-drawer[open] {
+      animation: companion-drawer-sheet-up 180ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+  }
+}
+
+@keyframes companion-drawer-sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.companion-drawer-surface {
+  display: flex;
+  flex-direction: column;
+  block-size: 100%;
+  max-block-size: inherit;
+  min-block-size: 0;
+}
+
+/* Header */
+.companion-drawer-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-ivory);
+  border-block-end: 1px solid var(--border-stone);
+  padding: 1rem 1.25rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.companion-drawer-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.companion-drawer-kicker-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--accent-ochre);
+}
+
+.companion-biome-crest {
+  flex: none;
+  image-rendering: pixelated;
+}
+
+.companion-drawer-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--accent-ochre);
+}
+
+.companion-close-button {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--ink-primary);
+  background: var(--bg-parchment);
+  border: 1px solid var(--border-stone);
+  border-radius: 0;
+  padding: 0.35rem 0.65rem;
+  min-block-size: 32px;
+  min-inline-size: 44px;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.companion-close-button:hover {
+  background: var(--bg-bone);
+  border-color: var(--border-strong);
+}
+
+.companion-close-button:focus-visible,
+.companion-tab:focus-visible,
+.companion-mode-pill:focus-visible,
+.companion-octave-jump:focus-visible,
+.companion-inline-action:focus-visible,
+.companion-inline-secondary:focus-visible,
+.companion-external-link:focus-visible,
+.chapter-bloom-open-btn:focus-visible,
+.chapter-bloom-dismiss-btn:focus-visible,
+.session-harvest-chip:focus-visible,
+.zen-bloom-chip:focus-visible {
+  outline: 2px solid var(--accent-terracotta);
+  outline-offset: 2px;
+}
+
+.companion-drawer-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.companion-drawer-title {
+  font-family: var(--font-serif);
+  font-size: 1.55rem;
+  line-height: 1.2;
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+
+.companion-drawer-subtitle {
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  color: var(--ink-secondary);
+  margin-block-start: 0.2rem;
+}
+
+.companion-mode-switcher {
+  display: inline-flex;
+  border: 1px solid var(--border-stone);
+  background: var(--bg-parchment);
+}
+
+.companion-mode-pill {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  padding: 0.35rem 0.65rem;
+  min-block-size: 30px;
+  background: transparent;
+  color: var(--ink-secondary);
+  border: 0;
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.companion-mode-pill.is-active {
+  background: var(--ink-primary);
+  color: var(--bg-ivory);
+}
+
+.companion-bloom-stats {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--ink-muted);
+}
+
+/* Multi-Lens Single-Row Tablist (tabs guide: never wrap tabs; underline via ::after border) */
+.companion-tablist {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scroll-snap-type: inline proximity;
+  background: var(--bg-parchment);
+  border-block-end: 1px solid var(--border-stone);
+  padding-inline: 0.75rem;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.companion-tab {
+  position: relative;
+  flex: none;
+  scroll-snap-align: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.72rem 0.75rem;
+  min-block-size: 40px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--ink-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+.companion-tab:hover {
+  color: var(--ink-primary);
+  background: var(--bg-bone);
+}
+
+/* Selected indicator strictly driven by aria-selected + border-block-end for Forced Colors Mode */
+.companion-tab[aria-selected="true"] {
+  color: var(--ink-primary);
+}
+
+.companion-tab[aria-selected="true"]::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  border-block-end: 3px solid var(--accent-ochre);
+}
+
+.companion-tab--historical-classic[aria-selected="true"]::after {
+  border-block-end-color: var(--accent-slate-blue);
+}
+
+.companion-tab--community[aria-selected="true"]::after {
+  border-block-end-color: var(--accent-terracotta);
+}
+
+.companion-tab-icon {
+  flex: none;
+}
+
+.companion-tab-count {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 0.08rem 0.35rem;
+  background: var(--bg-bone);
+  border: 1px solid var(--border-stone);
+  color: var(--ink-secondary);
+}
+
+/* Scrollable Reading Area */
+.companion-drawer-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-block-size: 0;
+  overscroll-behavior: contain;
+}
+
+/* Put padding on inner wrapper, NOT on [role="tabpanel"] itself (tabs guide) */
+.companion-tabpanel-inner,
+.companion-guide-panel,
+.companion-locked-teaser,
+.companion-loading-state,
+.companion-error-state {
+  padding: 1.25rem;
+}
+
+.companion-lens-kicker,
+.companion-section-kicker,
+.companion-source-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--accent-ochre);
+  margin-block-end: 0.85rem;
+}
+
+.companion-lens-kicker--historical-classic {
+  color: var(--accent-slate-blue);
+}
+
+.companion-lens-kicker--community {
+  color: var(--accent-terracotta);
+}
+
+.companion-empty-state {
+  padding: 1.25rem;
+  background: var(--bg-parchment);
+  border: 1px solid var(--border-stone);
+  border-inline-start: 4px solid var(--border-strong);
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--ink-secondary);
+  max-inline-size: 62ch;
+}
+
+.companion-entries-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.companion-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding-block-end: 1.35rem;
+  border-block-end: 1px solid var(--border-stone);
+}
+
+.companion-entry:last-child {
+  border-block-end: 0;
+  padding-block-end: 0;
+}
+
+.companion-entry-title {
+  font-family: var(--font-serif);
+  font-size: 1.28rem;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+
+.companion-provenance-badge {
+  display: inline-block;
+  margin-block-start: 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  padding: 0.22rem 0.55rem;
+  background: var(--bg-parchment);
+  border: 1px solid var(--accent-slate-blue);
+  color: var(--accent-slate-blue);
+}
+
+.companion-entry-summary {
+  margin-block-start: 0.45rem;
+  font-family: var(--font-sans);
+  font-size: 0.94rem;
+  line-height: 1.6;
+  color: var(--ink-secondary);
+  max-inline-size: 62ch;
+}
+
+/* Safe Plain-React Markdown Prose (Newsreader serif, capped at 62ch) */
+.companion-markdown {
+  font-family: var(--font-serif);
+  font-size: 1.02rem;
+  line-height: 1.72;
+  color: var(--ink-primary);
+  max-inline-size: 62ch;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.companion-md-heading {
+  font-family: var(--font-serif);
+  font-size: 1.08rem;
+  font-weight: 600;
+  color: var(--ink-primary);
+  margin-block-start: 0.35rem;
+}
+
+.companion-md-list {
+  padding-inline-start: 1.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+/* Community Quote Card */
+.companion-quote-card {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  background: var(--bg-parchment);
+  border: 1px solid var(--border-stone);
+  border-inline-start: 4px solid var(--accent-terracotta);
+  max-inline-size: 62ch;
+}
+
+.companion-quote-text {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--ink-primary);
+}
+
+.companion-quote-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-block-start: 0.6rem;
+}
+
+.companion-mono-pill,
+.companion-ritual-pill {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.16rem 0.45rem;
+  background: var(--bg-bone);
+  border: 1px solid var(--border-stone);
+  color: var(--ink-secondary);
+}
+
+.companion-meta-date,
+.companion-verse-ref,
+.companion-page-ref {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+}
+
+/* Psalm 119 22-Octave Quick-Jump Strip & Purpose Cards */
+.companion-octave-strip {
+  padding: 0.75rem;
+  background: var(--bg-parchment);
+  border: 1px solid var(--border-stone);
+  margin-block-end: 0.9rem;
+}
+
+.companion-octave-strip-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--accent-ochre);
+  margin-block-end: 0.5rem;
+}
+
+.companion-octave-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.companion-octave-jump {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  padding: 0.24rem 0.45rem;
+  min-block-size: 26px;
+  background: var(--bg-ivory);
+  border: 1px solid var(--border-stone);
+  border-radius: 0;
+  color: var(--ink-primary);
+  cursor: pointer;
+}
+
+.companion-octave-jump.is-active,
+.companion-octave-jump:hover {
+  border-color: var(--accent-ochre);
+  background: var(--bg-bone);
+}
+
+.companion-purposes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.companion-purpose-card {
+  padding: 0.95rem 1rem;
+  background: var(--bg-parchment);
+  border: 1px solid var(--border-stone);
+  border-inline-start: 3px solid var(--accent-ochre);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.companion-purpose-card.is-highlighted {
+  border-color: var(--accent-ochre);
+}
+
+.companion-octave-badge {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--accent-ochre);
+  text-transform: uppercase;
+}
+
+.companion-purpose-title {
+  font-family: var(--font-serif);
+  font-size: 1.06rem;
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+
+.companion-purpose-meta,
+.companion-entry-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-block-start: 0.25rem;
+}
+
+.companion-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+/* Traditional Index Purposes */
+.companion-index-purposes {
+  padding: 0.9rem 1rem;
+  background: var(--bg-parchment);
+  border: 1px solid var(--border-stone);
+}
+
+.companion-index-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.companion-index-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  color: var(--ink-primary);
+  padding-block-end: 0.35rem;
+  border-block-end: 1px dashed var(--border-stone);
+}
+
+.companion-index-item:last-child {
+  border-block-end: 0;
+  padding-block-end: 0;
+}
+
+.companion-index-range {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+/* Source Attribution Box */
+.companion-source-box {
+  padding: 0.9rem 1rem;
+  background: var(--bg-parchment);
+  border: 1px solid var(--border-stone);
+}
+
+.companion-source-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.companion-source-row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 0.5rem;
+  font-size: 0.84rem;
+}
+
+.companion-source-row dt {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+}
+
+.companion-source-row dd {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--ink-primary);
+}
+
+.companion-external-link-row {
+  margin-block-start: 0.7rem;
+  padding-block-start: 0.6rem;
+  border-block-start: 1px solid var(--border-stone);
+}
+
+.companion-external-link {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--accent-terracotta);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Locked Chapter Teaser */
+.companion-locked-teaser {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.companion-locked-heading {
+  font-family: var(--font-serif);
+  font-size: 1.3rem;
+  line-height: 1.3;
+  color: var(--ink-primary);
+}
+
+.companion-locked-copy {
+  font-family: var(--font-sans);
+  font-size: 0.94rem;
+  line-height: 1.6;
+  color: var(--ink-secondary);
+  max-inline-size: 56ch;
+}
+
+.companion-locked-progress,
+.companion-guide-progress-bar {
+  padding: 0.9rem 1rem;
+  background: var(--bg-parchment);
+  border: 1px solid var(--border-stone);
+  border-inline-start: 4px solid var(--accent-ochre);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.companion-guide-progress-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.companion-guide-progress-header .companion-section-kicker {
+  margin-block-end: 0;
+}
+
+.companion-guide-progress-stats {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--ink-secondary);
+}
+
+.companion-progress-meter {
+  inline-size: 100%;
+  block-size: 8px;
+  accent-color: var(--accent-ochre);
+}
+
+.companion-locked-lens-list {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.companion-locked-lens-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  padding: 0.35rem 0.65rem;
+  background: var(--bg-parchment);
+  border: 1px solid var(--border-stone);
+  color: var(--ink-primary);
+}
+
+.companion-locked-cta {
+  padding-block-start: 0.35rem;
+}
+
+/* Book Guide & 14-Slot Daily Prayer Schedule */
+.companion-guide-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+.companion-guide-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.companion-guide-heading {
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--ink-primary);
+  padding-block-end: 0.35rem;
+  border-block-end: 1px solid var(--border-stone);
+}
+
+.companion-guide-source {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--ink-muted);
+}
+
+.companion-mastery-badge {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--accent-ochre);
+  font-weight: 600;
+}
+
+.companion-schedule-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-stone);
+  background: var(--bg-parchment);
+}
+
+.companion-schedule-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.companion-schedule-table th,
+.companion-schedule-table td {
+  padding: 0.55rem 0.65rem;
+  text-align: start;
+  border-block-end: 1px solid var(--border-stone);
+}
+
+.companion-schedule-table th {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+  background: var(--bg-bone);
+}
+
+.companion-schedule-slot {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  color: var(--ink-primary);
+}
+
+.companion-schedule-chapter {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--ink-primary);
+}
+
+.companion-state-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.14rem 0.42rem;
+  border: 1px solid var(--border-stone);
+  white-space: nowrap;
+}
+
+.companion-state-badge--bloomed {
+  color: var(--accent-ochre);
+  border-color: var(--accent-ochre);
+}
+
+.companion-state-badge--in_progress {
+  color: var(--accent-slate-blue);
+  border-color: var(--accent-slate-blue);
+}
+
+.companion-state-badge--dormant {
+  color: var(--ink-muted);
+}
+
+.companion-schedule-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.companion-inline-action,
+.companion-inline-secondary {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.25rem 0.5rem;
+  min-block-size: 28px;
+  border-radius: 0;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.companion-inline-action {
+  background: var(--accent-terracotta);
+  color: #fff;
+  border: 1px solid var(--accent-terracotta);
+}
+
+.companion-inline-secondary {
+  background: var(--bg-ivory);
+  color: var(--ink-primary);
+  border: 1px solid var(--border-stone);
+}
+
+/* Footer */
+.companion-drawer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1.25rem;
+  background: var(--bg-parchment);
+  border-block-start: 1px solid var(--border-stone);
+  flex-shrink: 0;
+}
+
+.companion-footer-btn {
+  font-size: 0.82rem;
+  padding: 0.45rem 0.8rem;
+  min-block-size: 36px;
+}
+
+.companion-footer-spacer {
+  min-inline-size: 1px;
+}
+
+.companion-loading-state,
+.companion-error-state {
+  font-family: var(--font-sans);
+  font-size: 0.94rem;
+  color: var(--ink-secondary);
+}
+
+.companion-error-state {
+  color: var(--danger-color);
+}
+
+/* ==========================================================================
+   Chapter Bloom Whisper Pill, Session Harvest Strip, Zen Chip & Inline Banner
+   ========================================================================== */
+
+.chapter-bloom-toast-region {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-block-end: 0.85rem;
+}
+
+.chapter-bloom-whisper-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 0.9rem;
+  background: var(--bg-ivory);
+  border: 1px solid var(--border-stone);
+  border-inline-start: 4px solid var(--accent-ochre);
+  color: var(--ink-primary);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+}
+
+.chapter-bloom-whisper-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chapter-bloom-icon {
+  color: var(--accent-ochre);
+  flex: none;
+}
+
+.chapter-bloom-whisper-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.chapter-bloom-open-btn {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  padding: 0.3rem 0.65rem;
+  min-block-size: 30px;
+  background: var(--accent-ochre);
+  color: #fff;
+  border: 1px solid var(--accent-ochre);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.chapter-bloom-dismiss-btn {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  padding: 0.3rem 0.55rem;
+  min-block-size: 30px;
+  background: transparent;
+  color: var(--ink-secondary);
+  border: 1px solid var(--border-stone);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.session-harvest-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.85rem;
+  background: var(--bg-parchment);
+  border: 1px solid var(--border-stone);
+}
+
+.session-harvest-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--accent-ochre);
+}
+
+.session-harvest-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.session-harvest-chip {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  padding: 0.24rem 0.55rem;
+  min-block-size: 28px;
+  background: var(--bg-ivory);
+  color: var(--ink-primary);
+  border: 1px solid var(--border-stone);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.session-harvest-chip:hover {
+  border-color: var(--accent-ochre);
+}
+
+.zen-topbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.zen-bloom-chip {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  padding: 0.35rem 0.7rem;
+  min-block-size: 32px;
+  background: var(--bg-ivory);
+  color: var(--accent-ochre);
+  border: 1px solid var(--accent-ochre);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.zen-bloom-chip:hover {
+  background: var(--bg-bone);
+}
+
+.chapter-bloom-banner {
+  margin-block: 1rem;
+  padding: 1rem 1.15rem;
+  background: var(--bg-parchment);
+  border: 1px solid var(--border-stone);
+  border-inline-start: 4px solid var(--accent-ochre);
+  text-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.chapter-bloom-banner-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.chapter-bloom-banner-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--accent-ochre);
+}
+
+.chapter-bloom-banner-copy {
+  font-family: var(--font-serif);
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: var(--ink-primary);
+}
+
+.chapter-bloom-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+/* Visually hidden utility (accessibility guide) */
+.companion-drawer .visually-hidden:where(:not(:focus-within, :active)) {
+  position: absolute !important;
+  clip-path: inset(50%) !important;
+  overflow: hidden !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+/* Coarse pointer target bump (WCAG 2.5.8) */
+@media (pointer: coarse) {
+  .companion-close-button,
+  .companion-tab,
+  .companion-mode-pill,
+  .companion-octave-jump,
+  .chapter-bloom-open-btn,
+  .chapter-bloom-dismiss-btn,
+  .session-harvest-chip,
+  .zen-bloom-chip {
+    min-block-size: 40px;
+  }
+}
+
+/* Forced Colors Mode (WCAG AA) */
+@media (forced-colors: active) {
+  dialog.companion-drawer {
+    border: 2px solid CanvasText;
+  }
+
+  .companion-tab[aria-selected="true"]::after {
+    border-block-end: 3px solid Highlight;
+  }
+
+  .chapter-bloom-whisper-pill,
+  .chapter-bloom-banner,
+  .companion-purpose-card,
+  .companion-quote-card {
+    border-inline-start: 4px solid Highlight;
+  }
+}

@@ -4,3 +4,4 @@ export * from './Progress';
 export * from './Result';
 export * from './Stats';
 export * from './Memory';
+export * from './companion';
