@@ -1,7 +1,7 @@
 import { performance } from 'perf_hooks';
 import mongoose from 'mongoose';
 import { config } from '../config';
-import { MemoryItem, Progress, Result, User, Verse } from '../models';
+import { CompanionEntry, MemoryItem, Progress, Result, User, Verse } from '../models';
 
 export interface InitDbSummary {
   collectionsInitialized: string[];
@@ -21,6 +21,7 @@ export async function initializeDatabase(
     Result.createIndexes(),
     Progress.createIndexes(),
     MemoryItem.createIndexes(),
+    CompanionEntry.createIndexes(),
   ]);
 
   const [
@@ -29,6 +30,7 @@ export async function initializeDatabase(
     resultIndexes,
     progressIndexes,
     memoryIndexes,
+    companionIndexes,
     verseCount,
   ] = await Promise.all([
     Verse.collection.indexes(),
@@ -36,6 +38,7 @@ export async function initializeDatabase(
     Result.collection.indexes(),
     Progress.collection.indexes(),
     MemoryItem.collection.indexes(),
+    CompanionEntry.collection.indexes(),
     Verse.countDocuments(),
   ]);
 
@@ -45,6 +48,7 @@ export async function initializeDatabase(
     results: resultIndexes.length,
     progress: progressIndexes.length,
     memoryitems: memoryIndexes.length,
+    companionentries: companionIndexes.length,
   };
 
   const durationMs = Math.round(performance.now() - start);
@@ -53,7 +57,14 @@ export async function initializeDatabase(
   );
 
   return {
-    collectionsInitialized: ['verses', 'users', 'results', 'progress', 'memoryitems'],
+    collectionsInitialized: [
+      'verses',
+      'users',
+      'results',
+      'progress',
+      'memoryitems',
+      'companionentries',
+    ],
     indexCounts,
     verseCount,
     durationMs,

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import { Progress, Verse, Result } from '../models';
 import { asyncHandler, ApiError } from '../utils/errorHandler';
+import { detectChapterJustUnlocked } from '../services/companion/unlockService';
 
 async function recomputeVerseProgress(
   userId: mongoose.Types.ObjectId | string,
@@ -214,6 +215,7 @@ export const submitResult = asyncHandler(async (req: Request, res: Response) => 
     user: req.user._id,
     verse: verseId
   });
+  const wasAlreadyCompleted = Boolean(progress?.completed);
 
   if (progress) {
     // Update existing progress
@@ -238,7 +240,7 @@ export const submitResult = asyncHandler(async (req: Request, res: Response) => 
     progress = await Progress.create({
       user: req.user._id,
       verse: verseId,
-      verseOrder,
+      verseOrder: verseOrder ?? verse.verseOrder,
       completed: true,
       attempts: 1,
       bestWPM: wpm,
@@ -248,11 +250,23 @@ export const submitResult = asyncHandler(async (req: Request, res: Response) => 
     progress = await Progress.findById(progress._id).populate('verse', 'book chapter verse text');
   }
 
+  const chapterJustUnlocked = await detectChapterJustUnlocked({
+    userId: req.user._id,
+    verse: {
+      book: verse.book,
+      chapter: verse.chapter,
+      verseOrder: verse.verseOrder,
+    },
+    wasAlreadyCompleted,
+    unlockedAt: progress?.lastAttemptDate ?? new Date(),
+  });
+
   res.status(201).json({
     success: true,
     data: {
       result,
-      progress
+      progress,
+      chapterJustUnlocked,
     }
   });
 });

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0",
+  "profile": "reddit-rbible-curated",
+  "workId": "web-bible",
+  "visibility": "private-owner",
+  "source": {
+    "sourceId": "reddit-rbible",
+    "title": "r/Bible Curated Study Highlights (Example Template)",
+    "subreddit": "r/Bible",
+    "license": "fair-use-excerpt"
+  },
+  "entryCount": 1,
+  "entries": [
+    {
+      "workId": "web-bible",
+      "book": "Psalms",
+      "chapter": 23,
+      "entryType": "chapter-companion",
+      "lens": "community",
+      "visibility": "private-owner",
+      "status": "published",
+      "sortOrder": 0,
+      "title": "Example: Comparing 'valley of the shadow of death' and 'deepest darkness'",
+      "summary": "Template placeholder showing how to structure an offline-curated r/Bible discussion note with editorial summary, short attributed excerpt (<= 300 chars), and verified permalink.",
+      "body": "### Reader Question\nReplace with your own concise summary of the reader question or discussion theme from r/Bible.\n\n### Key Perspectives\n- Summarize notable historical, linguistic, or devotional perspectives in your own words.\n- Keep any verbatim quote inside quoteExcerpt at or below 300 characters with authorHandle attribution.",
+      "quoteExcerpt": "Example short attributed excerpt (must remain <= 300 characters).",
+      "ritualTags": ["Shepherd Imagery", "Translation Note"],
+      "citedVerses": ["4"],
+      "externalUrl": "https://www.reddit.com/r/Bible/comments/example123/psalm_23_translation_discussion/",
+      "source": {
+        "sourceId": "reddit-rbible-example123",
+        "title": "Example r/Bible thread title",
+        "authorHandle": "u/example_reader",
+        "subreddit": "r/Bible",
+        "license": "fair-use-excerpt",
+        "retrievedAt": "2026-11-20T00:00:00.000Z"
+      }
+    }
+  ]
+}

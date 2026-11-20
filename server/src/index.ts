@@ -13,6 +13,8 @@ import progressRoutes from './routes/progressRoutes';
 import statsRoutes from './routes/statsRoutes';
 import memoryRoutes from './routes/memoryRoutes';
 import planRoutes from './routes/planRoutes';
+import companionRoutes from './routes/companionRoutes';
+import trailRoutes from './routes/trailRoutes';
 
 export interface CreateAppOptions {
   clientBuildDir?: string;
@@ -60,6 +62,8 @@ export function createApp(
   app.use('/api/stats', statsRoutes);
   app.use('/api/memory', memoryRoutes);
   app.use('/api/plans', planRoutes);
+  app.use('/api/companion', companionRoutes);
+  app.use('/api/trail', trailRoutes);
 
   // Unknown /api/* routes always return JSON 404
   app.use('/api', notFound);
