@@ -1,5 +1,10 @@
 import { Request, Response } from 'express';
 import { Progress, Verse } from '../models';
+import { isCanonicalBook } from '../utils/bookMapping';
+import {
+  getCanonicalChapterCount,
+  isValidCanonicalChapter,
+} from '../utils/companionWorks';
 import { asyncHandler, ApiError } from '../utils/errorHandler';
 
 /**
@@ -30,8 +35,8 @@ export const getVerses = asyncHandler(async (req: Request, res: Response) => {
 });
 
 /**
- * @desc    Get next untyped verse (lowest verseOrder without completed Progress), overall or by book
- * @route   GET /api/verses/next?book=
+ * @desc    Get next untyped verse (lowest verseOrder without completed Progress), overall, by book, or by book+chapter
+ * @route   GET /api/verses/next?book=&chapter=
  * @access  Private
  */
 export const getNextVerse = asyncHandler(async (req: Request, res: Response) => {
@@ -40,12 +45,96 @@ export const getNextVerse = asyncHandler(async (req: Request, res: Response) => 
     throw new ApiError('Invalid book parameter', 400);
   }
 
+  const rawChapter = req.query.chapter;
+  if (rawChapter !== undefined && typeof rawChapter !== 'string') {
+    throw new ApiError('Invalid chapter parameter', 400);
+  }
+
   const book = typeof rawBook === 'string' ? rawBook.trim() : '';
-  const verseFilter = book ? { book } : {};
+  const chapterStr = typeof rawChapter === 'string' ? rawChapter.trim() : '';
+  const hasChapterParam = rawChapter !== undefined;
+
+  let chapterNum: number | undefined;
+  if (hasChapterParam) {
+    if (!book) {
+      throw new ApiError('Query parameter "book" is required when "chapter" is provided', 400);
+    }
+    if (!/^\d+$/.test(chapterStr)) {
+      throw new ApiError(`Invalid chapter parameter: "${chapterStr}"`, 400);
+    }
+    chapterNum = Number(chapterStr);
+    if (!Number.isSafeInteger(chapterNum) || chapterNum < 1) {
+      throw new ApiError(`Invalid chapter parameter: "${chapterStr}"`, 400);
+    }
+    if (isCanonicalBook(book) && !isValidCanonicalChapter(book, chapterNum)) {
+      const maxCh = getCanonicalChapterCount(book);
+      throw new ApiError(
+        `Chapter ${chapterNum} is out of canonical range for ${book} (1..${maxCh})`,
+        400
+      );
+    }
+  }
+
+  const verseFilter: Record<string, any> = book ? { book } : {};
+  if (chapterNum !== undefined) {
+    verseFilter.chapter = chapterNum;
+  }
 
   const orderedVerses = await Verse.find(verseFilter, { _id: 1, verseOrder: 1 })
     .sort({ verseOrder: 1 })
     .lean();
+
+  if (chapterNum !== undefined) {
+    if (orderedVerses.length === 0) {
+      if (!isCanonicalBook(book)) {
+        throw new ApiError(`Unknown book "${book}" or out-of-range chapter ${chapterNum}`, 400);
+      }
+      throw new ApiError(`No verses found for ${book} chapter ${chapterNum}`, 404);
+    }
+
+    const completedProgress = await Progress.find({
+      user: req.user._id,
+      completed: true,
+      verse: { $in: orderedVerses.map((v) => v._id) },
+    })
+      .select('verse')
+      .lean();
+    const completedVerseIds = new Set(completedProgress.map((p) => p.verse.toString()));
+
+    const rawAfter = req.query.afterVerseOrder;
+    const afterVerseOrder =
+      typeof rawAfter === 'string' && /^\d+$/.test(rawAfter) ? Number(rawAfter) : undefined;
+
+    const nextMeta =
+      (afterVerseOrder !== undefined
+        ? orderedVerses.find(
+            (v) => v.verseOrder > afterVerseOrder && !completedVerseIds.has(v._id.toString())
+          )
+        : undefined) ?? orderedVerses.find((v) => !completedVerseIds.has(v._id.toString()));
+
+    if (!nextMeta) {
+      // Chapter already complete: return verse 1 so "Re-type Chapter" starts cleanly at v.1
+      const firstVerse = await Verse.findById(orderedVerses[0]._id).lean();
+      return res.json({
+        success: true,
+        data: {
+          complete: false,
+          chapterComplete: true,
+          verse: firstVerse,
+        },
+      });
+    }
+
+    const nextVerse = await Verse.findById(nextMeta._id).lean();
+    return res.json({
+      success: true,
+      data: {
+        complete: false,
+        chapterComplete: false,
+        verse: nextVerse,
+      },
+    });
+  }
 
   if (book && orderedVerses.length === 0) {
     throw new ApiError('No verses found for this book', 404);

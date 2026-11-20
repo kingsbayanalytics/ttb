@@ -11,6 +11,7 @@
     "test": "jest --detectOpenHandles",
     "db:init": "ts-node src/utils/initDb.ts",
     "import-data": "ts-node src/utils/importData.ts",
+    "import-companion": "ts-node src/utils/importCompanion.ts",
     "spike:db": "ts-node src/scripts/azureSpike.ts"
   },
   "keywords": [

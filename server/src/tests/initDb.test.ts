@@ -34,12 +34,14 @@ describe('initDb utility (Story 4.2)', () => {
       'results',
       'progress',
       'memoryitems',
+      'companionentries',
     ]);
     expect(firstRun.indexCounts.verses).toBeGreaterThanOrEqual(3);
     expect(firstRun.indexCounts.users).toBeGreaterThanOrEqual(3);
     expect(firstRun.indexCounts.results).toBeGreaterThanOrEqual(2);
     expect(firstRun.indexCounts.progress).toBeGreaterThanOrEqual(2);
     expect(firstRun.indexCounts.memoryitems).toBeGreaterThanOrEqual(3);
+    expect(firstRun.indexCounts.companionentries).toBeGreaterThanOrEqual(5);
     expect(firstRun.verseCount).toBe(0);
 
     const secondRun = await initializeDatabase(logger);
