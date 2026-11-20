@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="16" viewBox="0 0 48 16" shape-rendering="crispEdges" role="img" aria-label="Companion Lens Micro-Icons: Hoodoo &amp; Folk, Historical &amp; Classic, Community">
+  <defs>
+    <symbol id="icon-hoodoo-folk" viewBox="0 0 16 16" shape-rendering="crispEdges">
+      <title>Hoodoo &amp; Folk — Herb Sprig</title>
+      <rect x="7" y="3" width="2" height="11" fill="#1F6E38" />
+      <rect x="7" y="1" width="2" height="2" fill="#8A6A2F" />
+      <rect x="4" y="3" width="3" height="2" fill="#1F6E38" />
+      <rect x="3" y="4" width="1" height="1" fill="#1F6E38" />
+      <rect x="9" y="3" width="3" height="2" fill="#1F6E38" />
+      <rect x="12" y="4" width="1" height="1" fill="#1F6E38" />
+      <rect x="3" y="7" width="4" height="2" fill="#1F6E38" />
+      <rect x="2" y="8" width="1" height="1" fill="#1F6E38" />
+      <rect x="9" y="7" width="4" height="2" fill="#1F6E38" />
+      <rect x="13" y="8" width="1" height="1" fill="#1F6E38" />
+      <rect x="5" y="11" width="6" height="2" fill="#8A6A2F" />
+      <rect x="6" y="13" width="1" height="2" fill="#8A6A2F" />
+      <rect x="9" y="13" width="1" height="2" fill="#8A6A2F" />
+    </symbol>
+    <symbol id="icon-historical-classic" viewBox="0 0 16 16" shape-rendering="crispEdges">
+      <title>Historical &amp; Classic — Open Codex</title>
+      <rect x="1" y="3" width="1" height="10" fill="#1E1916" />
+      <rect x="14" y="3" width="1" height="10" fill="#1E1916" />
+      <rect x="1" y="12" width="14" height="2" fill="#1E1916" />
+      <rect x="2" y="2" width="5" height="1" fill="#1E1916" />
+      <rect x="9" y="2" width="5" height="1" fill="#1E1916" />
+      <rect x="7" y="3" width="2" height="10" fill="#1E1916" />
+      <rect x="3" y="5" width="3" height="1" fill="#1E1916" />
+      <rect x="3" y="7" width="3" height="1" fill="#1E1916" />
+      <rect x="3" y="9" width="3" height="1" fill="#1E1916" />
+      <rect x="10" y="5" width="3" height="1" fill="#1E1916" />
+      <rect x="10" y="7" width="3" height="1" fill="#1E1916" />
+      <rect x="10" y="9" width="3" height="1" fill="#1E1916" />
+      <rect x="7" y="13" width="2" height="2" fill="#345474" />
+      <rect x="7" y="15" width="1" height="1" fill="#345474" />
+    </symbol>
+    <symbol id="icon-community" viewBox="0 0 16 16" shape-rendering="crispEdges">
+      <title>Community r/Bible — Lantern Circle</title>
+      <rect x="7" y="1" width="2" height="1" fill="#B84A39" />
+      <rect x="2" y="3" width="2" height="2" fill="#B84A39" />
+      <rect x="12" y="3" width="2" height="2" fill="#B84A39" />
+      <rect x="1" y="7" width="1" height="2" fill="#B84A39" />
+      <rect x="14" y="7" width="1" height="2" fill="#B84A39" />
+      <rect x="2" y="11" width="2" height="2" fill="#B84A39" />
+      <rect x="12" y="11" width="2" height="2" fill="#B84A39" />
+      <rect x="7" y="14" width="2" height="1" fill="#B84A39" />
+      <rect x="6" y="3" width="4" height="1" fill="#8A6A2F" />
+      <rect x="5" y="4" width="6" height="1" fill="#8A6A2F" />
+      <rect x="5" y="5" width="1" height="6" fill="#8A6A2F" />
+      <rect x="10" y="5" width="1" height="6" fill="#8A6A2F" />
+      <rect x="5" y="11" width="6" height="1" fill="#8A6A2F" />
+      <rect x="6" y="12" width="4" height="1" fill="#8A6A2F" />
+      <rect x="7" y="6" width="2" height="4" fill="#B84A39" />
+      <rect x="6" y="7" width="4" height="2" fill="#B84A39" />
+    </symbol>
+  </defs>
+  <use href="#icon-hoodoo-folk" x="0" y="0" width="16" height="16" />
+  <use href="#icon-historical-classic" x="16" y="0" width="16" height="16" />
+  <use href="#icon-community" x="32" y="0" width="16" height="16" />
+</svg>
