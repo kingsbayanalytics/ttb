@@ -688,4 +688,50 @@ describe('LivingTrailPage, WaypointOverlay & TrailChapterList (Story 12.3)', () 
       screen.getByRole('heading', { name: /Psalms · Book I · Psalms 1–41 · Ps\. 29–41/i })
     ).toBeInTheDocument();
   });
+
+  it('surfaces Story-Arc scene titles and interactive Waking Yard Prop lore popovers (Bottle Tree -> Book Guide)', async () => {
+    renderTrailRoute('/trail?book=Psalms');
+
+    // Psalms Book I · Ps. 15–28 has 4 bloomed chapters in buildPsalmsTrailFixture() (15, 19, 22, 23):
+    // so Bottle Tree, Herb Rack, and River Cairn are all awake while Elder Keeper waits for 100%!
+    const storyLine = await screen.findByTestId('trail-story-arc-title');
+    expect(storyLine).toHaveTextContent('Green Pastures & Still Waters');
+
+    const bottleTreeBtn = screen.getByTestId('yard-prop-btn-bottle-tree');
+    expect(bottleTreeBtn).toHaveAttribute('data-prop-awake', 'true');
+    expect(screen.getByTestId('yard-prop-btn-herb-rack')).toHaveAttribute(
+      'data-prop-awake',
+      'true'
+    );
+    expect(screen.getByTestId('yard-prop-btn-river-cairn')).toHaveAttribute(
+      'data-prop-awake',
+      'true'
+    );
+    expect(screen.queryByTestId('yard-prop-btn-elder-keeper')).not.toBeInTheDocument();
+
+    // Open Hoodoo Bottle Tree lore popover
+    fireEvent.click(bottleTreeBtn);
+    const propPopover = screen.getByTestId('yard-prop-popover');
+    expect(propPopover).toHaveTextContent('Hoodoo Bottle Tree');
+    expect(propPopover).toHaveTextContent('Sunlight Bottles Lit4 / 14');
+
+    // Escape closes and restores focus to Bottle Tree hotspot button
+    fireEvent.keyDown(propPopover, { key: 'Escape' });
+    expect(screen.queryByTestId('yard-prop-popover')).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(bottleTreeBtn);
+
+    // Switching to Book II changes Story-Arc title cleanly
+    fireEvent.click(screen.getByTestId('trail-leg-btn-psa-book-2'));
+    expect(screen.getByTestId('trail-story-arc-title')).toHaveTextContent(
+      'Deer-Brook & Highland Cedars'
+    );
+
+    // Re-open Bottle Tree in Book II (dormant here because fixture only blooms Ps. 46 once in c1)
+    fireEvent.click(screen.getByTestId('yard-prop-btn-bottle-tree'));
+    const bookGuideCta = within(screen.getByTestId('yard-prop-popover')).getByTestId(
+      'yard-prop-open-book-guide'
+    );
+    fireEvent.click(bookGuideCta);
+    expect(await screen.findByRole('dialog', { name: /Psalms — Book Guide/i })).toBeInTheDocument();
+  });
 });

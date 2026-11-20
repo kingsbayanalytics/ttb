@@ -7,7 +7,13 @@ import {
   TrailChapterWaypoint,
 } from '../../types';
 import { LensMicroIcon } from '../../assets/trail/lensMicroIcons';
-import { ClearingSegment, WaypointPoint } from './trailLayouts';
+import {
+  ClearingSegment,
+  WaypointPoint,
+  YardPropHotspot,
+  YardPropId,
+  computeYardPropWakeState,
+} from './trailLayouts';
 
 const PRIMARY_LENSES: ReadonlyArray<{
   readonly key: PrimaryCompanionLens;
@@ -101,6 +107,10 @@ export interface WaypointOverlayProps {
   readonly selectedChapter: number | null;
   readonly onSelectChapter: (chapter: number | null) => void;
   readonly onOpenCompanion: (book: string, chapter: number) => void;
+  readonly selectedYardPropId?: YardPropId | null;
+  readonly onSelectYardProp?: (id: YardPropId | null) => void;
+  readonly onOpenBookGuide?: () => void;
+  readonly bookMastered?: boolean;
   readonly bloomedOnly?: boolean;
   readonly onDisableBloomedOnly?: () => void;
   readonly focusRequest?: WaypointFocusRequest | null;
@@ -114,6 +124,10 @@ export const WaypointOverlay: React.FC<WaypointOverlayProps> = ({
   selectedChapter,
   onSelectChapter,
   onOpenCompanion,
+  selectedYardPropId: controlledYardPropId,
+  onSelectYardProp,
+  onOpenBookGuide,
+  bookMastered = false,
   bloomedOnly = false,
   onDisableBloomedOnly,
   focusRequest = null,
@@ -121,12 +135,32 @@ export const WaypointOverlay: React.FC<WaypointOverlayProps> = ({
   const baseId = useId();
   const popoverId = `${baseId}-waypoint-popover`;
   const popoverTitleId = `${baseId}-waypoint-popover-title`;
+  const yardPopoverId = `${baseId}-yard-prop-popover`;
+  const yardPopoverTitleId = `${baseId}-yard-prop-popover-title`;
 
   const overlayRootRef = useRef<HTMLDivElement | null>(null);
   const popoverRef = useRef<HTMLElement | null>(null);
   const popoverCloseRef = useRef<HTMLButtonElement | null>(null);
+  const yardPopoverRef = useRef<HTMLElement | null>(null);
+  const yardPopoverCloseRef = useRef<HTMLButtonElement | null>(null);
   const buttonRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+  const yardButtonRefs = useRef<Map<YardPropId, HTMLButtonElement>>(new Map());
   const suppressNextClickRef = useRef<boolean>(false);
+
+  const [internalYardPropId, setInternalYardPropId] = useState<YardPropId | null>(null);
+  const selectedYardPropId =
+    controlledYardPropId !== undefined ? controlledYardPropId : internalYardPropId;
+
+  const setYardPropSelection = useCallback(
+    (nextId: YardPropId | null) => {
+      if (onSelectYardProp) {
+        onSelectYardProp(nextId);
+      } else {
+        setInternalYardPropId(nextId);
+      }
+    },
+    [onSelectYardProp]
+  );
 
   const chapterMap = useMemo(() => {
     const map = new Map<number, TrailChapterWaypoint>();
@@ -135,6 +169,44 @@ export const WaypointOverlay: React.FC<WaypointOverlayProps> = ({
     }
     return map;
   }, [chapters]);
+
+  const clearingBloomedCount = useMemo(() => {
+    let count = 0;
+    for (const wp of segment.waypoints) {
+      if (chapterMap.get(wp.chapter)?.state === 'bloomed') {
+        count += 1;
+      }
+    }
+    return count;
+  }, [segment.waypoints, chapterMap]);
+
+  const wakeState = useMemo(
+    () =>
+      computeYardPropWakeState(
+        clearingBloomedCount,
+        segment.waypoints.length,
+        bookMastered
+      ),
+    [clearingBloomedCount, segment.waypoints.length, bookMastered]
+  );
+
+  const isYardPropAwake = useCallback(
+    (propId: YardPropId): boolean => {
+      switch (propId) {
+        case 'bottle-tree':
+          return wakeState.bottleTreeBloomed;
+        case 'herb-rack':
+          return wakeState.herbRackAwake;
+        case 'river-cairn':
+          return wakeState.riverCairnAwake;
+        case 'elder-keeper':
+          return wakeState.elderKeeperAwake;
+        default:
+          return false;
+      }
+    },
+    [wakeState]
+  );
 
   const visibleWaypoints = useMemo<readonly WaypointPoint[]>(() => {
     if (!bloomedOnly) {
@@ -178,6 +250,13 @@ export const WaypointOverlay: React.FC<WaypointOverlayProps> = ({
     }
   }, [focusRequest, visibleWaypoints]);
 
+  // Reset internal yard prop inspection cleanly when switching clearings
+  useEffect(() => {
+    if (controlledYardPropId === undefined) {
+      setInternalYardPropId(null);
+    }
+  }, [segment.clearingId, controlledYardPropId]);
+
   // If the selected chapter disappears from the visible clearing, close its popover cleanly
   useEffect(() => {
     if (selectedChapter === null) return;
@@ -201,7 +280,20 @@ export const WaypointOverlay: React.FC<WaypointOverlayProps> = ({
     [onSelectChapter]
   );
 
-  // Move focus inside the newly opened popover so keyboard/AT users can read & activate CTAs
+  const closeYardPopoverAndRestoreFocus = useCallback(
+    (propId: YardPropId | null) => {
+      setYardPropSelection(null);
+      if (propId) {
+        const trigger = yardButtonRefs.current.get(propId);
+        if (trigger && typeof trigger.focus === 'function') {
+          trigger.focus();
+        }
+      }
+    },
+    [setYardPropSelection]
+  );
+
+  // Move focus inside the newly opened chapter or yard-prop popover
   useEffect(() => {
     if (selectedChapter === null) return;
     const firstAction = popoverRef.current?.querySelector<HTMLElement>(
@@ -213,26 +305,48 @@ export const WaypointOverlay: React.FC<WaypointOverlayProps> = ({
     }
   }, [selectedChapter]);
 
-  // Escape closes the open waypoint popover and restores focus to its waypoint button;
-  // outside pointer clicks light-dismiss without stealing focus.
   useEffect(() => {
-    if (selectedChapter === null) return undefined;
+    if (!selectedYardPropId) return;
+    const firstAction = yardPopoverRef.current?.querySelector<HTMLElement>(
+      'a[href], button:not(.waypoint-popover-close):not([disabled])'
+    );
+    const target = firstAction ?? yardPopoverCloseRef.current;
+    if (target && typeof target.focus === 'function') {
+      target.focus();
+    }
+  }, [selectedYardPropId]);
+
+  // Escape closes open popovers & restores focus; outside clicks light-dismiss.
+  useEffect(() => {
+    if (selectedChapter === null && !selectedYardPropId) return undefined;
 
     const handleDocumentKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented) return;
       if (e.key === 'Escape') {
         e.preventDefault();
-        closePopoverAndRestoreFocus(selectedChapter);
+        if (selectedChapter !== null) {
+          closePopoverAndRestoreFocus(selectedChapter);
+        } else if (selectedYardPropId) {
+          closeYardPopoverAndRestoreFocus(selectedYardPropId);
+        }
       }
     };
 
     const handleDocumentPointerDown = (e: MouseEvent) => {
       const target = e.target;
       if (!(target instanceof Node)) return;
-      if (popoverRef.current?.contains(target)) return;
-      const activeTrigger = buttonRefs.current.get(selectedChapter);
-      if (activeTrigger?.contains(target)) return;
-      onSelectChapter(null);
+      if (selectedChapter !== null) {
+        if (popoverRef.current?.contains(target)) return;
+        const activeTrigger = buttonRefs.current.get(selectedChapter);
+        if (activeTrigger?.contains(target)) return;
+        onSelectChapter(null);
+      }
+      if (selectedYardPropId) {
+        if (yardPopoverRef.current?.contains(target)) return;
+        const activeYardTrigger = yardButtonRefs.current.get(selectedYardPropId);
+        if (activeYardTrigger?.contains(target)) return;
+        setYardPropSelection(null);
+      }
     };
 
     document.addEventListener('keydown', handleDocumentKeyDown);
@@ -242,7 +356,14 @@ export const WaypointOverlay: React.FC<WaypointOverlayProps> = ({
       document.removeEventListener('keydown', handleDocumentKeyDown);
       document.removeEventListener('mousedown', handleDocumentPointerDown);
     };
-  }, [selectedChapter, closePopoverAndRestoreFocus, onSelectChapter]);
+  }, [
+    selectedChapter,
+    selectedYardPropId,
+    closePopoverAndRestoreFocus,
+    closeYardPopoverAndRestoreFocus,
+    onSelectChapter,
+    setYardPropSelection,
+  ]);
 
   const moveFocusToIndex = (nextIndex: number) => {
     const targetWp = visibleWaypoints[nextIndex];
@@ -259,10 +380,20 @@ export const WaypointOverlay: React.FC<WaypointOverlayProps> = ({
 
   const toggleChapterPopover = (chapter: number) => {
     setRovingChapter(chapter);
+    setYardPropSelection(null);
     if (selectedChapter === chapter) {
       closePopoverAndRestoreFocus(chapter);
     } else {
       onSelectChapter(chapter);
+    }
+  };
+
+  const toggleYardPropPopover = (propId: YardPropId) => {
+    onSelectChapter(null);
+    if (selectedYardPropId === propId) {
+      closeYardPopoverAndRestoreFocus(propId);
+    } else {
+      setYardPropSelection(propId);
     }
   };
 
@@ -347,6 +478,15 @@ export const WaypointOverlay: React.FC<WaypointOverlayProps> = ({
     onOpenCompanion(book, chapter);
   };
 
+  const selectedYardProp: YardPropHotspot | null =
+    selectedYardPropId !== null
+      ? segment.scene.yardHotspots.find((h) => h.id === selectedYardPropId) ?? null
+      : null;
+
+  const selectedYardPropAwake = selectedYardProp
+    ? isYardPropAwake(selectedYardProp.id)
+    : false;
+
   const popoverAlignmentClasses = useMemo(() => {
     if (!selectedPoint) return 'waypoint-popover';
     const classes = ['waypoint-popover'];
@@ -361,15 +501,93 @@ export const WaypointOverlay: React.FC<WaypointOverlayProps> = ({
     return classes.join(' ');
   }, [selectedPoint]);
 
+  const yardPopoverAlignmentClasses = useMemo(() => {
+    if (!selectedYardProp) return 'waypoint-popover yard-prop-popover';
+    const classes = ['waypoint-popover', 'yard-prop-popover'];
+    if (selectedYardProp.xPct < 32) {
+      classes.push('waypoint-popover--inline-start');
+    } else if (selectedYardProp.xPct > 68) {
+      classes.push('waypoint-popover--inline-end');
+    }
+    if (selectedYardProp.yPct > 56) {
+      classes.push('waypoint-popover--block-start');
+    }
+    return classes.join(' ');
+  }, [selectedYardProp]);
+
+  const visibleYardHotspots = useMemo(
+    () =>
+      segment.scene.yardHotspots.filter(
+        (prop) => prop.id === 'bottle-tree' || isYardPropAwake(prop.id)
+      ),
+    [segment.scene.yardHotspots, isYardPropAwake]
+  );
+
   return (
     <div
       ref={overlayRootRef}
       className="waypoint-overlay-layer"
       data-testid="waypoint-overlay"
     >
+      {/* Text-free clickable waking Hoodoo/biblical yard props */}
+      <div
+        role="group"
+        aria-label="Clearing heritage landmarks"
+        className="yard-props-hotspot-group"
+        data-testid="yard-props-hotspot-group"
+      >
+        {visibleYardHotspots.map((prop) => {
+          const awake = isYardPropAwake(prop.id);
+          const isOpen = selectedYardPropId === prop.id;
+          const classes = [
+            'yard-prop-hotspot-btn',
+            `yard-prop-hotspot-btn--${prop.id}`,
+            awake ? 'yard-prop-hotspot-btn--awake' : 'yard-prop-hotspot-btn--dormant',
+            isOpen ? 'yard-prop-hotspot-btn--open-anchor' : '',
+          ]
+            .filter(Boolean)
+            .join(' ');
+
+          return (
+            <button
+              key={prop.id}
+              ref={(el) => {
+                if (el) {
+                  yardButtonRefs.current.set(prop.id, el);
+                } else {
+                  yardButtonRefs.current.delete(prop.id);
+                }
+              }}
+              type="button"
+              className={classes}
+              style={{
+                left: `${prop.xPct}%`,
+                top: `${prop.yPct}%`,
+              }}
+              aria-label={
+                awake
+                  ? `${prop.title}, ${prop.tradition}`
+                  : `${prop.title}, Dormant (${prop.wakeRuleLabel})`
+              }
+              aria-expanded={isOpen}
+              aria-controls={isOpen ? yardPopoverId : undefined}
+              onClick={() => toggleYardPropPopover(prop.id)}
+              data-testid={`yard-prop-btn-${prop.id}`}
+              data-prop-awake={String(awake)}
+            >
+              <span className="yard-prop-badge" aria-hidden="true">
+                {awake ? '✦ ' : '◇ '}
+                {prop.title}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Flush ground-level river flagstone buttons (text hidden cleanly until hover/focus) */}
       <div
         role="toolbar"
-        aria-label={`${book} ${segment.shortLabel} chapter waypoints`}
+        aria-label={`${book} ${segment.shortLabel} chapter flagstones`}
         className="waypoint-buttons-toolbar"
       >
         {visibleWaypoints.map((wp, index) => {
@@ -432,8 +650,8 @@ export const WaypointOverlay: React.FC<WaypointOverlayProps> = ({
           data-testid="waypoint-empty-bloomed-filter"
         >
           <span>
-            No bloomed chapters in {segment.label} yet. Show all waypoints or start typing to
-            illuminate a lantern.
+            No bloomed chapters in {segment.label} yet. Show all flagstones or start typing to
+            bloom a river flagstone.
           </span>
           {onDisableBloomedOnly && (
             <button
@@ -604,6 +822,85 @@ export const WaypointOverlay: React.FC<WaypointOverlayProps> = ({
               >
                 Re-type Chapter
               </Link>
+            </div>
+          )}
+        </section>
+      )}
+
+      {selectedYardProp && (
+        <section
+          ref={yardPopoverRef}
+          id={yardPopoverId}
+          aria-labelledby={yardPopoverTitleId}
+          className={yardPopoverAlignmentClasses}
+          style={
+            {
+              '--wp-x': `${selectedYardProp.xPct}%`,
+              '--wp-y': `${selectedYardProp.yPct}%`,
+            } as React.CSSProperties
+          }
+          data-testid="yard-prop-popover"
+        >
+          <div className="waypoint-popover-header">
+            <div className="waypoint-popover-title-group">
+              <span className="trail-kicker">{selectedYardProp.tradition}</span>
+              <h4 id={yardPopoverTitleId} className="waypoint-popover-title">
+                {selectedYardProp.title}
+              </h4>
+              <span
+                className={`waypoint-state-badge waypoint-state-badge--${
+                  selectedYardPropAwake ? 'bloomed' : 'dormant'
+                }`}
+              >
+                <span aria-hidden="true">{selectedYardPropAwake ? '✦' : '◇'}</span>
+                <span>
+                  {selectedYardPropAwake
+                    ? 'Awake in Clearing'
+                    : selectedYardProp.wakeRuleLabel}
+                </span>
+              </span>
+            </div>
+
+            <button
+              ref={yardPopoverCloseRef}
+              type="button"
+              className="waypoint-popover-close"
+              aria-label={`Close ${selectedYardProp.title} details`}
+              onClick={() => closeYardPopoverAndRestoreFocus(selectedYardProp.id)}
+              data-testid="yard-prop-popover-close"
+            >
+              ×
+            </button>
+          </div>
+
+          <p className="waypoint-popover-teaser">
+            {selectedYardPropAwake
+              ? selectedYardProp.loreSummary
+              : selectedYardProp.dormantHint}
+          </p>
+
+          {selectedYardProp.id === 'bottle-tree' && (
+            <div className="waypoint-popover-progress-row">
+              <span>Sunlight Bottles Lit</span>
+              <strong>
+                {wakeState.bottleCount} / {segment.waypoints.length}
+              </strong>
+            </div>
+          )}
+
+          {onOpenBookGuide && (
+            <div className="waypoint-popover-actions">
+              <button
+                type="button"
+                className="primary-button waypoint-cta-btn"
+                onClick={() => {
+                  setYardPropSelection(null);
+                  onOpenBookGuide();
+                }}
+                data-testid="yard-prop-open-book-guide"
+              >
+                Open {book} Book Guide →
+              </button>
             </div>
           )}
         </section>

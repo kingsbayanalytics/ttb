@@ -82,16 +82,16 @@ Keepers are quiet ambient figures who appear once a biome's landmark blooms (nev
 
 ## 4. Biome & Landmark Progression States
 
-### 4.1 Chapter Waypoint State Machine
+### 4.1 Chapter Waypoint State Machine & Progressive Yard Props
 
-Every chapter in a book is a tactile waypoint stone/lantern along the winding biome trail. Its state derives directly from existing completion math (`chapterCompleted` vs `chapterTotal` from `Progress` rollups):
+Every chapter in a book is rendered as a **flat, ground-level river flagstone** set cleanly flush inside the winding red-clay or mossy footpath—keeping open vertical meadow sightlines with zero upright posts or floating resting badges. Hovering or focusing a stone reveals its compact chapter plinth (`◇`/`◐`/`✦`). Its state derives directly from existing completion math (`chapterCompleted` vs `chapterTotal` from `Progress` rollups):
 
 | State | Completion Rule | Visual Treatment on Trail | Interactive Affordance |
 | :--- | :--- | :--- | :--- |
-| **1. Locked / Dormant (Mist)** | `chapterCompleted === 0` | Low-contrast parchment/obsidian stone marker veiled in soft pixel mist (`--bg-bone` / `#DFDAD0` light, `#25252C` dark). Bare branches, unlit brass lantern, monochrome sepia-stone tint. | Click opens compact popover: *"Genesis 4 · 0/26 verses · Dormant — Start typing to bloom this clearing & unlock Companion notes."* CTA: `Type Chapter 4 →` |
-| **2. In-Progress (Kindling)** | `0 < chapterCompleted < chapterTotal` | Mist pulls back in a partial clearing; warm ember glows inside the lantern; a crisp 16-bit mini progress ring/bar (`--accent-ochre`) sits beneath the stone; sprouts emerge around the trail edge. Michael's traveler stands at the most recently active node. | Click opens popover showing `14 / 26 verses (53.8%)` + CTA `Continue Typing (v. 15) →`. Companion lenses show *"Unlocks upon chapter completion (12 verses left)"*. |
-| **3. Bloomed (Completed)** | `chapterCompleted >= chapterTotal` | Full-color pixel biome tile blooms around the waypoint: lush botanical sage, terracotta blossoms, golden brass lantern halo (`#D4A359`), drying herbs & fireflies (in Dark mode). Small `✦` brass seal marks unlocked Companion commentary. | Click opens popover with dual CTAs: Primary `Open Companion Reading Room` (`✦ 3 Lenses`) + Secondary `Re-type Chapter`. |
-| **4. Book Mastery (Sanctuary Radiance)** | All chapters in book completed | The Biome's central Hero Landmark (e.g., Eden Tree of Roots, Shepherd's Sanctuary Porch) illuminates permanently; the Biome Keeper appears; a subtle golden border accent adorns the biome crest on the Atlas overview. | Celebrated on the Atlas overview and linked directly to the Book's Companion Index. |
+| **1. Locked / Dormant (Mist)** | `chapterCompleted === 0` | Dusty slate river flagstone resting subtly flush in the clay beneath soft receding dusk mist. Zero vertical posts or floating labels at rest. | Hover/focus reveals subtle plinth; click opens compact popover: *"Genesis 4 · 0/26 verses · Dormant — Start typing to bloom this clearing & unlock Companion notes."* CTA: `Type Chapter 4 →` |
+| **2. In-Progress (Kindling)** | `0 < chapterCompleted < chapterTotal` | Mist pulls back along the path behind Michael; terracotta-and-amber mineral edge glows softly inside the flush flagstone beside his sneakers, paired with a crisp 16-bit mini progress bar (`--accent-ochre`) and fresh clover sprouts. | Hover/focus reveals plinth; click opens popover showing `14 / 26 verses (53.8%)` + CTA `Continue Typing (v. 15) →`. Companion lenses show *"Unlocks upon chapter completion (12 verses left)"*. |
+| **3. Bloomed (Completed)** | `chapterCompleted >= chapterTotal` | Full-color golden-ochre river flagstone edged in chamomile flowers, clover, and warm firefly wake along the trail; a crisp `✦` brass sparkle marks unlocked Companion commentary, and waking Hoodoo/biblical yard props unlock beside the trail (**Bottle Tree** at ≥1 bloomed chapter -> **Herb-Drying Rack** at ≥25% / ≥2 -> **Covenant River Cairn** at ≥50% / ≥4 -> **Black Elder Keeper** at 100% clearing or Book Mastery). | Click stone for Companion Reading Room (`✦ 3 Lenses`) / `Re-type Chapter`, OR click waking yard landmarks (Bottle Tree, Herb Rack, Cairn, Keeper) for text-free cultural & scriptural lore cards. |
+| **4. Book Mastery (Sanctuary Radiance)** | All chapters in book completed | The Biome's central Hero Landmark and Black Elder Biome Keeper illuminate permanently with sanctuary hearth radiance; a subtle golden border accent adorns the biome crest on the Atlas overview. | Celebrated on the Atlas overview and linked directly to the Book's Companion Index. |
 
 ### 4.2 Macro Atlas Regions (Scalable 73-Book Vision)
 
@@ -109,14 +109,24 @@ The Living Trail scales cleanly across the full 73-book Catholic WEB canon by gr
 | 8 | **Galilean Harbor & Cypress Roads** | Gospels & Acts | Slate-blue harbor water, wooden boats, limestone docks, coastal olive trees | Phase 3 |
 | 9 | **Epistle Post-Roads & Starlit City** | Epistles & Revelation | Lantern-lit cobbled post-roads, cedar writing desks, golden starlit pavilion | Phase 3 |
 
-### 4.3 Solving Scale: Two-Tier Zoom for Long Books (Genesis 50 & Psalms 150)
+### 4.3 Solving Scale: Two-Tier Story-Arc Clearings for Long Books (Genesis 50 & Psalms 150)
 
-Rendering 150 Psalm waypoints on a single screen creates clutter and tiny inaccessible click targets. The Living Trail uses a **2-Tier Spatial Hierarchy**:
+Rendering 150 Psalm waypoints on a single screen creates clutter and tiny inaccessible click targets. The Living Trail uses a **2-Tier Spatial Hierarchy** backed by **10 bespoke HD story-arc scenes in Phase 1** (`5` Genesis arcs + `5` Psalter Book arcs):
 
 1. **Tier 1 — Atlas Trail Strip (Macro View):** Horizontal scrollable biome cards showing Michael's traveler pinned to his current active biome, overall bloom count (e.g., `Psalms · 12 / 150 Chapters Bloomed`), and a compact 16-bit preview diorama.
-2. **Tier 2 — Biome Clearing (Playable Chapter Trail):** Selecting a biome opens its full 16-bit winding path organized into **digestible Trail Legs of 10–15 chapters per clearing**:
-   - **Genesis (50 chapters):** 5 Trail Legs (`Ch. 1–10`, `Ch. 11–20`, `Ch. 21–30`, `Ch. 31–40`, `Ch. 41–50`).
-   - **Psalms (150 chapters):** Grouped naturally into the **5 Classical Books of the Psalter** (`Book I: 1–41`, `Book II: 42–72`, `Book III: 73–89`, `Book IV: 90–106`, `Book V: 107–150`), each subdivided into scenic clearings of 10–14 lantern posts.
+2. **Tier 2 — Biome Story-Arc Clearing (Playable Chapter Trail):** Selecting a biome opens its full 16-bit winding red-clay/mossy path with **8–14 flush river flagstones** per clearing across 10 evolving narrative vistas:
+   - **Genesis (50 chapters · 5 Story-Arc Clearings):**
+     1. `Ch. 1–10` — *Eden Root-Garden & Four Rivers*
+     2. `Ch. 11–20` — *Abraham's Live-Oaks & Hearth*
+     3. `Ch. 21–30` — *Bethel's Well & Starry Ladder*
+     4. `Ch. 31–40` — *Woven Coat & Amber Granary*
+     5. `Ch. 41–50` — *Goshen River Reunion Porch*
+   - **Psalms (150 chapters · 5 Psalter Books / 14 Sub-Clearings):**
+     1. `Book I (Ps. 1–41)` — *Green Pastures & Still Waters* (`Ps. 1–14`, `15–28`, `29–41`)
+     2. `Book II (Ps. 42–72)` — *Deer-Brook & Highland Cedars* (`Ps. 42–52`, `53–62`, `63–72`)
+     3. `Book III (Ps. 73–89)` — *Asaph's Watchfire & Harp* (`Ps. 73–81`, `82–89`)
+     4. `Book IV (Ps. 90–106)` — *Ancient Hyssop Apothecary* (`Ps. 90–98`, `99–106`)
+     5. `Book V (Ps. 107–150)` — *Starry Hallelujah Courtyard* (`Ps. 107–117`, `118–128`, `129–139`, `140–150`)
    - **Quick-Jump Bar above the Canvas:** `[Next Active]` · `[Bloomed Only (N)]` · `[Book/Leg Selector]` · `[Accessible List View toggle]`.
 
 ---

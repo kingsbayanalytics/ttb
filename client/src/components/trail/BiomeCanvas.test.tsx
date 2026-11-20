@@ -325,9 +325,52 @@ describe('trailLayouts — Logical ViewBox, Waypoint Geometry & Integer Scaling'
       }
     }
 
-    // All clearings across Genesis (5) and Psalms (14) build deterministically
-    expect(getAllClearingSegmentsForBook('Genesis')).toHaveLength(5);
-    expect(getAllClearingSegmentsForBook('Psalms')).toHaveLength(14);
+    // All 10 Story-Arc clearings across Genesis (5) and Psalms (5 Psalter Books -> 14 segments) build cleanly
+    const allGenesis = getAllClearingSegmentsForBook('Genesis');
+    const allPsalms = getAllClearingSegmentsForBook('Psalms');
+    expect(allGenesis).toHaveLength(5);
+    expect(allPsalms).toHaveLength(14);
+
+    expect(allGenesis.map((s) => s.scene.variant)).toEqual([
+      'eden-root-garden',
+      'abrahams-oaks',
+      'bethel-ladder-homestead',
+      'joseph-granary-ridge',
+      'goshen-river-porch',
+    ]);
+
+    expect(
+      Array.from(new Set(allPsalms.map((s) => s.scene.variant)))
+    ).toEqual([
+      'twilight-shepherds-sanctuary',
+      'mountain-brook-cedars',
+      'asaph-watchfire-harp',
+      'ancient-hyssop-porch',
+      'hallelujah-starlit-courtyard',
+    ]);
+
+    for (const seg of [...allGenesis, ...allPsalms]) {
+      expect(seg.storyTitle.length).toBeGreaterThan(0);
+      expect(seg.storyMotif.length).toBeGreaterThan(0);
+      expect(seg.scene.yardHotspots.map((h) => h.id)).toEqual([
+        'bottle-tree',
+        'herb-rack',
+        'river-cairn',
+        'elder-keeper',
+      ]);
+      for (let i = 0; i < seg.waypoints.length; i += 1) {
+        const wp = seg.waypoints[i];
+        expect(wp.x).toBeGreaterThanOrEqual(20);
+        expect(wp.x).toBeLessThanOrEqual(TRAIL_LOGICAL_WIDTH - 20);
+        expect(wp.y).toBeGreaterThanOrEqual(60);
+        expect(wp.y).toBeLessThanOrEqual(TRAIL_LOGICAL_HEIGHT - 20);
+        if (i > 0) {
+          const prev = seg.waypoints[i - 1];
+          expect(wp.x).toBeGreaterThan(prev.x);
+          expect(Math.hypot(wp.x - prev.x, wp.y - prev.y)).toBeGreaterThanOrEqual(16);
+        }
+      }
+    }
   });
 
   it('computes clean integer pixel scales (2, 3, or 4) on the 640x360 HD logical grid', () => {
@@ -745,6 +788,79 @@ describe('<BiomeCanvas /> — JSDOM Rendering, Theme Reactivity & Reduced Motion
       );
       expect(drawnSrcsDark).toContain(HD_BACKDROP_PATHS['eden-root-garden'].dark);
       expect(drawnSrcsDark).toContain(HD_SPRITE_PATHS.michael);
+      expect(drawnSrcsDark).toContain(HD_SPRITE_PATHS.bottleTreeBloomed);
+
+      // Progressive waking threshold verification:
+      //  - 0 bloomed: dormant bottle tree ONLY (no herb rack, cairn, or elder keeper)
+      //  - 4/10 bloomed in Gen Arc 3 (Bethel): bottleTreeBloomed + herbRack + riverCairn
+      //  - bookMastered=true: elder keeper also wakes!
+      drawImageMock.mockClear();
+      rerender(
+        <ThemeProvider>
+          <BiomeCanvas
+            book="Genesis"
+            clearingId="gen-leg-3"
+            chapters={[{ chapter: 21, totalVerses: 34, completedVerses: 0, state: 'dormant' }]}
+            activeChapter={21}
+            themeOverride="light"
+            scaleOverride={2}
+          />
+        </ThemeProvider>
+      );
+      const zeroBloomSrcs = drawImageMock.mock.calls.map(
+        (call) => (call[0] as { src?: string })?.src ?? ''
+      );
+      expect(zeroBloomSrcs).toContain(HD_BACKDROP_PATHS['bethel-ladder-homestead'].light);
+      expect(zeroBloomSrcs).toContain(HD_SPRITE_PATHS.bottleTreeDormant);
+      expect(zeroBloomSrcs).not.toContain(HD_SPRITE_PATHS.herbRack);
+      expect(zeroBloomSrcs).not.toContain(HD_SPRITE_PATHS.riverCairn);
+      expect(zeroBloomSrcs).not.toContain(HD_SPRITE_PATHS.keeperGenesis);
+
+      drawImageMock.mockClear();
+      rerender(
+        <ThemeProvider>
+          <BiomeCanvas
+            book="Genesis"
+            clearingId="gen-leg-3"
+            chapters={[21, 22, 23, 24].map((ch) => ({
+              chapter: ch,
+              totalVerses: 20,
+              completedVerses: 20,
+              state: 'bloomed' as const,
+            }))}
+            activeChapter={25}
+            themeOverride="light"
+            scaleOverride={2}
+          />
+        </ThemeProvider>
+      );
+      const midBloomSrcs = drawImageMock.mock.calls.map(
+        (call) => (call[0] as { src?: string })?.src ?? ''
+      );
+      expect(midBloomSrcs).toContain(HD_SPRITE_PATHS.bottleTreeBloomed);
+      expect(midBloomSrcs).toContain(HD_SPRITE_PATHS.herbRack);
+      expect(midBloomSrcs).toContain(HD_SPRITE_PATHS.riverCairn);
+      expect(midBloomSrcs).not.toContain(HD_SPRITE_PATHS.keeperGenesis);
+
+      drawImageMock.mockClear();
+      rerender(
+        <ThemeProvider>
+          <BiomeCanvas
+            book="Psalms"
+            clearingId="psa-book-3-c1"
+            chapters={[{ chapter: 73, totalVerses: 28, completedVerses: 28, state: 'bloomed' }]}
+            activeChapter={73}
+            bookMastered
+            themeOverride="dark"
+            scaleOverride={2}
+          />
+        </ThemeProvider>
+      );
+      const masteredSrcs = drawImageMock.mock.calls.map(
+        (call) => (call[0] as { src?: string })?.src ?? ''
+      );
+      expect(masteredSrcs).toContain(HD_BACKDROP_PATHS['asaph-watchfire-harp'].dark);
+      expect(masteredSrcs).toContain(HD_SPRITE_PATHS.keeperPsalms);
     } finally {
       clearBiomeCanvasImageCache();
       Object.defineProperty(window, 'Image', {

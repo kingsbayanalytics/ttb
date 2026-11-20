@@ -315,6 +315,14 @@
   color: var(--ink-primary);
 }
 
+.trail-story-arc-line {
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: var(--ink-primary);
+  margin-block-end: 0.25rem;
+}
+
 .trail-clearing-subtitle {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -515,21 +523,98 @@
   pointer-events: none;
 }
 
+.yard-props-hotspot-group {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.yard-prop-hotspot-btn {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: flex-start;
+  justify-content: center;
+  border-radius: 0;
+  background-color: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.yard-prop-badge {
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  transform: translateY(-20px);
+  padding: 0.14rem 0.45rem;
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-size: 0.67rem;
+  font-weight: 600;
+  line-height: 1.15;
+  background-color: color-mix(in oklab, var(--bg-ivory) 94%, transparent);
+  color: var(--ink-primary);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--ink-primary) 18%, transparent);
+}
+
+.yard-prop-hotspot-btn--awake .yard-prop-badge {
+  border-color: var(--accent-ochre);
+}
+
+.yard-prop-hotspot-btn--dormant .yard-prop-badge {
+  border-style: dashed;
+  color: var(--ink-secondary);
+}
+
+@media (hover: hover) {
+  .yard-prop-hotspot-btn:hover {
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent-ochre) 65%, transparent);
+  }
+
+  .yard-prop-hotspot-btn:hover .yard-prop-badge {
+    opacity: 1;
+    transform: translateY(-24px);
+  }
+}
+
+.yard-prop-hotspot-btn:focus-visible .yard-prop-badge,
+.yard-prop-hotspot-btn[aria-expanded="true"] .yard-prop-badge {
+  opacity: 1;
+  transform: translateY(-24px);
+}
+
+.yard-prop-hotspot-btn[aria-expanded="true"] {
+  z-index: 4;
+}
+
+.yard-prop-hotspot-btn[aria-expanded="true"] .yard-prop-badge {
+  background-color: var(--ink-primary);
+  color: var(--bg-ivory);
+  border-color: var(--accent-ochre);
+}
+
 .waypoint-buttons-toolbar {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 3;
 }
 
 .waypoint-node-btn {
   position: absolute;
-  transform: translate(-50%, -84%);
+  transform: translate(-50%, -50%);
   pointer-events: auto;
-  min-inline-size: 40px;
-  min-block-size: 56px;
+  min-inline-size: 34px;
+  min-block-size: 26px;
   padding: 0;
   display: inline-flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   border-radius: 0;
   background-color: transparent;
@@ -538,52 +623,72 @@
 }
 
 @media (pointer: coarse) {
+  .yard-prop-hotspot-btn {
+    min-inline-size: 48px;
+    min-block-size: 48px;
+  }
+
   .waypoint-node-btn {
     min-inline-size: 44px;
-    min-block-size: 62px;
+    min-block-size: 44px;
   }
 }
 
 .waypoint-node-plaque {
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  transform: translateY(-14px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.16rem;
-  padding: 0.1rem 0.34rem;
+  padding: 0.12rem 0.38rem;
   border-radius: 0;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 0.66rem;
+  font-size: 0.67rem;
   font-weight: 700;
   line-height: 1.1;
-  background-color: color-mix(in oklab, var(--bg-ivory) 92%, transparent);
+  background-color: color-mix(in oklab, var(--bg-ivory) 94%, transparent);
   color: var(--ink-primary);
   border: 1px solid var(--border-strong);
-  box-shadow: 0 1px 4px color-mix(in oklab, var(--ink-primary) 18%, transparent);
-  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+  box-shadow: 0 2px 6px color-mix(in oklab, var(--ink-primary) 20%, transparent);
 }
 
-/* Opt in to subtle hover lift strictly when motion is allowed (motion guide) */
+/* Reveal compact plaque only on hover, keyboard focus, or active open popover */
 @media (prefers-reduced-motion: no-preference) {
+  .yard-prop-hotspot-btn,
   .waypoint-node-btn {
-    transition: transform 140ms ease-out;
+    transition: box-shadow 140ms ease-out, border-color 140ms ease-out, scale 140ms ease-out;
   }
 
+  .yard-prop-hotspot-btn:active,
+  .waypoint-node-btn:active {
+    scale: 0.97;
+  }
+
+  .yard-prop-badge,
   .waypoint-node-plaque {
-    transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease-out;
-  }
-
-  @media (hover: hover) {
-    .waypoint-node-btn:hover .waypoint-node-plaque {
-      transform: translateY(-2px);
-    }
+    transition: opacity 140ms ease-out, transform 140ms ease-out, background-color 140ms ease, border-color 140ms ease, color 140ms ease;
   }
 }
 
 @media (hover: hover) {
   .waypoint-node-btn:hover {
-    border-color: color-mix(in oklab, var(--accent-ochre) 65%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent-ochre) 70%, transparent);
   }
+
+  .waypoint-node-btn:hover .waypoint-node-plaque {
+    opacity: 1;
+    transform: translateY(-20px);
+  }
+}
+
+.waypoint-node-btn:focus-visible .waypoint-node-plaque,
+.waypoint-node-btn[aria-expanded="true"] .waypoint-node-plaque {
+  opacity: 1;
+  transform: translateY(-20px);
 }
 
 /* Non-color differentiation per state on the compact plinth plaque */
@@ -685,6 +790,10 @@
     anchor-name: --active-trail-waypoint;
   }
 
+  .yard-prop-hotspot-btn--open-anchor {
+    anchor-name: --active-yard-prop;
+  }
+
   .waypoint-popover {
     position: fixed;
     inset: auto;
@@ -692,6 +801,10 @@
     position-anchor: --active-trail-waypoint;
     position-area: block-end;
     position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+  }
+
+  .yard-prop-popover {
+    position-anchor: --active-yard-prop;
   }
 }
 
@@ -1119,12 +1232,13 @@
 .trail-toolbar-btn:focus-visible,
 .trail-clearing-select:focus-visible,
 .trail-leg-pill:focus-visible,
+.yard-prop-hotspot-btn:focus-visible,
 .waypoint-node-btn:focus-visible,
 .waypoint-popover-close:focus-visible,
 .trail-filter-pill:focus-visible,
 .trail-table-scroll-region:focus-visible,
 .trail-table-action-btn:focus-visible {
-  outline: 2px solid var(--accent-terracotta);
+  outline: 2px solid var(--accent-ochre);
   outline-offset: 2px;
 }
 

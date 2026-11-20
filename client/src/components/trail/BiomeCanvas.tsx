@@ -22,11 +22,13 @@ import {
   TrailSceneVariant,
   WaypointPoint,
   WaypointState,
+  YardPropId,
   buildClearingSegment,
   computeIntegerScale,
+  computeYardPropWakeState,
 } from './trailLayouts';
 
-export type { ClearingSegment, TrailSceneVariant, WaypointPoint, WaypointState };
+export type { ClearingSegment, TrailSceneVariant, WaypointPoint, WaypointState, YardPropId };
 export { TRAIL_LOGICAL_HEIGHT, TRAIL_LOGICAL_WIDTH };
 
 /** Frame step cadence (~5.5 FPS, well below WCAG 2.3.1 3-flash threshold). */
@@ -46,23 +48,80 @@ export const HD_BACKDROP_PATHS: Readonly<
     light: '/assets/trail/hd/genesis-daylight.webp',
     dark: '/assets/trail/hd/genesis-twilight.webp',
   },
+  'abrahams-oaks': {
+    light: '/assets/trail/hd/abrahams-oaks-daylight.webp',
+    dark: '/assets/trail/hd/abrahams-oaks-twilight.webp',
+  },
+  'bethel-ladder-homestead': {
+    light: '/assets/trail/hd/bethel-ladder-daylight.webp',
+    dark: '/assets/trail/hd/bethel-ladder-twilight.webp',
+  },
+  'joseph-granary-ridge': {
+    light: '/assets/trail/hd/joseph-granary-daylight.webp',
+    dark: '/assets/trail/hd/joseph-granary-twilight.webp',
+  },
+  'goshen-river-porch': {
+    light: '/assets/trail/hd/goshen-river-daylight.webp',
+    dark: '/assets/trail/hd/goshen-river-twilight.webp',
+  },
   'twilight-shepherds-sanctuary': {
     light: '/assets/trail/hd/psalms-daylight.webp',
     dark: '/assets/trail/hd/psalms-twilight.webp',
+  },
+  'mountain-brook-cedars': {
+    light: '/assets/trail/hd/mountain-brook-daylight.webp',
+    dark: '/assets/trail/hd/mountain-brook-twilight.webp',
+  },
+  'asaph-watchfire-harp': {
+    light: '/assets/trail/hd/asaph-watchfire-daylight.webp',
+    dark: '/assets/trail/hd/asaph-watchfire-twilight.webp',
+  },
+  'ancient-hyssop-porch': {
+    light: '/assets/trail/hd/ancient-hyssop-daylight.webp',
+    dark: '/assets/trail/hd/ancient-hyssop-twilight.webp',
+  },
+  'hallelujah-starlit-courtyard': {
+    light: '/assets/trail/hd/hallelujah-courtyard-daylight.webp',
+    dark: '/assets/trail/hd/hallelujah-courtyard-twilight.webp',
   },
 };
 
 export const HD_SPRITE_PATHS = {
   michael: '/assets/trail/hd/traveler-michael-hd.png',
-  dormant: '/assets/trail/hd/waypoint-dormant-hd.png',
-  kindling: '/assets/trail/hd/waypoint-kindling-hd.png',
-  bloomed: '/assets/trail/hd/waypoint-bloomed-hd.png',
+  dormant: '/assets/trail/hd/stone-dormant-hd.png',
+  kindling: '/assets/trail/hd/stone-kindling-hd.png',
+  bloomed: '/assets/trail/hd/stone-bloomed-hd.png',
+  bottleTreeDormant: '/assets/trail/hd/prop-bottle-tree-dormant-hd.png',
+  bottleTreeBloomed: '/assets/trail/hd/prop-bottle-tree-bloomed-hd.png',
+  herbRack: '/assets/trail/hd/prop-herb-rack-hd.png',
+  riverCairn: '/assets/trail/hd/prop-river-cairn-hd.png',
+  keeperGenesis: '/assets/trail/hd/keeper-garden-elder-hd.png',
+  keeperPsalms: '/assets/trail/hd/keeper-psalms-elder-hd.png',
 } as const;
 
-const HD_WAYPOINT_LOGICAL_WIDTH = 52;
-const HD_WAYPOINT_LOGICAL_HEIGHT = 78;
+const HD_STONE_LOGICAL_WIDTH = 32;
+const HD_STONE_LOGICAL_HEIGHT = 18;
 const HD_MICHAEL_LOGICAL_WIDTH = 48;
 const HD_MICHAEL_LOGICAL_HEIGHT = 74;
+const HD_BOTTLE_TREE_LOGICAL_WIDTH = 56;
+const HD_BOTTLE_TREE_LOGICAL_HEIGHT = 74;
+const HD_HERB_RACK_LOGICAL_WIDTH = 44;
+const HD_HERB_RACK_LOGICAL_HEIGHT = 46;
+const HD_CAIRN_LOGICAL_WIDTH = 36;
+const HD_CAIRN_LOGICAL_HEIGHT = 34;
+const HD_KEEPER_LOGICAL_WIDTH = 48;
+const HD_KEEPER_LOGICAL_HEIGHT = 74;
+
+const BOTTLE_SPARKLE_OFFSETS: ReadonlyArray<readonly [number, number]> = [
+  [-14, -52],
+  [0, -58],
+  [12, -52],
+  [16, -44],
+  [-16, -38],
+  [10, -34],
+  [-14, -26],
+  [12, -22],
+];
 
 export interface BiomeCanvasChapter {
   readonly chapter: number;
@@ -78,6 +137,7 @@ export interface BiomeCanvasProps {
   readonly chapters: readonly BiomeCanvasChapter[];
   readonly activeChapter?: number;
   readonly selectedChapter?: number | null;
+  readonly selectedYardPropId?: YardPropId | null;
   readonly bookMastered?: boolean;
   /** Optional explicit theme override; defaults to ThemeContext `resolvedTheme`. */
   readonly themeOverride?: TrailTheme;
@@ -123,6 +183,12 @@ interface LoadedHdBundle {
   readonly dormant: HTMLImageElement;
   readonly kindling: HTMLImageElement;
   readonly bloomed: HTMLImageElement;
+  readonly bottleTreeDormant: HTMLImageElement | null;
+  readonly bottleTreeBloomed: HTMLImageElement | null;
+  readonly herbRack: HTMLImageElement | null;
+  readonly riverCairn: HTMLImageElement | null;
+  readonly keeperGenesis: HTMLImageElement | null;
+  readonly keeperPsalms: HTMLImageElement | null;
 }
 
 function getLoadedHdBundle(
@@ -139,7 +205,19 @@ function getLoadedHdBundle(
     return null;
   }
 
-  return { backdrop, michael, dormant, kindling, bloomed };
+  return {
+    backdrop,
+    michael,
+    dormant,
+    kindling,
+    bloomed,
+    bottleTreeDormant: getLoadedCachedImage(HD_SPRITE_PATHS.bottleTreeDormant),
+    bottleTreeBloomed: getLoadedCachedImage(HD_SPRITE_PATHS.bottleTreeBloomed),
+    herbRack: getLoadedCachedImage(HD_SPRITE_PATHS.herbRack),
+    riverCairn: getLoadedCachedImage(HD_SPRITE_PATHS.riverCairn),
+    keeperGenesis: getLoadedCachedImage(HD_SPRITE_PATHS.keeperGenesis),
+    keeperPsalms: getLoadedCachedImage(HD_SPRITE_PATHS.keeperPsalms),
+  };
 }
 
 function drawSprite(
@@ -190,6 +268,23 @@ function fillLogicalRect(
     Math.max(1, Math.round(w)) * scale,
     Math.max(1, Math.round(h)) * scale
   );
+}
+
+function drawGroundShadow(
+  ctx: CanvasRenderingContext2D,
+  centerX: number,
+  baseY: number,
+  halfWidth: number,
+  color: string,
+  scale: number
+): void {
+  const prevAlpha = ctx.globalAlpha;
+  ctx.globalAlpha = 0.28;
+  const rx = Math.max(4, Math.round(halfWidth));
+  fillLogicalRect(ctx, centerX - rx + 2, baseY - 3, (rx - 2) * 2, 1, color, scale);
+  fillLogicalRect(ctx, centerX - rx, baseY - 2, rx * 2, 2, color, scale);
+  fillLogicalRect(ctx, centerX - rx + 3, baseY, (rx - 3) * 2, 1, color, scale);
+  ctx.globalAlpha = prevAlpha;
 }
 
 function drawPixelHalo(
@@ -370,6 +465,7 @@ interface PaintSceneOptions {
   readonly chapterMap: ReadonlyMap<number, BiomeCanvasChapter>;
   readonly activeChapter: number | undefined;
   readonly selectedChapter: number | null;
+  readonly selectedYardPropId: YardPropId | null;
   readonly bookMastered: boolean;
   readonly theme: TrailTheme;
   readonly scale: number;
@@ -380,6 +476,7 @@ interface PaintSceneOptions {
 interface PaintHdOptions extends PaintSceneOptions {
   readonly hd: LoadedHdBundle;
   readonly hasAnyBloom: boolean;
+  readonly bloomedCount: number;
 }
 
 function paintHdClearingScene({
@@ -388,6 +485,7 @@ function paintHdClearingScene({
   chapterMap,
   activeChapter,
   selectedChapter,
+  selectedYardPropId,
   bookMastered,
   theme,
   scale,
@@ -395,14 +493,16 @@ function paintHdClearingScene({
   staticFrame,
   hd,
   hasAnyBloom,
+  bloomedCount,
 }: PaintHdOptions): void {
   const tokens = getTrailThemeTokens(theme);
   const palette = getTrailPalette(theme);
   const { scene } = segment;
+  const isPsalmsFamily = scene.keeperPlacement.framePrefix === 'psalms-twilight-psalmist';
 
   ctx.imageSmoothingEnabled = false;
 
-  // 1. Draw the mockup-grade 1280x720 HD pixel-art biome backdrop
+  // 1. Draw the unified 1280x720 HD story-arc pixel diorama backdrop
   ctx.drawImage(
     hd.backdrop,
     0,
@@ -411,23 +511,133 @@ function paintHdClearingScene({
     TRAIL_LOGICAL_HEIGHT * scale
   );
 
-  // 2. Book Mastery warm radiance halo on Hero Landmark / Elder Keeper sanctuary
+  // 2. Book Mastery warm radiance halo on sanctuary threshold
   if (bookMastered) {
-    const shrineX = scene.variant === 'twilight-shepherds-sanctuary' ? 548 : 190;
-    const shrineY = scene.variant === 'twilight-shepherds-sanctuary' ? 92 : 112;
+    const elderHotspot = scene.yardHotspots.find((h) => h.id === 'elder-keeper');
+    const shrineX = elderHotspot?.anchorX ?? 534;
+    const shrineY = (elderHotspot?.anchorY ?? 166) - 34;
     drawPixelHalo(
       ctx,
       shrineX,
       shrineY,
-      54,
+      48,
       tokens.lanternHalo,
       theme === 'dark' ? 0.24 : 0.14,
       scale
     );
-    drawBrassSealSparkle(ctx, shrineX, shrineY - 46, theme, scale);
+    drawBrassSealSparkle(ctx, shrineX, shrineY - 40, theme, scale);
   }
 
-  // 3. Collect and Y-sort all chapter hook-posts + Traveler Michael for natural 3/4 depth
+  // 3. Progressive Waking Hoodoo & Biblical Yard Props (Bottle Tree, Herb Rack, Cairn, Elder)
+  const wakeState = computeYardPropWakeState(
+    bloomedCount,
+    segment.waypoints.length,
+    bookMastered
+  );
+
+  for (const hotspot of scene.yardHotspots) {
+    if (hotspot.id === 'bottle-tree') {
+      const treeImg = wakeState.bottleTreeBloomed ? hd.bottleTreeBloomed : hd.bottleTreeDormant;
+      drawGroundShadow(ctx, hotspot.anchorX, hotspot.anchorY - 1, 12, tokens.outlineInk, scale);
+      if (wakeState.bottleTreeBloomed) {
+        drawPixelHalo(
+          ctx,
+          hotspot.anchorX,
+          hotspot.anchorY - 40,
+          24,
+          tokens.lanternHalo,
+          theme === 'dark' ? 0.16 : 0.1,
+          scale
+        );
+      }
+      if (treeImg) {
+        ctx.drawImage(
+          treeImg,
+          Math.round(hotspot.anchorX - HD_BOTTLE_TREE_LOGICAL_WIDTH / 2) * scale,
+          Math.round(hotspot.anchorY - (HD_BOTTLE_TREE_LOGICAL_HEIGHT - 3)) * scale,
+          HD_BOTTLE_TREE_LOGICAL_WIDTH * scale,
+          HD_BOTTLE_TREE_LOGICAL_HEIGHT * scale
+        );
+      }
+      if (wakeState.bottleTreeBloomed) {
+        const glintCount = Math.min(BOTTLE_SPARKLE_OFFSETS.length, Math.max(1, wakeState.bottleCount));
+        for (let b = 0; b < glintCount; b += 1) {
+          const [ox, oy] = BOTTLE_SPARKLE_OFFSETS[b];
+          const twinkle = !staticFrame && (frameTick + b) % 4 === 0 ? 1 : 0;
+          fillLogicalRect(
+            ctx,
+            hotspot.anchorX + ox,
+            hotspot.anchorY + oy - twinkle,
+            2,
+            2,
+            palette[PALETTE_INDEX.LANTERN_CORE] ?? '#FFF0C2',
+            scale
+          );
+        }
+      }
+    } else if (hotspot.id === 'herb-rack' && wakeState.herbRackAwake && hd.herbRack) {
+      drawGroundShadow(ctx, hotspot.anchorX, hotspot.anchorY - 1, 14, tokens.outlineInk, scale);
+      ctx.drawImage(
+        hd.herbRack,
+        Math.round(hotspot.anchorX - HD_HERB_RACK_LOGICAL_WIDTH / 2) * scale,
+        Math.round(hotspot.anchorY - (HD_HERB_RACK_LOGICAL_HEIGHT - 3)) * scale,
+        HD_HERB_RACK_LOGICAL_WIDTH * scale,
+        HD_HERB_RACK_LOGICAL_HEIGHT * scale
+      );
+    } else if (hotspot.id === 'river-cairn' && wakeState.riverCairnAwake && hd.riverCairn) {
+      drawGroundShadow(ctx, hotspot.anchorX, hotspot.anchorY, 12, tokens.outlineInk, scale);
+      drawPixelHalo(
+        ctx,
+        hotspot.anchorX,
+        hotspot.anchorY - 22,
+        14,
+        tokens.lanternHalo,
+        theme === 'dark' ? 0.16 : 0.1,
+        scale
+      );
+      ctx.drawImage(
+        hd.riverCairn,
+        Math.round(hotspot.anchorX - HD_CAIRN_LOGICAL_WIDTH / 2) * scale,
+        Math.round(hotspot.anchorY - (HD_CAIRN_LOGICAL_HEIGHT - 2)) * scale,
+        HD_CAIRN_LOGICAL_WIDTH * scale,
+        HD_CAIRN_LOGICAL_HEIGHT * scale
+      );
+    } else if (hotspot.id === 'elder-keeper' && wakeState.elderKeeperAwake) {
+      const keeperImg = isPsalmsFamily ? hd.keeperPsalms : hd.keeperGenesis;
+      if (keeperImg) {
+        drawGroundShadow(ctx, hotspot.anchorX, hotspot.anchorY - 1, 10, tokens.outlineInk, scale);
+        drawPixelHalo(
+          ctx,
+          hotspot.anchorX,
+          hotspot.anchorY - 34,
+          20,
+          tokens.lanternHalo,
+          theme === 'dark' ? 0.22 : 0.12,
+          scale
+        );
+        ctx.drawImage(
+          keeperImg,
+          Math.round(hotspot.anchorX - HD_KEEPER_LOGICAL_WIDTH / 2) * scale,
+          Math.round(hotspot.anchorY - (HD_KEEPER_LOGICAL_HEIGHT - 3)) * scale,
+          HD_KEEPER_LOGICAL_WIDTH * scale,
+          HD_KEEPER_LOGICAL_HEIGHT * scale
+        );
+        drawBrassSealSparkle(ctx, hotspot.anchorX, hotspot.anchorY - 68, theme, scale);
+      }
+    }
+
+    if (selectedYardPropId === hotspot.id) {
+      const targetCenterY =
+        hotspot.id === 'river-cairn'
+          ? hotspot.anchorY - 14
+          : hotspot.id === 'herb-rack'
+            ? hotspot.anchorY - 22
+            : hotspot.anchorY - 36;
+      drawSelectionBrackets(ctx, hotspot.anchorX, targetCenterY, theme, scale, 22, 26);
+    }
+  }
+
+  // 4. Resolve Michael's active chapter position along the S-curve path
   const resolvedActiveChapter =
     activeChapter !== undefined ? activeChapter : resolveDefaultActiveChapter(segment, chapterMap);
   const travelerWaypoint =
@@ -435,13 +645,44 @@ function paintHdClearingScene({
       ? segment.waypoints.find((wp) => wp.chapter === resolvedActiveChapter)
       : undefined;
 
+  // 5. Behind-vs-Ahead Trail Vitality: gentle golden/mist pools around flush flagstones
+  const mistTone = theme === 'dark' ? '#25252C' : '#DFDAD0';
+  for (const wp of segment.waypoints) {
+    const state: WaypointState = chapterMap.get(wp.chapter)?.state ?? 'dormant';
+    if (state === 'bloomed') {
+      const pulse = !staticFrame && frameTick % 4 >= 2 ? 1 : 0;
+      drawPixelHalo(
+        ctx,
+        wp.x,
+        wp.y + 1,
+        15 + pulse,
+        tokens.lanternHalo,
+        theme === 'dark' ? 0.22 : 0.13,
+        scale
+      );
+    } else if (state === 'in_progress') {
+      drawPixelHalo(
+        ctx,
+        wp.x,
+        wp.y + 1,
+        13,
+        tokens.waypointKindling,
+        theme === 'dark' ? 0.22 : 0.14,
+        scale
+      );
+    } else if (!hasAnyBloom || (travelerWaypoint && wp.x > travelerWaypoint.x)) {
+      drawPixelHalo(ctx, wp.x, wp.y, 15, mistTone, 0.1, scale);
+    }
+  }
+
+  // 6. Flush Ground-Level River Flagstones (zero vertical lamp posts!) + Depth-Sorted Michael
   type DepthDrawable =
-    | { readonly kind: 'waypoint'; readonly sortY: number; readonly wp: WaypointPoint }
+    | { readonly kind: 'stone'; readonly sortY: number; readonly wp: WaypointPoint }
     | { readonly kind: 'michael'; readonly sortY: number; readonly wp: WaypointPoint };
 
   const drawables: DepthDrawable[] = segment.waypoints.map((wp) => ({
-    kind: 'waypoint',
-    sortY: wp.y,
+    kind: 'stone',
+    sortY: wp.y - 6, // stones lie flush on ground so Michael steps naturally across them
     wp,
   }));
 
@@ -455,101 +696,62 @@ function paintHdClearingScene({
 
   drawables.sort((a, b) => a.sortY - b.sortY);
 
-  // Paint ground lantern glow pools underneath kindling/bloomed posts + Michael first
-  for (const wp of segment.waypoints) {
-    const state: WaypointState = chapterMap.get(wp.chapter)?.state ?? 'dormant';
-    if (state === 'bloomed') {
-      const pulse = !staticFrame && frameTick % 4 >= 2 ? 2 : 0;
-      drawPixelHalo(
-        ctx,
-        wp.x + 8,
-        wp.y - 44,
-        24 + pulse,
-        tokens.lanternHalo,
-        theme === 'dark' ? 0.34 : 0.2,
-        scale
-      );
-      drawPixelHalo(
-        ctx,
-        wp.x + 6,
-        wp.y - 4,
-        20,
-        tokens.lanternHalo,
-        theme === 'dark' ? 0.22 : 0.12,
-        scale
-      );
-    } else if (state === 'in_progress') {
-      drawPixelHalo(
-        ctx,
-        wp.x + 8,
-        wp.y - 42,
-        14,
-        tokens.waypointKindling,
-        theme === 'dark' ? 0.24 : 0.14,
-        scale
-      );
-    }
-  }
-
-  // Draw depth-sorted hook-post waypoints & Michael
   for (const item of drawables) {
-    if (item.kind === 'waypoint') {
+    if (item.kind === 'stone') {
       const { wp } = item;
       const data = chapterMap.get(wp.chapter);
       const state: WaypointState = data?.state ?? 'dormant';
       const completedVerses = data?.completedVerses ?? 0;
       const totalVerses = data?.totalVerses ?? 0;
 
-      const drawX = Math.round(wp.x - HD_WAYPOINT_LOGICAL_WIDTH / 2) * scale;
-      const drawY = Math.round(wp.y - (HD_WAYPOINT_LOGICAL_HEIGHT - 4)) * scale;
-      const spriteImg =
+      const drawX = Math.round(wp.x - HD_STONE_LOGICAL_WIDTH / 2) * scale;
+      const drawY = Math.round(wp.y - HD_STONE_LOGICAL_HEIGHT / 2) * scale;
+      const stoneImg =
         state === 'bloomed'
           ? hd.bloomed
           : state === 'in_progress'
             ? hd.kindling
             : hd.dormant;
 
-      if (state === 'dormant' && !hasAnyBloom) {
+      if (state === 'dormant') {
         const prevAlpha = ctx.globalAlpha;
-        ctx.globalAlpha = 0.88;
+        ctx.globalAlpha = 0.86;
         ctx.drawImage(
-          spriteImg,
+          stoneImg,
           drawX,
           drawY,
-          HD_WAYPOINT_LOGICAL_WIDTH * scale,
-          HD_WAYPOINT_LOGICAL_HEIGHT * scale
+          HD_STONE_LOGICAL_WIDTH * scale,
+          HD_STONE_LOGICAL_HEIGHT * scale
         );
         ctx.globalAlpha = prevAlpha;
       } else {
         ctx.drawImage(
-          spriteImg,
+          stoneImg,
           drawX,
           drawY,
-          HD_WAYPOINT_LOGICAL_WIDTH * scale,
-          HD_WAYPOINT_LOGICAL_HEIGHT * scale
+          HD_STONE_LOGICAL_WIDTH * scale,
+          HD_STONE_LOGICAL_HEIGHT * scale
         );
       }
 
       if (state === 'bloomed') {
-        drawBrassSealSparkle(ctx, wp.x + 14, wp.y - 58, theme, scale);
+        drawBrassSealSparkle(ctx, wp.x + 12, wp.y - 6, theme, scale);
       } else if (state === 'in_progress') {
-        drawProgressBar(ctx, wp.x, wp.y - 76, completedVerses, totalVerses, theme, scale, 24, 5);
+        drawProgressBar(ctx, wp.x, wp.y + 10, completedVerses, totalVerses, theme, scale, 20, 4);
       }
 
       if (selectedChapter === wp.chapter) {
-        drawSelectionBrackets(ctx, wp.x, wp.y - 36, theme, scale, 24, 38);
+        drawSelectionBrackets(ctx, wp.x, wp.y, theme, scale, 18, 11);
       }
       continue;
     }
 
-    // Draw Michael standing on the footpath beside the active waypoint
+    // Draw Michael walking flush-stone by flush-stone in crisp modern casual clothes
     const { footX, footY } = item.wp;
     const bobOffset = !staticFrame && frameTick % 4 >= 2 ? -1 : 0;
 
-    // Grounding pixel shadow under sneakers
-    fillLogicalRect(ctx, footX - 11, footY - 2, 22, 4, tokens.outlineInk, scale);
+    drawGroundShadow(ctx, footX, footY, 10, tokens.outlineInk, scale);
 
-    // Warm brass lantern pool beside Michael
     drawPixelHalo(
       ctx,
       footX - 13,
@@ -569,8 +771,8 @@ function paintHdClearingScene({
     );
   }
 
-  // 4. Atmospheric drifting fireflies (disabled strictly when staticFrame is true)
-  if (!staticFrame && (theme === 'dark' || bookMastered) && hasAnyBloom) {
+  // 7. Atmospheric drifting fireflies (disabled strictly when staticFrame is true)
+  if (!staticFrame && (theme === 'dark' || bookMastered || hasAnyBloom)) {
     const fireflyGlow = palette[PALETTE_INDEX.LANTERN_GLOW] ?? tokens.lanternHalo;
     const fireflyCore = palette[PALETTE_INDEX.LANTERN_CORE] ?? '#FFF0C2';
 
@@ -590,6 +792,7 @@ function paintClearingScene({
   chapterMap,
   activeChapter,
   selectedChapter,
+  selectedYardPropId,
   bookMastered,
   theme,
   scale,
@@ -620,6 +823,7 @@ function paintClearingScene({
       chapterMap,
       activeChapter,
       selectedChapter,
+      selectedYardPropId,
       bookMastered,
       theme,
       scale,
@@ -627,6 +831,7 @@ function paintClearingScene({
       staticFrame,
       hd: hdBundle,
       hasAnyBloom,
+      bloomedCount,
     });
     return;
   }
@@ -926,6 +1131,7 @@ export const BiomeCanvas: React.FC<BiomeCanvasProps> = ({
   chapters,
   activeChapter,
   selectedChapter = null,
+  selectedYardPropId = null,
   bookMastered = false,
   themeOverride,
   reducedMotionOverride,
@@ -1025,6 +1231,12 @@ export const BiomeCanvas: React.FC<BiomeCanvasProps> = ({
       HD_SPRITE_PATHS.dormant,
       HD_SPRITE_PATHS.kindling,
       HD_SPRITE_PATHS.bloomed,
+      HD_SPRITE_PATHS.bottleTreeDormant,
+      HD_SPRITE_PATHS.bottleTreeBloomed,
+      HD_SPRITE_PATHS.herbRack,
+      HD_SPRITE_PATHS.riverCairn,
+      HD_SPRITE_PATHS.keeperGenesis,
+      HD_SPRITE_PATHS.keeperPsalms,
       ...PHASE1_SHEETS.map((sheetId) => TRAIL_ATLAS_PATHS[sheetId][effectiveTheme]),
     ];
 
@@ -1059,6 +1271,7 @@ export const BiomeCanvas: React.FC<BiomeCanvasProps> = ({
         chapterMap,
         activeChapter,
         selectedChapter,
+        selectedYardPropId,
         bookMastered,
         theme: effectiveTheme,
         scale: integerScale,
@@ -1183,6 +1396,7 @@ export const BiomeCanvas: React.FC<BiomeCanvasProps> = ({
     chapterMap,
     activeChapter,
     selectedChapter,
+    selectedYardPropId,
     bookMastered,
     effectiveTheme,
     integerScale,

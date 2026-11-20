@@ -461,12 +461,12 @@ export function getMockTrailOverview(workId = DEFAULT_WORK_ID): TrailOverviewRes
     workId,
     totalBooks: 73,
     totalChapters: 1328,
-    bloomedChapters: 3,
-    inProgressChapters: 1,
+    bloomedChapters: 8,
+    inProgressChapters: 2,
     activeTraveler: {
       biomeId: 'twilight-shepherds-sanctuary',
       book: 'Psalms',
-      chapter: 23,
+      chapter: 24,
     },
     biomes: [
       {
@@ -481,10 +481,10 @@ export function getMockTrailOverview(workId = DEFAULT_WORK_ID): TrailOverviewRes
             landmarkName: 'Eden Tree of Roots',
             phase1Active: true,
             totalChapters: 50,
-            bloomedChapters: 1,
-            inProgressChapters: 0,
+            bloomedChapters: 2,
+            inProgressChapters: 1,
             totalVerses: 1533,
-            completedVerses: 31,
+            completedVerses: 66,
             state: 'in_progress',
             bookMastered: false,
             companionChapterCount: 15,
@@ -503,10 +503,10 @@ export function getMockTrailOverview(workId = DEFAULT_WORK_ID): TrailOverviewRes
             landmarkName: "Shepherd's Sanctuary Porch",
             phase1Active: true,
             totalChapters: 150,
-            bloomedChapters: 2,
+            bloomedChapters: 6,
             inProgressChapters: 1,
             totalVerses: 2461,
-            completedVerses: 18,
+            completedVerses: 52,
             state: 'in_progress',
             bookMastered: false,
             companionChapterCount: 150,
@@ -520,10 +520,12 @@ export function getMockTrailOverview(workId = DEFAULT_WORK_ID): TrailOverviewRes
 export function getMockTrailBook(book: string, workId = DEFAULT_WORK_ID): TrailBookResponse {
   const isPsalms = book.trim().toLowerCase() === 'psalms';
   const totalChapters = isPsalms ? 150 : 50;
+  const psalmsBloomedSet = new Set([1, 2, 15, 19, 22, 23]);
+  const genesisBloomedSet = new Set([1, 2]);
   const chapters: TrailChapterWaypoint[] = Array.from({ length: totalChapters }, (_, idx) => {
     const ch = idx + 1;
-    const isBloomed = isPsalms ? ch === 1 || ch === 23 : ch === 1;
-    const isInProgress = isPsalms ? ch === 27 : ch === 2;
+    const isBloomed = isPsalms ? psalmsBloomedSet.has(ch) : genesisBloomedSet.has(ch);
+    const isInProgress = isPsalms ? ch === 24 : ch === 3;
     const totalVerses = isPsalms ? (ch === 23 ? 6 : 12) : ch === 1 ? 31 : 25;
     const completedVerses = isBloomed ? totalVerses : isInProgress ? 4 : 0;
     return {
@@ -536,8 +538,8 @@ export function getMockTrailBook(book: string, workId = DEFAULT_WORK_ID): TrailB
       unlockedAt: isBloomed ? '2026-11-20T00:00:00.000Z' : null,
       hasCompanion: isPsalms || ch <= 15,
       lensCounts: {
-        'hoodoo-folk': isPsalms || ch === 1 ? 1 : 0,
-        'historical-classic': ch === 1 || ch === 23 ? 1 : 0,
+        'hoodoo-folk': isPsalms || ch <= 2 ? 1 : 0,
+        'historical-classic': ch === 1 || ch === 2 || ch === 23 ? 1 : 0,
         community: isPsalms && ch === 23 ? 1 : 0,
       },
     };
@@ -545,18 +547,18 @@ export function getMockTrailBook(book: string, workId = DEFAULT_WORK_ID): TrailB
 
   const legs = isPsalms
     ? [
-        { legId: 'psalms-book-1', label: 'Book I (Psalms 1–41)', startChapter: 1, endChapter: 41, bloomedCount: 2, totalCount: 41 },
-        { legId: 'psalms-book-2', label: 'Book II (Psalms 42–72)', startChapter: 42, endChapter: 72, bloomedCount: 0, totalCount: 31 },
-        { legId: 'psalms-book-3', label: 'Book III (Psalms 73–89)', startChapter: 73, endChapter: 89, bloomedCount: 0, totalCount: 17 },
-        { legId: 'psalms-book-4', label: 'Book IV (Psalms 90–106)', startChapter: 90, endChapter: 106, bloomedCount: 0, totalCount: 17 },
-        { legId: 'psalms-book-5', label: 'Book V (Psalms 107–150)', startChapter: 107, endChapter: 150, bloomedCount: 0, totalCount: 44 },
+        { legId: 'psa-book-1', label: 'Book I · Psalms 1–41', startChapter: 1, endChapter: 41, bloomedCount: 6, totalCount: 41 },
+        { legId: 'psa-book-2', label: 'Book II · Psalms 42–72', startChapter: 42, endChapter: 72, bloomedCount: 0, totalCount: 31 },
+        { legId: 'psa-book-3', label: 'Book III · Psalms 73–89', startChapter: 73, endChapter: 89, bloomedCount: 0, totalCount: 17 },
+        { legId: 'psa-book-4', label: 'Book IV · Psalms 90–106', startChapter: 90, endChapter: 106, bloomedCount: 0, totalCount: 17 },
+        { legId: 'psa-book-5', label: 'Book V · Psalms 107–150', startChapter: 107, endChapter: 150, bloomedCount: 0, totalCount: 44 },
       ]
     : [
-        { legId: 'genesis-leg-1', label: 'Chapters 1–10', startChapter: 1, endChapter: 10, bloomedCount: 1, totalCount: 10 },
-        { legId: 'genesis-leg-2', label: 'Chapters 11–20', startChapter: 11, endChapter: 20, bloomedCount: 0, totalCount: 10 },
-        { legId: 'genesis-leg-3', label: 'Chapters 21–30', startChapter: 21, endChapter: 30, bloomedCount: 0, totalCount: 10 },
-        { legId: 'genesis-leg-4', label: 'Chapters 31–40', startChapter: 31, endChapter: 40, bloomedCount: 0, totalCount: 10 },
-        { legId: 'genesis-leg-5', label: 'Chapters 41–50', startChapter: 41, endChapter: 50, bloomedCount: 0, totalCount: 10 },
+        { legId: 'gen-leg-1', label: 'Ch. 1–10', startChapter: 1, endChapter: 10, bloomedCount: 2, totalCount: 10 },
+        { legId: 'gen-leg-2', label: 'Ch. 11–20', startChapter: 11, endChapter: 20, bloomedCount: 0, totalCount: 10 },
+        { legId: 'gen-leg-3', label: 'Ch. 21–30', startChapter: 21, endChapter: 30, bloomedCount: 0, totalCount: 10 },
+        { legId: 'gen-leg-4', label: 'Ch. 31–40', startChapter: 31, endChapter: 40, bloomedCount: 0, totalCount: 10 },
+        { legId: 'gen-leg-5', label: 'Ch. 41–50', startChapter: 41, endChapter: 50, bloomedCount: 0, totalCount: 10 },
       ];
 
   return {
@@ -569,11 +571,11 @@ export function getMockTrailBook(book: string, workId = DEFAULT_WORK_ID): TrailB
     state: 'in_progress',
     bookMastered: false,
     totalChapters,
-    bloomedChapters: isPsalms ? 2 : 1,
+    bloomedChapters: isPsalms ? 6 : 2,
     totalVerses: isPsalms ? 2461 : 1533,
-    completedVerses: isPsalms ? 18 : 31,
+    completedVerses: isPsalms ? 64 : 60,
     hasBookGuide: true,
-    activeChapter: isPsalms ? 27 : 2,
+    activeChapter: isPsalms ? 24 : 3,
     legs,
     chapters,
   };

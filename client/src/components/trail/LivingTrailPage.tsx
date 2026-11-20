@@ -32,7 +32,7 @@ import {
   getTrailLegsForBook,
 } from '../../data/trailBiomes';
 import { BiomeCanvas } from './BiomeCanvas';
-import { ClearingSegment, buildClearingSegment } from './trailLayouts';
+import { ClearingSegment, YardPropId, buildClearingSegment } from './trailLayouts';
 import {
   WaypointFocusRequest,
   WaypointOverlay,
@@ -233,6 +233,7 @@ export const LivingTrailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [selectedWaypointChapter, setSelectedWaypointChapter] = useState<number | null>(null);
+  const [selectedYardPropId, setSelectedYardPropId] = useState<YardPropId | null>(null);
   const [bloomedOnly, setBloomedOnly] = useState<boolean>(false);
   const [showChapterList, setShowChapterList] = useState<boolean>(false);
   const [motionPaused, setMotionPaused] = useState<boolean>(false);
@@ -366,6 +367,7 @@ export const LivingTrailPage: React.FC = () => {
 
       setSelectedBook(nextBook);
       setSelectedWaypointChapter(null);
+      setSelectedYardPropId(null);
       setBloomedOnly(false);
       setSearchParams({ book: nextBook }, { replace: true });
 
@@ -455,6 +457,7 @@ export const LivingTrailPage: React.FC = () => {
   const handleClearingChange = (nextClearingId: string) => {
     setActiveClearingId(nextClearingId);
     setSelectedWaypointChapter(null);
+    setSelectedYardPropId(null);
   };
 
   const handleLegSelect = (leg: TrailLegDefinition) => {
@@ -462,8 +465,16 @@ export const LivingTrailPage: React.FC = () => {
     if (firstClearing) {
       setActiveClearingId(firstClearing.clearingId);
       setSelectedWaypointChapter(null);
+      setSelectedYardPropId(null);
     }
   };
+
+  const handleSelectWaypointChapter = useCallback((nextChapter: number | null) => {
+    setSelectedWaypointChapter(nextChapter);
+    if (nextChapter !== null) {
+      setSelectedYardPropId(null);
+    }
+  }, []);
 
   const handleJumpNextActive = () => {
     if (!bookTrail) return;
@@ -484,6 +495,7 @@ export const LivingTrailPage: React.FC = () => {
     );
     setActiveClearingId(targetClearing.clearingId);
     setSelectedWaypointChapter(null);
+    setSelectedYardPropId(null);
     requestWaypointFocus(targetChapter);
   };
 
@@ -491,6 +503,7 @@ export const LivingTrailPage: React.FC = () => {
     const next = !bloomedOnly;
     setBloomedOnly(next);
     setSelectedWaypointChapter(null);
+    setSelectedYardPropId(null);
 
     if (next && bookTrail) {
       const currentHasBloomed =
@@ -521,6 +534,7 @@ export const LivingTrailPage: React.FC = () => {
 
   const handleOpenBookGuide = useCallback(() => {
     setSelectedWaypointChapter(null);
+    setSelectedYardPropId(null);
     setDrawerEverOpened(true);
     setDrawerState({
       isOpen: true,
@@ -615,8 +629,9 @@ export const LivingTrailPage: React.FC = () => {
           <span className="trail-kicker">LIVING PIXEL TRAIL · WORLD ENGLISH BIBLE</span>
           <h1>Living Scripture Trail</h1>
           <p className="trail-masthead-subtitle">
-            Walk the illuminated 16-bit scripture atlas—every completed chapter blooms its lantern
-            clearing and unlocks multi-lens Companion study notes.
+            Walk the 16-bit scripture trail—every completed chapter blooms its river flagstone,
+            awakens Hoodoo &amp; biblical yard landmarks, and unlocks multi-lens Companion study
+            notes.
           </p>
         </div>
 
@@ -763,6 +778,9 @@ export const LivingTrailPage: React.FC = () => {
             <h2 id="trail-clearing-heading">
               {selectedBook} · {resolvedSegment.label}
             </h2>
+            <p className="trail-story-arc-line" data-testid="trail-story-arc-title">
+              <strong>{resolvedSegment.storyTitle}</strong> — {resolvedSegment.storyMotif}
+            </p>
             <p className="trail-clearing-subtitle">
               {bookTrail?.bloomedChapters ?? bookBloomedCount} of{' '}
               {bookTrail?.totalChapters ?? chapters.length} chapters bloomed in {selectedBook} ·{' '}
@@ -941,6 +959,7 @@ export const LivingTrailPage: React.FC = () => {
                   key={leg.legId}
                   type="button"
                   className="trail-leg-pill"
+                  title={leg.storyTitle}
                   aria-pressed={isCurrentLeg}
                   onClick={() => handleLegSelect(leg)}
                   data-testid={`trail-leg-btn-${leg.legId}`}
@@ -978,7 +997,7 @@ export const LivingTrailPage: React.FC = () => {
           )}
         </div>
 
-        {/* Responsive 16:9 Aspect-Locked Pixel Stage + Semantic Waypoint Overlay */}
+        {/* Responsive 16:9 Aspect-Locked Pixel Stage + Semantic Flush-Stone Overlay */}
         <div className="trail-stage-frame" data-testid="trail-stage-frame">
           <BiomeCanvas
             book={selectedBook}
@@ -986,6 +1005,7 @@ export const LivingTrailPage: React.FC = () => {
             chapters={chapters}
             activeChapter={bookTrail?.activeChapter}
             selectedChapter={selectedWaypointChapter}
+            selectedYardPropId={selectedYardPropId}
             bookMastered={bookTrail?.bookMastered ?? false}
             animationPaused={motionPaused}
             className="trail-stage-canvas"
@@ -997,8 +1017,12 @@ export const LivingTrailPage: React.FC = () => {
             chapters={chapters}
             activeChapter={bookTrail?.activeChapter}
             selectedChapter={selectedWaypointChapter}
-            onSelectChapter={setSelectedWaypointChapter}
+            onSelectChapter={handleSelectWaypointChapter}
             onOpenCompanion={handleOpenChapterCompanion}
+            selectedYardPropId={selectedYardPropId}
+            onSelectYardProp={setSelectedYardPropId}
+            onOpenBookGuide={handleOpenBookGuide}
+            bookMastered={bookTrail?.bookMastered ?? false}
             bloomedOnly={bloomedOnly}
             onDisableBloomedOnly={() => setBloomedOnly(false)}
             focusRequest={focusRequest}
@@ -1006,19 +1030,19 @@ export const LivingTrailPage: React.FC = () => {
         </div>
 
         {/* Non-Color State Legend & Keyboard Hint */}
-        <div className="trail-legend-bar" aria-label="Waypoint status key">
+        <div className="trail-legend-bar" aria-label="Flagstone and yard prop status key">
           <div className="trail-legend-items">
             <span className="trail-legend-item">
-              <span aria-hidden="true">◇</span> Dormant (Mist)
+              <span aria-hidden="true">◇</span> Dormant Stone (Mist)
             </span>
             <span className="trail-legend-item">
               <span aria-hidden="true">◐</span> In Progress (Kindling)
             </span>
             <span className="trail-legend-item">
-              <span aria-hidden="true">✦</span> Bloomed (Companion Ready)
+              <span aria-hidden="true">✦</span> Bloomed &amp; Yard Props Awake
             </span>
           </div>
-          <span>Arrow keys navigate waypoints · Enter opens chapter · Esc closes</span>
+          <span>Click stones or yard props · Arrow keys navigate stones · Enter opens</span>
         </div>
       </section>
 

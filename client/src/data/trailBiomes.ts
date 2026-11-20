@@ -5,10 +5,10 @@
  * regions and all 73 World English Bible (Catholic Edition) books (1,328 chapters).
  *
  * Phase 1 active playable books:
- *   - Genesis (50 chapters) — 5 Trail Legs of 10 chapters
+ *   - Genesis (50 chapters) — 5 Story-Arc Trail Legs of 10 chapters
  *   - Psalms (150 chapters) — 5 Classical Books of the Psalter subdivided into
- *     14 scenic clearings (8–14 lantern posts each) so every 16-bit diorama stays
- *     crisp, uncrowded, and keyboard-navigable.
+ *     14 scenic clearings (8–14 flush river flagstones each) so every 16-bit
+ *     story-arc diorama stays crisp, uncrowded, and keyboard-navigable.
  */
 
 export type BiomePhase = 1 | 2 | 3;
@@ -21,6 +21,8 @@ export interface TrailClearingDefinition {
   readonly clearingId: string;
   readonly legId: string;
   readonly legLabel: string;
+  readonly storyTitle: string;
+  readonly storyMotif: string;
   readonly label: string;
   readonly shortLabel: string;
   readonly startChapter: number;
@@ -33,6 +35,8 @@ export interface TrailLegDefinition {
   readonly legId: string;
   readonly label: string;
   readonly shortLabel: string;
+  readonly storyTitle: string;
+  readonly storyMotif: string;
   readonly startChapter: number;
   readonly endChapter: number;
   readonly clearings: readonly TrailClearingDefinition[];
@@ -482,6 +486,8 @@ for (const biome of TRAIL_BIOME_CATALOG) {
 function buildLegClearings(
   legId: string,
   legLabel: string,
+  storyTitle: string,
+  storyMotif: string,
   ranges: readonly (readonly [number, number])[],
   chapterPrefix: string
 ): readonly TrailClearingDefinition[] {
@@ -495,6 +501,8 @@ function buildLegClearings(
       clearingId: total === 1 ? legId : `${legId}-c${idx + 1}`,
       legId,
       legLabel,
+      storyTitle,
+      storyMotif,
       label: total === 1 ? legLabel : `${legLabel} · ${rangeLabel}`,
       shortLabel: rangeLabel,
       startChapter,
@@ -506,71 +514,120 @@ function buildLegClearings(
 }
 
 /**
- * 5 Trail Legs for Genesis (Ch. 1–10, 11–20, 21–30, 31–40, 41–50).
- * Each leg is a single 10-lantern scenic clearing.
+ * 5 Story-Arc Trail Legs for Genesis (Ch. 1–10, 11–20, 21–30, 31–40, 41–50).
+ * Each leg opens a distinct 16-bit HD story-arc scene with flush river flagstones.
  */
 export const GENESIS_TRAIL_LEGS: readonly TrailLegDefinition[] = [
   {
     legId: 'gen-leg-1',
     label: 'Ch. 1–10',
     shortLabel: 'Ch. 1–10',
+    storyTitle: 'Eden Root-Garden & Four Rivers',
+    storyMotif: 'Four-river crossroads, raised cedar herb beds, braided sweetgrass & rainbow prism',
     startChapter: 1,
     endChapter: 10,
-    clearings: buildLegClearings('gen-leg-1', 'Ch. 1–10', [[1, 10]], 'Ch.'),
+    clearings: buildLegClearings(
+      'gen-leg-1',
+      'Ch. 1–10',
+      'Eden Root-Garden & Four Rivers',
+      'Four-river crossroads, raised cedar herb beds, braided sweetgrass & rainbow prism',
+      [[1, 10]],
+      'Ch.'
+    ),
   },
   {
     legId: 'gen-leg-2',
     label: 'Ch. 11–20',
     shortLabel: 'Ch. 11–20',
+    storyTitle: "Abraham's Live-Oaks & Hearth",
+    storyMotif: 'Spanish-moss live oaks beside a glowing covenant stone hearth at twilight',
     startChapter: 11,
     endChapter: 20,
-    clearings: buildLegClearings('gen-leg-2', 'Ch. 11–20', [[11, 20]], 'Ch.'),
+    clearings: buildLegClearings(
+      'gen-leg-2',
+      'Ch. 11–20',
+      "Abraham's Live-Oaks & Hearth",
+      'Spanish-moss live oaks beside a glowing covenant stone hearth at twilight',
+      [[11, 20]],
+      'Ch.'
+    ),
   },
   {
     legId: 'gen-leg-3',
     label: 'Ch. 21–30',
     shortLabel: 'Ch. 21–30',
+    storyTitle: "Bethel's Well & Starry Ladder",
+    storyMotif: 'Homestead porch under live oak, mossy stone well & starry stairway rising into dusk',
     startChapter: 21,
     endChapter: 30,
-    clearings: buildLegClearings('gen-leg-3', 'Ch. 21–30', [[21, 30]], 'Ch.'),
+    clearings: buildLegClearings(
+      'gen-leg-3',
+      'Ch. 21–30',
+      "Bethel's Well & Starry Ladder",
+      'Homestead porch under live oak, mossy stone well & starry stairway rising into dusk',
+      [[21, 30]],
+      'Ch.'
+    ),
   },
   {
     legId: 'gen-leg-4',
     label: 'Ch. 31–40',
     shortLabel: 'Ch. 31–40',
+    storyTitle: 'Woven Coat & Amber Granary',
+    storyMotif: 'Terraced wheat & sweetgrass ridge leading to an amber granary porch & woven coat',
     startChapter: 31,
     endChapter: 40,
-    clearings: buildLegClearings('gen-leg-4', 'Ch. 31–40', [[31, 40]], 'Ch.'),
+    clearings: buildLegClearings(
+      'gen-leg-4',
+      'Ch. 31–40',
+      'Woven Coat & Amber Granary',
+      'Terraced wheat & sweetgrass ridge leading to an amber granary porch & woven coat',
+      [[31, 40]],
+      'Ch.'
+    ),
   },
   {
     legId: 'gen-leg-5',
     label: 'Ch. 41–50',
     shortLabel: 'Ch. 41–50',
+    storyTitle: 'Goshen River Reunion Porch',
+    storyMotif: 'Serene sunset delta waters framed by cypresses, willows & a welcoming river porch',
     startChapter: 41,
     endChapter: 50,
-    clearings: buildLegClearings('gen-leg-5', 'Ch. 41–50', [[41, 50]], 'Ch.'),
+    clearings: buildLegClearings(
+      'gen-leg-5',
+      'Ch. 41–50',
+      'Goshen River Reunion Porch',
+      'Serene sunset delta waters framed by cypresses, willows & a welcoming river porch',
+      [[41, 50]],
+      'Ch.'
+    ),
   },
 ];
 
 /**
  * 5 Classical Books of the Psalter (matching `server/src/services/trail/biomeCatalog.ts`),
- * each subdivided cleanly into balanced scenic clearings of 8–14 lantern posts:
- *   - Book I   (1–41):   1–14 (14), 15–28 (14), 29–41 (13)
- *   - Book II  (42–72):  42–52 (11), 53–62 (10), 63–72 (10)
- *   - Book III (73–89):  73–81 (9), 82–89 (8)
- *   - Book IV  (90–106): 90–98 (9), 99–106 (8)
- *   - Book V   (107–150): 107–117 (11), 118–128 (11), 129–139 (11), 140–150 (11)
+ * each paired with its own story-arc diorama and balanced clearings of 8–14 flush flagstones:
+ *   - Book I   (1–41):   1–14 (14), 15–28 (14), 29–41 (13) — Green Pastures & Still Waters
+ *   - Book II  (42–72):  42–52 (11), 53–62 (10), 63–72 (10) — Deer-Brook & Highland Cedars
+ *   - Book III (73–89):  73–81 (9), 82–89 (8)               — Asaph's Watchfire & Harp
+ *   - Book IV  (90–106): 90–98 (9), 99–106 (8)              — Ancient Hyssop Apothecary
+ *   - Book V   (107–150): 107–117..140–150 (11 each)        — Starry Hallelujah Courtyard
  */
 export const PSALMS_TRAIL_LEGS: readonly TrailLegDefinition[] = [
   {
     legId: 'psa-book-1',
     label: 'Book I · Psalms 1–41',
     shortLabel: 'Book I (1–41)',
+    storyTitle: 'Green Pastures & Still Waters',
+    storyMotif: 'Mossy twilight pasture, still slate-blue creek & hanging Anna Riva sanctuary herbs',
     startChapter: 1,
     endChapter: 41,
     clearings: buildLegClearings(
       'psa-book-1',
       'Book I · Psalms 1–41',
+      'Green Pastures & Still Waters',
+      'Mossy twilight pasture, still slate-blue creek & hanging Anna Riva sanctuary herbs',
       [
         [1, 14],
         [15, 28],
@@ -583,11 +640,15 @@ export const PSALMS_TRAIL_LEGS: readonly TrailLegDefinition[] = [
     legId: 'psa-book-2',
     label: 'Book II · Psalms 42–72',
     shortLabel: 'Book II (42–72)',
+    storyTitle: 'Deer-Brook & Highland Cedars',
+    storyMotif: 'Cascading mountain creek beneath tall fragrant cedars & distant misty ridges',
     startChapter: 42,
     endChapter: 72,
     clearings: buildLegClearings(
       'psa-book-2',
       'Book II · Psalms 42–72',
+      'Deer-Brook & Highland Cedars',
+      'Cascading mountain creek beneath tall fragrant cedars & distant misty ridges',
       [
         [42, 52],
         [53, 62],
@@ -600,11 +661,15 @@ export const PSALMS_TRAIL_LEGS: readonly TrailLegDefinition[] = [
     legId: 'psa-book-3',
     label: 'Book III · Psalms 73–89',
     shortLabel: 'Book III (73–89)',
+    storyTitle: "Asaph's Watchfire & Harp",
+    storyMotif: 'High fieldstone bluff terrace lit by a steady watchfire brazier & temple harp',
     startChapter: 73,
     endChapter: 89,
     clearings: buildLegClearings(
       'psa-book-3',
       'Book III · Psalms 73–89',
+      "Asaph's Watchfire & Harp",
+      'High fieldstone bluff terrace lit by a steady watchfire brazier & temple harp',
       [
         [73, 81],
         [82, 89],
@@ -616,11 +681,15 @@ export const PSALMS_TRAIL_LEGS: readonly TrailLegDefinition[] = [
     legId: 'psa-book-4',
     label: 'Book IV · Psalms 90–106',
     shortLabel: 'Book IV (90–106)',
+    storyTitle: 'Ancient Hyssop Apothecary',
+    storyMotif: 'Stone-and-cedar cottage garden of blooming hyssop, lavender, rosemary & sundial',
     startChapter: 90,
     endChapter: 106,
     clearings: buildLegClearings(
       'psa-book-4',
       'Book IV · Psalms 90–106',
+      'Ancient Hyssop Apothecary',
+      'Stone-and-cedar cottage garden of blooming hyssop, lavender, rosemary & sundial',
       [
         [90, 98],
         [99, 106],
@@ -632,11 +701,15 @@ export const PSALMS_TRAIL_LEGS: readonly TrailLegDefinition[] = [
     legId: 'psa-book-5',
     label: 'Book V · Psalms 107–150',
     shortLabel: 'Book V (107–150)',
+    storyTitle: 'Starry Hallelujah Courtyard',
+    storyMotif: 'Starlit olive grove & warm amber limestone sanctuary porch welcoming Psalm 150',
     startChapter: 107,
     endChapter: 150,
     clearings: buildLegClearings(
       'psa-book-5',
       'Book V · Psalms 107–150',
+      'Starry Hallelujah Courtyard',
+      'Starlit olive grove & warm amber limestone sanctuary porch welcoming Psalm 150',
       [
         [107, 117],
         [118, 128],
@@ -673,6 +746,7 @@ export function getTrailLegsForBook(
 
   const maxCh = Math.max(1, totalChapters ?? CANONICAL_CHAPTER_COUNTS[book] ?? 1);
   const prefix = (CANONICAL_BOOK_TO_USFM[book] ?? 'book').toLowerCase();
+  const motif = BOOK_LANDMARK_NAMES[book] ?? `${book} pilgrimage trail`;
 
   if (maxCh <= 15) {
     const label = maxCh === 1 ? 'Ch. 1' : `Ch. 1–${maxCh}`;
@@ -682,9 +756,11 @@ export function getTrailLegsForBook(
         legId,
         label,
         shortLabel: label,
+        storyTitle: `${book} · ${motif}`,
+        storyMotif: motif,
         startChapter: 1,
         endChapter: maxCh,
-        clearings: buildLegClearings(legId, label, [[1, maxCh]], 'Ch.'),
+        clearings: buildLegClearings(legId, label, `${book} · ${motif}`, motif, [[1, maxCh]], 'Ch.'),
       },
     ];
   }
@@ -699,9 +775,11 @@ export function getTrailLegsForBook(
       legId,
       label,
       shortLabel: label,
+      storyTitle: `${book} · ${motif}`,
+      storyMotif: motif,
       startChapter: start,
       endChapter: end,
-      clearings: buildLegClearings(legId, label, [[start, end]], 'Ch.'),
+      clearings: buildLegClearings(legId, label, `${book} · ${motif}`, motif, [[start, end]], 'Ch.'),
     });
     idx += 1;
   }
