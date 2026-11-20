@@ -10,6 +10,7 @@ import {
   YAxis,
 } from 'recharts';
 import { CoverageData, Testament } from '../../types';
+import { PHASE1_ACTIVE_BOOKS } from '../../data/trailBiomes';
 
 export interface BookCoverageProps {
   coverage: CoverageData;
@@ -211,7 +212,27 @@ const BookCoverage: React.FC<BookCoverageProps> = ({ coverage }) => {
                 </span>
               </div>
 
-              <div className="coverage-book-action">
+              <div
+                className="coverage-book-action"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-end',
+                  gap: '0.5rem',
+                  flexWrap: 'wrap',
+                }}
+              >
+                {PHASE1_ACTIVE_BOOKS.has(book.book) && (
+                  <Link
+                    to={`/trail?book=${encodeURIComponent(book.book)}`}
+                    className="secondary-button coverage-continue-link"
+                    data-testid={`view-on-trail-${book.book}`}
+                  >
+                    <span aria-hidden="true">✦ </span>
+                    View on Trail
+                    <span className="visually-hidden">: {book.book}</span>
+                  </Link>
+                )}
                 {book.totalVerses === 0 ? (
                   <span className="coverage-empty-badge">No verses</span>
                 ) : isComplete ? (

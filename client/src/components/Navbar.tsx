@@ -68,6 +68,12 @@ const Navbar: React.FC = () => {
               </li>
 
               <li className="nav-item">
+                <Link to="/trail" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+                  Living Trail
+                </Link>
+              </li>
+
+              <li className="nav-item">
                 <Link to="/dashboard" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
                   Dashboard
                 </Link>
@@ -110,6 +116,12 @@ const Navbar: React.FC = () => {
               <li className="nav-item">
                 <Link to="/memory" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
                   Memory &amp; Plans
+                </Link>
+              </li>
+
+              <li className="nav-item">
+                <Link to="/trail" className="nav-link" onClick={() => setMobileMenuOpen(false)}>
+                  Living Trail
                 </Link>
               </li>
 

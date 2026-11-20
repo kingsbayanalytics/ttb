@@ -724,6 +724,11 @@ export const BiomeCanvas: React.FC<BiomeCanvasProps> = ({
   useEffect(() => {
     if (typeof Image === 'undefined') return undefined;
     let cancelled = false;
+    const handleAtlasLoad = () => {
+      if (!cancelled) {
+        setAtlasVersion((v) => v + 1);
+      }
+    };
 
     for (const sheetId of PHASE1_SHEETS) {
       const path = TRAIL_ATLAS_PATHS[sheetId][effectiveTheme];
@@ -732,11 +737,7 @@ export const BiomeCanvas: React.FC<BiomeCanvasProps> = ({
       }
       const img = new Image();
       img.decoding = 'async';
-      img.onload = () => {
-        if (!cancelled) {
-          setAtlasVersion((v) => v + 1);
-        }
-      };
+      img.onload = handleAtlasLoad;
       img.src = path;
       SHARED_ATLAS_CACHE.set(path, img);
     }

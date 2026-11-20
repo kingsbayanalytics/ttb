@@ -227,15 +227,27 @@ describe('Dashboard & chart components (Stories 2.3–2.5)', () => {
     expect(rows[0]).toHaveAttribute('data-testid', 'book-row-Genesis');
     expect(rows[72]).toHaveAttribute('data-testid', 'book-row-Revelation');
 
-    // Genesis is 100% complete -> shows Complete badge, no Continue link
+    // Genesis is 100% complete -> shows Complete badge, View on Trail link, no Continue link
     const genesisRow = screen.getByTestId('book-row-Genesis');
     expect(within(genesisRow).getByText('Complete')).toBeInTheDocument();
     expect(within(genesisRow).queryByRole('link', { name: 'Continue' })).not.toBeInTheDocument();
+    expect(
+      within(genesisRow).getByRole('link', { name: /View on Trail/i })
+    ).toHaveAttribute('href', '/trail?book=Genesis');
 
-    // Matthew is 50% complete -> shows Continue link to /typing?book=Matthew
+    // Psalms row also exposes View on Trail link to /trail?book=Psalms
+    const psalmsRow = screen.getByTestId('book-row-Psalms');
+    expect(
+      within(psalmsRow).getByRole('link', { name: /View on Trail/i })
+    ).toHaveAttribute('href', '/trail?book=Psalms');
+
+    // Matthew is 50% complete -> shows Continue link to /typing?book=Matthew (no Phase 1 trail link)
     const matthewRow = screen.getByTestId('book-row-Matthew');
     const continueLink = within(matthewRow).getByRole('link', { name: 'Continue' });
     expect(continueLink).toHaveAttribute('href', '/typing?book=Matthew');
+    expect(
+      within(matthewRow).queryByRole('link', { name: /View on Trail/i })
+    ).not.toBeInTheDocument();
 
     // Filter by New Testament
     fireEvent.click(screen.getByRole('button', { name: 'New Testament' }));

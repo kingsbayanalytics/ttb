@@ -47,6 +47,18 @@ describe('Home interactive feature cards', () => {
       'href',
       '/dashboard'
     );
+    expect(screen.getByRole('link', { name: 'Living Trail & Companion' })).toHaveAttribute(
+      'href',
+      '/trail'
+    );
+    expect(screen.getByRole('link', { name: 'Genesis' })).toHaveAttribute(
+      'href',
+      '/trail?book=Genesis'
+    );
+    expect(screen.getByRole('link', { name: 'Psalms' })).toHaveAttribute(
+      'href',
+      '/trail?book=Psalms'
+    );
     expect(screen.getByRole('link', { name: 'Verse Selection' })).toHaveAttribute(
       'href',
       '/typing?mode=book'

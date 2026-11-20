@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuthSession } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -13,6 +13,8 @@ import { Dashboard } from './components/dashboard';
 import { MemoryStudio } from './components/memory';
 import './App.css';
 
+const LivingTrailPage = React.lazy(() => import('./components/trail/LivingTrailPage'));
+
 const AppRoutes: React.FC = () => {
   const { mode } = useAuthSession();
 
@@ -26,6 +28,22 @@ const AppRoutes: React.FC = () => {
           {mode !== 'entra' && <Route path="/register" element={<Register />} />}
           <Route path="/typing" element={<TypingTest />} />
           <Route path="/memory" element={<MemoryStudio />} />
+          <Route
+            path="/trail"
+            element={
+              <Suspense
+                fallback={
+                  <div className="loading-container" role="status">
+                    <div className="loading-text">
+                      <h3>Opening the Living Trail…</h3>
+                    </div>
+                  </div>
+                }
+              >
+                <LivingTrailPage />
+              </Suspense>
+            }
+          />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/progress" element={<Progress />} />
           <Route path="/profile" element={<Profile />} />

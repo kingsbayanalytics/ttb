@@ -1,0 +1,1143 @@
+/* ==========================================================================
+   Living Pixel Trail (/trail) — Stories 12.3 & 12.4
+   Editorial Atlas Visual Grammar — Parchment Light / Obsidian Dark
+   Zero faux-pixel UI fonts: Newsreader · DM Sans · JetBrains Mono only
+   ========================================================================== */
+
+.living-trail-page {
+  max-inline-size: 1200px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+/* Masthead Header */
+.trail-masthead {
+  background-color: var(--bg-ivory);
+  border: 1px solid var(--border-stone);
+  border-inline-start: 4px solid var(--accent-ochre);
+  border-radius: 0;
+  padding: 1.35rem 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+.trail-masthead-copy {
+  max-inline-size: 68ch;
+}
+
+.trail-kicker {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-ochre);
+  margin-block-end: 0.3rem;
+}
+
+.trail-masthead h1 {
+  font-family: var(--font-serif);
+  font-size: clamp(1.65rem, 1.35rem + 1.1vw, 2.25rem);
+  margin-block-end: 0.35rem;
+  color: var(--ink-primary);
+}
+
+.trail-masthead-subtitle {
+  margin-block-end: 0;
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  color: var(--ink-secondary);
+}
+
+.trail-masthead-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.trail-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.38rem 0.75rem;
+  background-color: var(--bg-parchment);
+  border: 1px solid var(--border-stone);
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+
+.trail-stat-pill--traveler {
+  border-inline-start: 3px solid var(--accent-terracotta);
+}
+
+/* ==========================================================================
+   Tier 1: Macro Atlas Trail Strip (9 Canonical Biomes · 73 Books)
+   ========================================================================== */
+
+.trail-atlas-section {
+  background-color: var(--bg-ivory);
+  border: 1px solid var(--border-stone);
+  border-radius: 0;
+  padding: 1.25rem 1.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.trail-section-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding-block-end: 0.7rem;
+  border-block-end: 1px solid var(--border-stone);
+}
+
+.trail-section-header h2 {
+  font-family: var(--font-serif);
+  font-size: 1.3rem;
+  margin-block-end: 0;
+  color: var(--ink-primary);
+}
+
+.trail-section-meta {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+}
+
+.atlas-biome-strip {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.85rem;
+}
+
+.atlas-biome-card {
+  background-color: var(--bg-parchment);
+  border: 1px solid var(--border-stone);
+  border-inline-start: 4px solid var(--border-stone);
+  border-radius: 0;
+  padding: 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.atlas-biome-card--active {
+  background-color: var(--bg-ivory);
+  border-color: var(--border-strong);
+  border-inline-start: 4px solid var(--accent-ochre);
+}
+
+.atlas-biome-card--horizon {
+  background-color: color-mix(in oklab, var(--bg-parchment) 82%, var(--bg-bone));
+  border-style: dashed;
+  border-inline-start-style: solid;
+}
+
+.atlas-biome-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.atlas-biome-order {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-muted);
+}
+
+.atlas-phase-badge {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.14rem 0.45rem;
+  border: 1px solid var(--border-stone);
+  background-color: var(--bg-ivory);
+  color: var(--ink-secondary);
+}
+
+.atlas-phase-badge--playable {
+  border-color: var(--accent-ochre);
+  color: var(--accent-ochre);
+}
+
+.atlas-biome-title {
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin-block-end: 0.15rem;
+  color: var(--ink-primary);
+}
+
+.atlas-biome-motif {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--ink-secondary);
+  margin-block-end: 0;
+}
+
+.atlas-biome-books {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-block-start: auto;
+  padding-block-start: 0.35rem;
+}
+
+.atlas-playable-book-btn {
+  width: 100%;
+  min-block-size: 40px;
+  padding: 0.5rem 0.7rem;
+  background-color: var(--bg-ivory);
+  border: 1px solid var(--border-strong);
+  border-inline-start: 3px solid var(--accent-ochre);
+  border-radius: 0;
+  color: var(--ink-primary);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  text-align: start;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+@media (hover: hover) {
+  .atlas-playable-book-btn:hover {
+    background-color: var(--bg-bone);
+    border-color: var(--accent-ochre);
+  }
+}
+
+.atlas-playable-book-btn[aria-pressed="true"] {
+  background-color: var(--ink-primary);
+  color: var(--bg-ivory);
+  border-color: var(--ink-primary);
+  border-inline-start: 4px solid var(--accent-ochre);
+}
+
+.atlas-playable-book-row {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.atlas-playable-book-name {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.atlas-playable-book-bloom {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.atlas-playable-book-landmark {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  opacity: 0.86;
+}
+
+.atlas-book-chip--veiled {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.2rem 0.48rem;
+  background-color: var(--bg-ivory);
+  border: 1px dashed var(--border-stone);
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.7rem;
+  color: var(--ink-muted);
+}
+
+.atlas-veiled-glyph {
+  font-size: 0.68rem;
+}
+
+/* ==========================================================================
+   Tier 2: Playable Biome Clearing Stage & Quick-Jump Toolbar
+   ========================================================================== */
+
+.trail-clearing-section {
+  background-color: var(--bg-ivory);
+  border: 1px solid var(--border-stone);
+  border-inline-start: 4px solid var(--accent-ochre);
+  border-radius: 0;
+  padding: 1.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.trail-clearing-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+
+.trail-clearing-title-group h2 {
+  font-family: var(--font-serif);
+  font-size: 1.45rem;
+  margin-block-end: 0.2rem;
+  color: var(--ink-primary);
+}
+
+.trail-clearing-subtitle {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+  color: var(--ink-secondary);
+  margin-block-end: 0;
+}
+
+.trail-mastery-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.7rem;
+  background-color: var(--bg-parchment);
+  border: 1px solid var(--accent-ochre);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--accent-ochre);
+}
+
+/* Quick-Jump Toolbar (toolbar guide: role="toolbar", groups, border separators, >=24px targets) */
+.trail-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.8rem;
+  background-color: var(--bg-parchment);
+  border: 1px solid var(--border-stone);
+  border-radius: 0;
+}
+
+.trail-toolbar-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.trail-toolbar-sep {
+  display: inline-block;
+  block-size: 1.4rem;
+  border-inline-start: 1px solid var(--border-stone);
+  margin-inline: 0.15rem;
+}
+
+.trail-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.38rem;
+  min-block-size: 34px;
+  min-inline-size: 34px;
+  padding: 0.38rem 0.75rem;
+  background-color: var(--bg-ivory);
+  color: var(--ink-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+@media (pointer: coarse) {
+  .trail-toolbar-btn {
+    min-block-size: 42px;
+    min-inline-size: 42px;
+    padding-inline: 0.85rem;
+  }
+}
+
+@media (hover: hover) {
+  .trail-toolbar-btn:hover {
+    background-color: var(--bg-bone);
+    border-color: var(--accent-ochre);
+  }
+}
+
+/* Style toggled state strictly from ARIA attribute per toolbar guide */
+.trail-toolbar-btn[aria-pressed="true"],
+.trail-toolbar-btn[aria-expanded="true"] {
+  background-color: var(--ink-primary);
+  color: var(--bg-ivory);
+  border-color: var(--ink-primary);
+  outline: 1px solid var(--accent-ochre);
+  outline-offset: -3px;
+}
+
+.trail-toolbar-btn--guide {
+  border-inline-start: 3px solid var(--accent-ochre);
+}
+
+.trail-clearing-select-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.trail-clearing-select-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-secondary);
+}
+
+.trail-clearing-select {
+  min-block-size: 34px;
+  padding: 0.35rem 0.6rem;
+  background-color: var(--bg-ivory);
+  color: var(--ink-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+}
+
+/* Leg / Psalter Book Strip + Sub-Clearing Pills */
+.trail-leg-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.trail-leg-pills,
+.trail-subclearing-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.trail-leg-pill {
+  min-block-size: 30px;
+  padding: 0.28rem 0.65rem;
+  background-color: var(--bg-parchment);
+  color: var(--ink-secondary);
+  border: 1px solid var(--border-stone);
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.73rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+@media (hover: hover) {
+  .trail-leg-pill:hover {
+    color: var(--ink-primary);
+    border-color: var(--border-strong);
+  }
+}
+
+.trail-leg-pill[aria-pressed="true"] {
+  background-color: var(--bg-bone);
+  color: var(--ink-primary);
+  border-color: var(--border-strong);
+  border-block-end: 3px solid var(--accent-ochre);
+  font-weight: 600;
+}
+
+.trail-subclearing-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+  margin-inline-end: 0.2rem;
+}
+
+/* ==========================================================================
+   Aspect-Locked 16-Bit Stage Container + Semantic Waypoint Overlay
+   ========================================================================== */
+
+.trail-stage-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: var(--bg-parchment);
+  border: 1px solid var(--border-strong);
+  border-radius: 0;
+  image-rendering: pixelated;
+}
+
+.trail-stage-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.waypoint-overlay-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.waypoint-buttons-toolbar {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.waypoint-node-btn {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  min-inline-size: 30px;
+  min-block-size: 30px;
+  padding: 0.12rem 0.32rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.16rem;
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  background-color: color-mix(in oklab, var(--bg-ivory) 88%, transparent);
+  color: var(--ink-primary);
+  border: 1px solid var(--border-strong);
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+@media (pointer: coarse) {
+  .waypoint-node-btn {
+    min-inline-size: 36px;
+    min-block-size: 36px;
+  }
+}
+
+/* Opt in to subtle hover/active scale strictly when motion is allowed (motion guide) */
+@media (prefers-reduced-motion: no-preference) {
+  .waypoint-node-btn {
+    transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease-out;
+  }
+
+  @media (hover: hover) {
+    .waypoint-node-btn:hover {
+      transform: translate(-50%, -56%);
+    }
+  }
+}
+
+/* Non-color differentiation per state: dashed = dormant, double/ochre = kindling, solid seal = bloomed */
+.waypoint-node-btn--dormant {
+  border-style: dashed;
+  border-color: var(--border-stone);
+  color: var(--ink-secondary);
+}
+
+.waypoint-node-btn--in_progress {
+  border: 2px solid var(--accent-ochre);
+  background-color: var(--bg-ivory);
+  color: var(--ink-primary);
+}
+
+.waypoint-node-btn--bloomed {
+  border: 2px solid var(--accent-ochre);
+  background-color: var(--bg-ivory);
+  color: var(--ink-primary);
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--ink-primary) 16%, transparent);
+}
+
+.waypoint-node-btn--active-traveler {
+  border-block-end-width: 3px;
+  border-block-end-color: var(--accent-terracotta);
+}
+
+.waypoint-node-btn[aria-expanded="true"] {
+  background-color: var(--ink-primary);
+  color: var(--bg-ivory);
+  border-color: var(--accent-ochre);
+  z-index: 4;
+}
+
+.waypoint-node-glyph {
+  font-size: 0.64rem;
+}
+
+.waypoint-empty-filter-banner {
+  position: absolute;
+  inset-inline: 1rem;
+  inset-block-end: 0.85rem;
+  pointer-events: auto;
+  padding: 0.65rem 0.9rem;
+  background-color: color-mix(in oklab, var(--bg-ivory) 94%, transparent);
+  border: 1px solid var(--border-strong);
+  border-inline-start: 4px solid var(--accent-ochre);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+  color: var(--ink-primary);
+}
+
+/* ==========================================================================
+   Waypoint Chapter Popover (viewport-aware-dropdowns guide)
+   ========================================================================== */
+
+.waypoint-popover {
+  pointer-events: auto;
+  z-index: 12;
+  inline-size: min(320px, calc(100vw - 2rem));
+  background-color: var(--bg-ivory);
+  color: var(--ink-primary);
+  border: 1px solid var(--border-strong);
+  border-inline-start: 4px solid var(--accent-ochre);
+  border-radius: 0;
+  padding: 0.95rem 1.05rem;
+  box-shadow: 0 10px 26px color-mix(in oklab, var(--ink-primary) 18%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .waypoint-popover {
+    animation: waypoint-popover-fade 140ms ease-out;
+  }
+}
+
+@keyframes waypoint-popover-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Native CSS Anchor Positioning where supported (logical position-area keywords only) */
+@supports (position-area: block-end) and (anchor-name: --a) {
+  .waypoint-node-btn--open-anchor {
+    anchor-name: --active-trail-waypoint;
+  }
+
+  .waypoint-popover {
+    position: fixed;
+    inset: auto;
+    margin: 0.45rem 0 0 0;
+    position-anchor: --active-trail-waypoint;
+    position-area: block-end;
+    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+  }
+}
+
+/* Fallback placement when CSS Anchor Positioning is unsupported */
+@supports not ((position-area: block-end) and (anchor-name: --a)) {
+  .waypoint-popover {
+    position: absolute;
+    left: var(--wp-x, 50%);
+    top: var(--wp-y, 50%);
+    transform: translate(-50%, 18px);
+  }
+
+  .waypoint-popover--inline-start {
+    transform: translate(-12%, 18px);
+  }
+
+  .waypoint-popover--inline-end {
+    transform: translate(-88%, 18px);
+  }
+
+  .waypoint-popover--block-start {
+    transform: translate(-50%, calc(-100% - 18px));
+  }
+
+  .waypoint-popover--block-start.waypoint-popover--inline-start {
+    transform: translate(-12%, calc(-100% - 18px));
+  }
+
+  .waypoint-popover--block-start.waypoint-popover--inline-end {
+    transform: translate(-88%, calc(-100% - 18px));
+  }
+}
+
+@media (max-width: 639px) {
+  .waypoint-popover {
+    position: static;
+    transform: none;
+    inline-size: 100%;
+    margin-block-start: 0.75rem;
+  }
+}
+
+.waypoint-popover-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.waypoint-popover-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.waypoint-popover-title {
+  font-family: var(--font-serif);
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.2;
+  margin-block-end: 0;
+  color: var(--ink-primary);
+}
+
+.waypoint-state-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  align-self: flex-start;
+  padding: 0.14rem 0.48rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 0;
+  background-color: var(--bg-parchment);
+  color: var(--ink-primary);
+}
+
+.waypoint-state-badge--dormant {
+  border: 1px dashed var(--border-stone);
+  color: var(--ink-secondary);
+}
+
+.waypoint-state-badge--in_progress {
+  border: 1px solid var(--accent-ochre);
+  color: var(--accent-ochre);
+}
+
+.waypoint-state-badge--bloomed {
+  border: 1px solid var(--accent-ochre);
+  background-color: var(--bg-bone);
+  color: var(--accent-ochre);
+}
+
+.waypoint-popover-close {
+  min-inline-size: 30px;
+  min-block-size: 30px;
+  padding: 0.15rem 0.45rem;
+  background-color: var(--bg-parchment);
+  border: 1px solid var(--border-stone);
+  border-radius: 0;
+  color: var(--ink-primary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.waypoint-popover-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.waypoint-popover-progress-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.76rem;
+  color: var(--ink-primary);
+}
+
+.waypoint-popover-meter {
+  inline-size: 100%;
+  block-size: 6px;
+  accent-color: var(--accent-ochre);
+}
+
+.waypoint-popover-metrics {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.73rem;
+  color: var(--ink-secondary);
+  margin-block-end: 0;
+}
+
+.waypoint-popover-lenses {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.waypoint-lens-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.16rem 0.45rem;
+  background-color: var(--bg-parchment);
+  border: 1px solid var(--border-stone);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.7rem;
+  color: var(--ink-primary);
+}
+
+.waypoint-popover-teaser {
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--ink-secondary);
+  padding: 0.45rem 0.6rem;
+  background-color: var(--bg-parchment);
+  border-inline-start: 2px solid var(--accent-ochre);
+  margin-block-end: 0;
+}
+
+.waypoint-popover-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding-block-start: 0.2rem;
+}
+
+.waypoint-cta-btn {
+  width: 100%;
+  min-block-size: 36px;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.74rem;
+  gap: 0.45rem;
+}
+
+.waypoint-cta-seal {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 0.08rem 0.35rem;
+  border: 1px solid currentColor;
+}
+
+.trail-legend-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding-block-start: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.73rem;
+  color: var(--ink-secondary);
+}
+
+.trail-legend-items {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.trail-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* ==========================================================================
+   Accessible Chapter List Table (responsive-table & accessibility guides)
+   ========================================================================== */
+
+.trail-chapter-list-section {
+  background-color: var(--bg-ivory);
+  border: 1px solid var(--border-stone);
+  border-inline-start: 4px solid var(--accent-slate-blue);
+  border-radius: 0;
+  padding: 1.25rem 1.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.trail-list-filters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.trail-status-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.trail-filter-pill {
+  min-block-size: 32px;
+  padding: 0.32rem 0.7rem;
+  background-color: var(--bg-parchment);
+  color: var(--ink-primary);
+  border: 1px solid var(--border-stone);
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.trail-filter-pill[aria-pressed="true"] {
+  background-color: var(--ink-primary);
+  color: var(--bg-ivory);
+  border-color: var(--ink-primary);
+}
+
+.trail-table-scroll-region {
+  overflow: auto;
+  max-inline-size: 100%;
+  max-block-size: min(560px, 75vh);
+  container-type: inline-size;
+  border: 1px solid var(--border-stone);
+  background-color: var(--bg-parchment);
+}
+
+.trail-chapter-table {
+  inline-size: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.86rem;
+  --col-leg: "Trail Leg";
+  --col-status: "Status";
+  --col-progress: "Verse Progress";
+  --col-perf: "Best Performance";
+  --col-lenses: "Companion Lenses";
+  --col-actions: "Actions";
+}
+
+.trail-chapter-table caption {
+  text-align: start;
+  padding: 0.65rem 0.85rem;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+  background-color: var(--bg-ivory);
+  border-block-end: 1px solid var(--border-stone);
+}
+
+.trail-chapter-table thead {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+}
+
+.trail-chapter-table thead th {
+  padding: 0.6rem 0.8rem;
+  text-align: start;
+  font-family: var(--font-mono);
+  font-size: 0.71rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+  background-color: var(--bg-bone);
+  border-block-end: 1px solid var(--border-stone);
+  white-space: nowrap;
+}
+
+.trail-chapter-table tbody th,
+.trail-chapter-table tbody td {
+  padding: 0.65rem 0.8rem;
+  text-align: start;
+  border-block-end: 1px solid var(--border-stone);
+  background-color: var(--bg-ivory);
+  vertical-align: middle;
+}
+
+.trail-chapter-table tbody th {
+  position: sticky;
+  inset-inline-start: 0;
+  z-index: 1;
+  font-family: var(--font-serif);
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--ink-primary);
+  white-space: nowrap;
+}
+
+.trail-table-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+  color: var(--ink-primary);
+  white-space: nowrap;
+}
+
+.trail-table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.trail-table-action-btn {
+  min-block-size: 30px;
+  padding: 0.28rem 0.6rem;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+/* Container-query stacked table cards on narrow containers (<640px) per responsive-table guide */
+@container (width < 640px) {
+  .trail-chapter-table,
+  .trail-chapter-table thead,
+  .trail-chapter-table tbody,
+  .trail-chapter-table tr,
+  .trail-chapter-table th,
+  .trail-chapter-table td {
+    display: block;
+  }
+
+  .trail-chapter-table thead {
+    display: none;
+  }
+
+  .trail-chapter-table tbody tr {
+    margin: 0.65rem;
+    border: 1px solid var(--border-stone);
+  }
+
+  .trail-chapter-table tbody th {
+    position: sticky;
+    inset-block-start: 0;
+    background-color: var(--bg-bone);
+  }
+
+  .trail-chapter-table tbody td::before {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-inline-end: 0.45rem;
+  }
+
+  .trail-chapter-table tbody td:nth-child(2)::before {
+    content: var(--col-leg) ": ";
+  }
+
+  .trail-chapter-table tbody td:nth-child(3)::before {
+    content: var(--col-status) ": ";
+  }
+
+  .trail-chapter-table tbody td:nth-child(4)::before {
+    content: var(--col-progress) ": ";
+  }
+
+  .trail-chapter-table tbody td:nth-child(5)::before {
+    content: var(--col-perf) ": ";
+  }
+
+  .trail-chapter-table tbody td:nth-child(6)::before {
+    content: var(--col-lenses) ": ";
+  }
+
+  .trail-chapter-table tbody td:nth-child(7)::before {
+    content: var(--col-actions) ": ";
+  }
+}
+
+/* ==========================================================================
+   Focus Visibility & Forced Colors Mode (accessibility & color guides)
+   ========================================================================== */
+
+.atlas-playable-book-btn:focus-visible,
+.trail-toolbar-btn:focus-visible,
+.trail-clearing-select:focus-visible,
+.trail-leg-pill:focus-visible,
+.waypoint-node-btn:focus-visible,
+.waypoint-popover-close:focus-visible,
+.trail-filter-pill:focus-visible,
+.trail-table-scroll-region:focus-visible,
+.trail-table-action-btn:focus-visible {
+  outline: 2px solid var(--accent-terracotta);
+  outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  .trail-masthead,
+  .trail-atlas-section,
+  .trail-clearing-section,
+  .trail-chapter-list-section,
+  .trail-stage-frame,
+  .waypoint-popover,
+  .atlas-biome-card {
+    border-color: CanvasText;
+  }
+
+  .atlas-biome-card--active,
+  .atlas-playable-book-btn[aria-pressed="true"],
+  .trail-toolbar-btn[aria-pressed="true"],
+  .trail-toolbar-btn[aria-expanded="true"],
+  .trail-leg-pill[aria-pressed="true"],
+  .trail-filter-pill[aria-pressed="true"],
+  .waypoint-node-btn[aria-expanded="true"] {
+    border-color: Highlight;
+    outline: 2px solid Highlight;
+  }
+
+  .trail-toolbar-sep {
+    border-inline-start-color: CanvasText;
+  }
+
+  .waypoint-node-btn--dormant,
+  .atlas-book-chip--veiled {
+    border-color: GrayText;
+  }
+
+  .waypoint-node-btn--bloomed,
+  .waypoint-node-btn--in_progress {
+    border-color: ButtonText;
+  }
+}

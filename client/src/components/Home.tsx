@@ -95,6 +95,31 @@ const Home: React.FC = () => {
 
           <article className="feature-card">
             <h3>
+              <Link to="/trail" className="card-link">
+                Living Trail &amp; Companion
+              </Link>
+            </h3>
+            <p>
+              Walk the 16-bit scripture pilgrimage across Genesis and Psalms to bloom chapter
+              lanterns and unlock multi-lens Companion notes
+            </p>
+            <footer className="feature-card-footer feature-card-footer-interactive">
+              <div className="feature-card-actions">
+                <Link to="/trail?book=Genesis" className="feature-card-chip">
+                  Genesis
+                </Link>
+                <Link to="/trail?book=Psalms" className="feature-card-chip">
+                  Psalms
+                </Link>
+              </div>
+              <span className="feature-card-cue" aria-hidden="true">
+                Explore trail →
+              </span>
+            </footer>
+          </article>
+
+          <article className="feature-card">
+            <h3>
               <Link to="/typing?mode=book" className="card-link">
                 Verse Selection
               </Link>
