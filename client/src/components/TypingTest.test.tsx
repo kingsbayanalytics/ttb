@@ -1,7 +1,14 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '../test-utils';
 import TypingTest from './TypingTest';
-import { VerseService, ProgressService, AuthService, MemoryService, PlanService } from '../services/api';
+import {
+  VerseService,
+  ProgressService,
+  AuthService,
+  MemoryService,
+  PlanService,
+  CompanionService,
+} from '../services/api';
 
 const mockVerse = {
   _id: '1',
@@ -43,6 +50,11 @@ jest.mock('../services/api', () => ({
     getCustomPlanDetail: jest.fn(),
     updateCustomPlan: jest.fn(),
   },
+  CompanionService: {
+    getChapterCompanion: jest.fn(),
+    getBookGuide: jest.fn(),
+    searchCompanion: jest.fn(),
+  },
 }));
 
 describe('TypingTest', () => {
@@ -74,6 +86,48 @@ describe('TypingTest', () => {
     (AuthService.getCurrentUser as jest.Mock).mockReturnValue(null);
     (MemoryService.getDeck as jest.Mock).mockResolvedValue([]);
     (MemoryService.saveVerse as jest.Mock).mockResolvedValue({});
+    (CompanionService.getChapterCompanion as jest.Mock).mockResolvedValue({
+      workId: 'web-bible',
+      book: 'Psalms',
+      chapter: 23,
+      unlocked: true,
+      progress: {
+        completedVerses: 6,
+        totalVerses: 6,
+        state: 'bloomed',
+        bestWPM: 70,
+        bestAccuracy: 99,
+        unlockedAt: '2026-11-20T00:00:00.000Z',
+      },
+      lensCounts: { 'hoodoo-folk': 1, 'historical-classic': 1, community: 0 },
+      lenses: {
+        'hoodoo-folk': [
+          {
+            id: 'mock-ps23',
+            upsertKey: 'web-bible:Psalms:23:chapter-companion:hoodoo-folk:mock:0',
+            workId: 'web-bible',
+            sectionKey: 'PSA',
+            book: 'Psalms',
+            chapter: 23,
+            entryType: 'chapter-companion',
+            lens: 'hoodoo-folk',
+            visibility: 'public-domain',
+            sortOrder: 0,
+            title: 'Psalm 23 Folk Study Sample',
+            summary: 'Sample summary.',
+            body: 'Sample body.',
+            purposes: [],
+            indexPurposes: [],
+            ritualTags: [],
+            citedVerses: [],
+            dailySchedule: [],
+            source: { sourceId: 'mock', title: 'Public-Domain Sample' },
+          },
+        ],
+        'historical-classic': [],
+        community: [],
+      },
+    });
   });
 
   it('should render loading state initially, then the verse', async () => {
@@ -1037,5 +1091,408 @@ describe('TypingTest', () => {
     } finally {
       useLocationSpy.mockRestore();
     }
+  });
+
+  it('deep-links /typing?book=Psalms&chapter=23 via VerseService.getNextVerse(book, { chapter }) and starts at next untyped verse', async () => {
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue({ _id: 'user123' });
+    const router = require('react-router-dom');
+    const useLocationSpy = jest.spyOn(router, 'useLocation').mockReturnValue({
+      pathname: '/typing',
+      search: '?book=Psalms&chapter=23',
+      hash: '',
+      state: null,
+      key: 'deep-link-ch23',
+    });
+
+    const psalm23v4 = {
+      _id: 'ps23-4',
+      verseOrder: 13943,
+      book: 'Psalms',
+      chapter: 23,
+      verse: 4,
+      text: 'Even though I walk through the valley of the shadow of death.',
+      characters: 61,
+      words: 12,
+    };
+    const psalm23v5 = {
+      _id: 'ps23-5',
+      verseOrder: 13944,
+      book: 'Psalms',
+      chapter: 23,
+      verse: 5,
+      text: 'You prepare a table before me.',
+      characters: 30,
+      words: 6,
+    };
+
+    (VerseService.getNextVerse as jest.Mock).mockResolvedValueOnce({
+      complete: false,
+      chapterComplete: false,
+      verse: psalm23v4,
+    });
+    (VerseService.getVerseByOrder as jest.Mock).mockResolvedValueOnce(psalm23v5);
+
+    try {
+      render(<TypingTest />);
+
+      const verseDisplay = await screen.findByTestId('verse-display', {}, { timeout: 2000 });
+      expect(verseDisplay).toHaveTextContent(psalm23v4.text);
+      expect(VerseService.getNextVerse).toHaveBeenCalledWith('Psalms', { chapter: 23 });
+
+      const textarea = (await screen.findByPlaceholderText(
+        'Start typing the verse above...',
+        {},
+        { timeout: 2000 }
+      )) as HTMLTextAreaElement;
+      fireEvent.change(textarea, { target: { value: psalm23v4.text } });
+
+      await waitFor(() => {
+        expect(VerseService.getVerseByOrder).toHaveBeenCalledWith(13944);
+        expect(screen.getByTestId('verse-display')).toHaveTextContent(psalm23v5.text);
+      });
+    } finally {
+      useLocationSpy.mockRestore();
+    }
+  });
+
+  it('preserves .typing-input-inline focus and renders quiet Chapter Bloom whisper pill without auto-opening drawer in Auto-Advance', async () => {
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue({ _id: 'user123' });
+    const router = require('react-router-dom');
+    const useLocationSpy = jest.spyOn(router, 'useLocation').mockReturnValue({
+      pathname: '/typing',
+      search: '?book=Psalms&chapter=23',
+      hash: '',
+      state: null,
+      key: 'bloom-autoadvance',
+    });
+
+    const ps23v6 = {
+      _id: 'ps23-6',
+      verseOrder: 13945,
+      book: 'Psalms',
+      chapter: 23,
+      verse: 6,
+      text: 'Surely goodness and loving kindness shall follow me.',
+      characters: 52,
+      words: 8,
+    };
+    const ps24v1 = {
+      _id: 'ps24-1',
+      verseOrder: 13946,
+      book: 'Psalms',
+      chapter: 24,
+      verse: 1,
+      text: 'The earth is Yahweh’s, with its fullness.',
+      characters: 41,
+      words: 7,
+    };
+
+    (VerseService.getNextVerse as jest.Mock).mockResolvedValueOnce({
+      complete: false,
+      chapterComplete: false,
+      verse: ps23v6,
+    });
+    (VerseService.getVerseByOrder as jest.Mock).mockResolvedValueOnce(ps24v1);
+    (ProgressService.submitResult as jest.Mock).mockResolvedValueOnce({
+      result: { _id: 'r1' },
+      progress: { _id: 'p1', completed: true },
+      chapterJustUnlocked: {
+        workId: 'web-bible',
+        book: 'Psalms',
+        chapter: 23,
+        totalVerses: 6,
+        unlockedAt: '2026-11-20T00:00:00.000Z',
+        companionCount: 3,
+        availableLenses: ['hoodoo-folk', 'historical-classic', 'community'],
+      },
+    });
+
+    try {
+      render(<TypingTest />);
+
+      const textarea = (await screen.findByPlaceholderText(
+        'Start typing the verse above...',
+        {},
+        { timeout: 2000 }
+      )) as HTMLTextAreaElement;
+      textarea.focus();
+      expect(document.activeElement).toBe(textarea);
+
+      // Complete final verse of Psalm 23
+      fireEvent.change(textarea, { target: { value: ps23v6.text } });
+
+      const whisperPill = await screen.findByTestId(
+        'chapter-bloom-whisper-pill',
+        {},
+        { timeout: 2000 }
+      );
+      expect(whisperPill).toHaveTextContent('Psalm 23 Bloomed');
+      expect(whisperPill).toHaveTextContent('Companion Unlocked');
+
+      // Polite atomic live region wraps the whisper pill
+      const liveRegion = screen.getByTestId('chapter-bloom-live-region');
+      expect(liveRegion).toHaveAttribute('aria-live', 'polite');
+      expect(liveRegion).toHaveAttribute('aria-atomic', 'true');
+
+      // Drawer NEVER auto-opens, and keyboard focus stays strictly inside .typing-input-inline!
+      expect(screen.queryByTestId('companion-drawer')).not.toBeInTheDocument();
+      const activeInput = screen.getByPlaceholderText('Start typing the verse above...');
+      expect(activeInput).toHaveClass('typing-input-inline');
+      expect(document.activeElement).toBe(activeInput);
+
+      // Clicking "Open Reading Room" lazy-mounts CompanionDrawer on user cadence
+      fireEvent.click(screen.getByTestId('chapter-bloom-open-btn'));
+      const drawer = await screen.findByTestId('companion-drawer', {}, { timeout: 2000 });
+      expect(drawer).toHaveTextContent('Psalm 23');
+    } finally {
+      useLocationSpy.mockRestore();
+    }
+  });
+
+  it('queues multiple chapter blooms into a deduplicated Session Harvest Strip', async () => {
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue({ _id: 'user123' });
+    const router = require('react-router-dom');
+    const useLocationSpy = jest.spyOn(router, 'useLocation').mockReturnValue({
+      pathname: '/typing',
+      search: '?book=Psalms&chapter=23',
+      hash: '',
+      state: null,
+      key: 'multi-bloom-queue',
+    });
+
+    const ps23v6 = {
+      _id: 'ps23-6',
+      verseOrder: 13945,
+      book: 'Psalms',
+      chapter: 23,
+      verse: 6,
+      text: 'Goodness and mercy.',
+      characters: 19,
+      words: 3,
+    };
+    const ps24v10 = {
+      _id: 'ps24-10',
+      verseOrder: 13955,
+      book: 'Psalms',
+      chapter: 24,
+      verse: 10,
+      text: 'Who is this King of glory?',
+      characters: 26,
+      words: 6,
+    };
+    const ps25v1 = {
+      _id: 'ps25-1',
+      verseOrder: 13956,
+      book: 'Psalms',
+      chapter: 25,
+      verse: 1,
+      text: 'To you, Yahweh, I lift up my soul.',
+      characters: 34,
+      words: 8,
+    };
+
+    (VerseService.getNextVerse as jest.Mock).mockResolvedValueOnce({
+      complete: false,
+      chapterComplete: false,
+      verse: ps23v6,
+    });
+    (VerseService.getVerseByOrder as jest.Mock)
+      .mockResolvedValueOnce(ps24v10)
+      .mockResolvedValueOnce(ps25v1);
+
+    (ProgressService.submitResult as jest.Mock)
+      .mockResolvedValueOnce({
+        result: { _id: 'r1' },
+        progress: { _id: 'p1', completed: true },
+        chapterJustUnlocked: {
+          workId: 'web-bible',
+          book: 'Psalms',
+          chapter: 23,
+          totalVerses: 6,
+          unlockedAt: '2026-11-20T00:00:00.000Z',
+          companionCount: 3,
+          availableLenses: ['hoodoo-folk'],
+        },
+      })
+      .mockResolvedValueOnce({
+        result: { _id: 'r2' },
+        progress: { _id: 'p2', completed: true },
+        chapterJustUnlocked: {
+          workId: 'web-bible',
+          book: 'Psalms',
+          chapter: 24,
+          totalVerses: 10,
+          unlockedAt: '2026-11-20T00:01:00.000Z',
+          companionCount: 2,
+          availableLenses: ['hoodoo-folk'],
+        },
+      });
+
+    try {
+      render(<TypingTest />);
+
+      const textarea = (await screen.findByPlaceholderText(
+        'Start typing the verse above...',
+        {},
+        { timeout: 2000 }
+      )) as HTMLTextAreaElement;
+
+      // Unlock #1: Psalm 23
+      fireEvent.change(textarea, { target: { value: ps23v6.text } });
+      await waitFor(() => {
+        expect(screen.getByTestId('verse-display')).toHaveTextContent(ps24v10.text);
+      });
+
+      // Unlock #2: Psalm 24
+      fireEvent.change(textarea, { target: { value: ps24v10.text } });
+
+      const harvestStrip = await screen.findByTestId(
+        'session-harvest-strip',
+        {},
+        { timeout: 2000 }
+      );
+      expect(harvestStrip).toHaveTextContent('✦ 2 Chapters Unlocked This Session');
+      expect(screen.getByTestId('session-harvest-chip-Psalms-23')).toHaveTextContent('Psalm 23');
+      expect(screen.getByTestId('session-harvest-chip-Psalms-24')).toHaveTextContent('Psalm 24');
+    } finally {
+      useLocationSpy.mockRestore();
+    }
+  });
+
+  it('shows Zen Mode unlock chip in .zen-topbar and enforces Escape precedence (closes CompanionDrawer before exiting Zen Mode)', async () => {
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue({ _id: 'user123' });
+    const router = require('react-router-dom');
+    const useLocationSpy = jest.spyOn(router, 'useLocation').mockReturnValue({
+      pathname: '/typing',
+      search: '?book=Psalms&chapter=23',
+      hash: '',
+      state: null,
+      key: 'zen-escape-precedence',
+    });
+
+    const ps23v6 = {
+      _id: 'ps23-6',
+      verseOrder: 13945,
+      book: 'Psalms',
+      chapter: 23,
+      verse: 6,
+      text: 'My cup runs over.',
+      characters: 17,
+      words: 4,
+    };
+    const ps24v1 = {
+      _id: 'ps24-1',
+      verseOrder: 13946,
+      book: 'Psalms',
+      chapter: 24,
+      verse: 1,
+      text: 'The earth is Yahweh’s.',
+      characters: 22,
+      words: 4,
+    };
+
+    (VerseService.getNextVerse as jest.Mock).mockResolvedValueOnce({
+      complete: false,
+      chapterComplete: false,
+      verse: ps23v6,
+    });
+    (VerseService.getVerseByOrder as jest.Mock).mockResolvedValueOnce(ps24v1);
+    (ProgressService.submitResult as jest.Mock).mockResolvedValueOnce({
+      result: { _id: 'r1' },
+      progress: { _id: 'p1', completed: true },
+      chapterJustUnlocked: {
+        workId: 'web-bible',
+        book: 'Psalms',
+        chapter: 23,
+        totalVerses: 6,
+        unlockedAt: '2026-11-20T00:00:00.000Z',
+        companionCount: 3,
+        availableLenses: ['hoodoo-folk'],
+      },
+    });
+
+    try {
+      render(<TypingTest />);
+      await screen.findByTestId('verse-display', {}, { timeout: 2000 });
+
+      // Enter Zen Mode
+      fireEvent.click(screen.getByTestId('enter-zen-button'));
+      expect(document.documentElement.dataset.zen).toBe('true');
+
+      const textarea = screen.getByPlaceholderText('Start typing the verse above...');
+      textarea.focus();
+
+      // Complete Psalm 23 in Zen Mode
+      fireEvent.change(textarea, { target: { value: ps23v6.text } });
+
+      const zenChip = await screen.findByTestId('zen-bloom-chip', {}, { timeout: 2000 });
+      expect(zenChip).toHaveTextContent('✦ Psalm 23 Unlocked (1)');
+      expect(screen.queryByTestId('companion-drawer')).not.toBeInTheDocument();
+      expect(document.activeElement).toBe(
+        screen.getByPlaceholderText('Start typing the verse above...')
+      );
+
+      // Click Zen chip to open CompanionDrawer while staying in Zen Mode
+      fireEvent.click(zenChip);
+      const drawer = await screen.findByTestId('companion-drawer', {}, { timeout: 2000 });
+      expect(drawer).toBeInTheDocument();
+      expect(document.documentElement.dataset.zen).toBe('true');
+
+      // First Escape closes CompanionDrawer WITHOUT exiting Zen Mode
+      fireEvent.keyDown(drawer, { key: 'Escape' });
+      await waitFor(() => {
+        expect(screen.queryByTestId('companion-drawer')).not.toBeInTheDocument();
+      });
+      expect(document.documentElement.dataset.zen).toBe('true');
+      expect(screen.getByTestId('zen-topbar')).toBeInTheDocument();
+
+      // Second Escape (with drawer closed) exits Zen Mode
+      fireEvent.keyDown(window, { key: 'Escape' });
+      await waitFor(() => {
+        expect(document.documentElement.dataset.zen).toBeUndefined();
+      });
+    } finally {
+      useLocationSpy.mockRestore();
+    }
+  });
+
+  it('renders inline Chapter Bloom Banner inside .results-container when !autoAdvance && !zenMode', async () => {
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue({ _id: 'user123' });
+    (ProgressService.submitResult as jest.Mock).mockResolvedValueOnce({
+      result: { _id: 'r1' },
+      progress: { _id: 'p1', completed: true },
+      chapterJustUnlocked: {
+        workId: 'web-bible',
+        book: 'Genesis',
+        chapter: 1,
+        totalVerses: 31,
+        unlockedAt: '2026-11-20T00:00:00.000Z',
+        companionCount: 2,
+        availableLenses: ['hoodoo-folk', 'historical-classic'],
+      },
+    });
+
+    render(<TypingTest />);
+    const textarea = (await screen.findByPlaceholderText(
+      'Start typing the verse above...',
+      {},
+      { timeout: 2000 }
+    )) as HTMLTextAreaElement;
+
+    fireEvent.change(textarea, { target: { value: mockVerse.text } });
+
+    expect(
+      await screen.findByRole('heading', { name: /Verse Completed!/i }, { timeout: 2000 })
+    ).toBeInTheDocument();
+
+    const banner = await screen.findByTestId('chapter-bloom-banner', {}, { timeout: 2000 });
+    expect(banner).toHaveTextContent('Genesis 1');
+    expect(screen.getByTestId('results-open-companion-btn')).toHaveTextContent(
+      'Open Companion Reading Room'
+    );
+    expect(screen.getByTestId('results-view-trail-link')).toHaveAttribute(
+      'href',
+      '/trail?book=Genesis'
+    );
   });
 });

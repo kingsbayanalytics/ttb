@@ -4,6 +4,11 @@ import {
   ActivityPoint,
   BookChapterInfo,
   BookChapterProgress,
+  BookGuideResponse,
+  ChapterCompanionResponse,
+  ChapterJustUnlocked,
+  CompanionSearchParams,
+  CompanionSearchResponse,
   CoverageData,
   CuratedPlanDetail,
   CuratedPlanSummary,
@@ -12,9 +17,12 @@ import {
   MemoryItem,
   MemoryStage,
   NextVerseResult,
+  PrimaryCompanionLens,
   Progress,
   Result,
   ResultHistoryItem,
+  TrailBookResponse,
+  TrailOverviewResponse,
   TrendPoint,
   TrendRange,
   User,
@@ -26,6 +34,23 @@ import { CANONICAL_BOOKS } from '../data/books';
 import { CURATED_PLANS, CuratedVerseRef, getCuratedPlanById } from '../data/curatedCatalog';
 import { mockVerses } from '../data/mockVerses';
 import { mockProgress, mockProgressSummary } from '../data/mockProgress';
+import {
+  getMockBookGuide,
+  getMockChapterCompanion,
+  getMockCompanionSearch,
+  getMockTrailBook,
+  getMockTrailOverview,
+} from '../data/mockCompanion';
+
+export interface NextVerseChapterResult extends NextVerseResult {
+  chapterComplete?: boolean;
+}
+
+export interface SubmitResultResponse {
+  result: Result;
+  progress: Progress;
+  chapterJustUnlocked?: ChapterJustUnlocked | null;
+}
 
 // Configurable API settings 
 const API_URL =
@@ -242,25 +267,47 @@ export const VerseService = {
     }
   },
 
-  // Get next untyped verse (overall or scoped to a book)
-  getNextVerse: async (book?: string, afterVerseOrder?: number): Promise<NextVerseResult> => {
+  // Get next untyped verse (overall, scoped to a book, or scoped to a book + chapter)
+  getNextVerse: async (
+    book?: string,
+    afterVerseOrderOrOptions?: number | { afterVerseOrder?: number; chapter?: number },
+    chapterArg?: number
+  ): Promise<NextVerseChapterResult> => {
+    const afterVerseOrder =
+      typeof afterVerseOrderOrOptions === 'number'
+        ? afterVerseOrderOrOptions
+        : afterVerseOrderOrOptions?.afterVerseOrder;
+    const chapter =
+      chapterArg !== undefined
+        ? chapterArg
+        : typeof afterVerseOrderOrOptions === 'object' && afterVerseOrderOrOptions !== null
+        ? afterVerseOrderOrOptions.chapter
+        : undefined;
+
     try {
       if (USE_MOCK_DATA) {
-        const candidates = book
+        let candidates = book
           ? mockVerses.filter((v) => v.book.toLowerCase() === book.toLowerCase())
           : mockVerses;
+        if (chapter !== undefined) {
+          candidates = candidates.filter((v) => v.chapter === chapter);
+        }
         const sorted = [...candidates].sort((a, b) => a.verseOrder - b.verseOrder);
         const nextAfter =
           afterVerseOrder !== undefined
             ? sorted.find((v) => v.verseOrder > afterVerseOrder) ?? sorted[0]
             : sorted[0];
-        return sorted.length > 0
-          ? { complete: false, verse: nextAfter }
-          : { complete: true, verse: null };
+        if (sorted.length === 0) {
+          return { complete: true, verse: null };
+        }
+        return chapter !== undefined
+          ? { complete: false, chapterComplete: false, verse: nextAfter }
+          : { complete: false, verse: nextAfter };
       }
 
       const params: Record<string, string | number> = {};
       if (book) params.book = book;
+      if (chapter !== undefined) params.chapter = chapter;
       if (afterVerseOrder !== undefined) params.afterVerseOrder = afterVerseOrder;
       const response = await api.get('/verses/next', {
         params: Object.keys(params).length > 0 ? params : undefined,
@@ -527,7 +574,7 @@ export const ProgressService = {
   },
 
   // Submit a typing test result
-  submitResult: async (result: Omit<Result, '_id'>): Promise<{ result: Result, progress: Progress }> => {
+  submitResult: async (result: Omit<Result, '_id'>): Promise<SubmitResultResponse> => {
     try {
       const response = await api.post(`/progress/result/${result.verse}`, result);
       return response.data.data;
@@ -552,7 +599,7 @@ export const ProgressService = {
         lastAttemptDate: new Date().toISOString()
       };
       
-      return { result: mockResult, progress: mockProgress };
+      return { result: mockResult, progress: mockProgress, chapterJustUnlocked: null };
     }
   },
 
@@ -1004,6 +1051,126 @@ export const PlanService = {
         data: response.data.data,
       };
     } catch (error) {
+      handleApiError(error);
+      throw error;
+    }
+  },
+};
+
+export const CompanionService = {
+  getChapterCompanion: async (
+    book: string,
+    chapter: number,
+    workId = 'web-bible',
+    lens?: PrimaryCompanionLens
+  ): Promise<ChapterCompanionResponse> => {
+    try {
+      if (USE_MOCK_DATA) {
+        return getMockChapterCompanion(book, chapter, workId);
+      }
+      const params: Record<string, string> = { workId };
+      if (lens) {
+        params.lens = lens;
+      }
+      const response = await api.get(
+        `/companion/${encodeURIComponent(book)}/${chapter}`,
+        { params }
+      );
+      return response.data.data;
+    } catch (error: any) {
+      if (!error?.response) {
+        return getMockChapterCompanion(book, chapter, workId);
+      }
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  getBookGuide: async (
+    book: string,
+    workId = 'web-bible'
+  ): Promise<BookGuideResponse> => {
+    try {
+      if (USE_MOCK_DATA) {
+        return getMockBookGuide(book, workId);
+      }
+      const response = await api.get(`/companion/${encodeURIComponent(book)}/guide`, {
+        params: { workId },
+      });
+      return response.data.data;
+    } catch (error: any) {
+      if (!error?.response) {
+        return getMockBookGuide(book, workId);
+      }
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  searchCompanion: async (
+    params: CompanionSearchParams = {}
+  ): Promise<CompanionSearchResponse> => {
+    try {
+      if (USE_MOCK_DATA) {
+        return getMockCompanionSearch(params);
+      }
+      const queryParams: Record<string, string | number> = {
+        workId: params.workId || 'web-bible',
+      };
+      if (params.book) queryParams.book = params.book;
+      if (params.lens) queryParams.lens = params.lens;
+      if (params.tag) queryParams.tag = params.tag;
+      if (params.q) queryParams.q = params.q;
+      if (params.page !== undefined) queryParams.page = params.page;
+      if (params.limit !== undefined) queryParams.limit = params.limit;
+
+      const response = await api.get('/companion/search', { params: queryParams });
+      return response.data.data;
+    } catch (error: any) {
+      if (!error?.response) {
+        return getMockCompanionSearch(params);
+      }
+      handleApiError(error);
+      throw error;
+    }
+  },
+};
+
+export const TrailService = {
+  getOverview: async (workId = 'web-bible'): Promise<TrailOverviewResponse> => {
+    try {
+      if (USE_MOCK_DATA) {
+        return getMockTrailOverview(workId);
+      }
+      const response = await api.get('/trail/overview', {
+        params: { workId },
+      });
+      return response.data.data;
+    } catch (error: any) {
+      if (!error?.response) {
+        return getMockTrailOverview(workId);
+      }
+      handleApiError(error);
+      throw error;
+    }
+  },
+
+  getBookTrail: async (
+    book: string,
+    workId = 'web-bible'
+  ): Promise<TrailBookResponse> => {
+    try {
+      if (USE_MOCK_DATA) {
+        return getMockTrailBook(book, workId);
+      }
+      const response = await api.get(`/trail/books/${encodeURIComponent(book)}`, {
+        params: { workId },
+      });
+      return response.data.data;
+    } catch (error: any) {
+      if (!error?.response) {
+        return getMockTrailBook(book, workId);
+      }
       handleApiError(error);
       throw error;
     }

@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   BookChapterInfo,
   BookChapterProgress,
+  ChapterJustUnlocked,
   CustomPlanSummary,
   Verse,
   VerseContext,
@@ -21,6 +22,13 @@ import {
   extractTypingErrors,
   recordKeystrokeMismatches,
 } from '../utils/weaknessExtractor';
+import {
+  ChapterBloomBanner,
+  ChapterBloomToast,
+  ZenBloomChip,
+} from './companion/ChapterBloomToast';
+
+const LazyCompanionDrawer = React.lazy(() => import('./companion/CompanionDrawer'));
 
 function formatCompletionPercent(completed: number, total: number): string {
   if (total <= 0 || completed <= 0) return '0%';
@@ -97,10 +105,20 @@ const TypingTest: React.FC = () => {
   } | null>(null);
   const [bookChapterProgress, setBookChapterProgress] = useState<BookChapterProgress | null>(null);
   const [completionRefreshNonce, setCompletionRefreshNonce] = useState<number>(0);
+  const [sessionUnlocks, setSessionUnlocks] = useState<ChapterJustUnlocked[]>([]);
+  const [dismissedUnlockKey, setDismissedUnlockKey] = useState<string | null>(null);
+  const [resultUnlock, setResultUnlock] = useState<ChapterJustUnlocked | null>(null);
+  const [companionDrawerTarget, setCompanionDrawerTarget] = useState<{
+    book: string;
+    chapter: number;
+    workId?: string;
+  } | null>(null);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const bookSelectRef = useRef<HTMLSelectElement>(null);
   const mismatchIndicesRef = useRef<Set<number>>(new Set());
+  const companionOpenRef = useRef<boolean>(false);
+  companionOpenRef.current = companionDrawerTarget !== null;
   const navigate = useNavigate();
   const { user } = useAuthSession();
   const userId = user?._id;
@@ -127,6 +145,7 @@ const TypingTest: React.FC = () => {
         setStartTime(null);
         setEndTime(null);
         setCompleted(false);
+        setResultUnlock(null);
         setWpm(0);
         setAccuracy(0);
 
@@ -141,6 +160,19 @@ const TypingTest: React.FC = () => {
             }
             if (chapterToFetch && afterVerseOrder === undefined) {
               const chapterNum = Number(chapterToFetch);
+              if (userId && !verseNumToFetch) {
+                const nextResult = await VerseService.getNextVerse(bookToFetch, {
+                  chapter: chapterNum,
+                });
+                if (nextResult.complete || !nextResult.verse) {
+                  setError(`No verses found for ${bookToFetch} ${chapterNum}`);
+                  setLoading(false);
+                  return;
+                }
+                data = nextResult.verse;
+                setSelectedVerseNum(String(data.verse));
+                break;
+              }
               const chapterVerses = await VerseService.getVersesByBookAndChapter(
                 bookToFetch,
                 chapterNum
@@ -437,7 +469,7 @@ const TypingTest: React.FC = () => {
     };
   }, [passageFlow, verse?.verseOrder]);
 
-  // Sync Zen Mode with documentElement and Escape shortcut
+  // Sync Zen Mode with documentElement and strict Escape precedence (Drawer closes before Zen Mode)
   useEffect(() => {
     if (zenMode) {
       document.documentElement.dataset.zen = 'true';
@@ -445,7 +477,13 @@ const TypingTest: React.FC = () => {
       delete document.documentElement.dataset.zen;
     }
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && zenMode) {
+      if (e.key !== 'Escape') return;
+      if (companionDrawerTarget) {
+        e.preventDefault();
+        setCompanionDrawerTarget(null);
+        return;
+      }
+      if (zenMode) {
         setZenMode(false);
       }
     };
@@ -454,7 +492,7 @@ const TypingTest: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
       delete document.documentElement.dataset.zen;
     };
-  }, [zenMode]);
+  }, [zenMode, companionDrawerTarget]);
 
   // Fetch live chapter & book completion counts for the current verse
   useEffect(() => {
@@ -558,7 +596,7 @@ const TypingTest: React.FC = () => {
     [activePlan, fetchVerse, selectedBook, verseSelectionMode]
   );
   useEffect(() => {
-    if (verse) {
+    if (verse && !companionOpenRef.current) {
       if (initialMode === 'book' && !selectedBook && bookSelectRef.current) {
         bookSelectRef.current.focus();
       } else if (inputRef.current) {
@@ -671,7 +709,7 @@ const TypingTest: React.FC = () => {
       const duration = Math.max(0, resultEndTime.getTime() - resultStartTime.getTime()); // in milliseconds
       const cps = calculateCps(verse.characters, duration);
 
-      await ProgressService.submitResult({
+      const response = await ProgressService.submitResult({
         user: user?._id || '',
         verse: verse._id,
         verseOrder: verse.verseOrder,
@@ -687,11 +725,58 @@ const TypingTest: React.FC = () => {
         missedWords: extractedErrors?.missedWords ?? [],
       });
       setCompletionRefreshNonce((n) => n + 1);
+
+      const unlocked = response?.chapterJustUnlocked ?? null;
+      if (unlocked) {
+        setSessionUnlocks((prev) => {
+          const key = `${unlocked.book}:${unlocked.chapter}`;
+          if (prev.some((item) => `${item.book}:${item.chapter}` === key)) {
+            return prev;
+          }
+          return [...prev, unlocked];
+        });
+        setDismissedUnlockKey(null);
+        setResultUnlock(unlocked);
+      }
     } catch (err) {
       console.error('Failed to submit result:', err);
       // We'll continue even if result submission fails
     }
   };
+
+  const handleOpenCompanionForUnlock = useCallback((unlock: ChapterJustUnlocked) => {
+    setCompanionDrawerTarget({
+      book: unlock.book,
+      chapter: unlock.chapter,
+      workId: unlock.workId || 'web-bible',
+    });
+  }, []);
+
+  const handleCloseCompanionDrawer = useCallback(() => {
+    setCompanionDrawerTarget(null);
+  }, []);
+
+  const handleDrawerNavigateChapter = useCallback((bookName: string, chapterNum: number) => {
+    setCompanionDrawerTarget((prev) => ({
+      book: bookName,
+      chapter: chapterNum,
+      workId: prev?.workId || 'web-bible',
+    }));
+  }, []);
+
+  const handleDrawerTypeChapter = useCallback(
+    (bookName: string, chapterNum: number) => {
+      setActivePlan(null);
+      setVerseSelectionMode('book');
+      setSelectedBook(bookName);
+      setSelectedChapter(String(chapterNum));
+      setSelectedVerseNum('');
+      setAutoAdvance(true);
+      setPassageFlow(true);
+      fetchVerse('book', bookName, undefined, String(chapterNum), '');
+    },
+    [fetchVerse]
+  );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const nextValue = e.target.value;
@@ -889,14 +974,20 @@ const TypingTest: React.FC = () => {
       {zenMode && (
         <div className="zen-topbar" data-testid="zen-topbar">
           <span className="zen-badge">Zen Mode · Focus Canvas</span>
-          <button
-            type="button"
-            className="secondary-button zen-exit-button"
-            onClick={() => setZenMode(false)}
-            data-testid="exit-zen-button"
-          >
-            Exit Zen (Esc)
-          </button>
+          <div className="zen-topbar-actions">
+            <ZenBloomChip
+              sessionUnlocks={sessionUnlocks}
+              onOpenCompanion={handleOpenCompanionForUnlock}
+            />
+            <button
+              type="button"
+              className="secondary-button zen-exit-button"
+              onClick={() => setZenMode(false)}
+              data-testid="exit-zen-button"
+            >
+              Exit Zen (Esc)
+            </button>
+          </div>
         </div>
       )}
 
@@ -1083,6 +1174,27 @@ const TypingTest: React.FC = () => {
             {lastCompletedVerse.accuracy}% Accuracy · {lastCompletedVerse.seconds}s
           </span>
         </div>
+      )}
+
+      {!zenMode && (autoAdvance || sessionUnlocks.length > 1) && (
+        <ChapterBloomToast
+          sessionUnlocks={sessionUnlocks}
+          dismissedLatest={
+            !autoAdvance ||
+            (sessionUnlocks.length > 0 &&
+              dismissedUnlockKey ===
+                `${sessionUnlocks[sessionUnlocks.length - 1].book}:${
+                  sessionUnlocks[sessionUnlocks.length - 1].chapter
+                }`)
+          }
+          onOpenCompanion={handleOpenCompanionForUnlock}
+          onDismissLatest={() => {
+            if (sessionUnlocks.length > 0) {
+              const latest = sessionUnlocks[sessionUnlocks.length - 1];
+              setDismissedUnlockKey(`${latest.book}:${latest.chapter}`);
+            }
+          }}
+        />
       )}
 
       {playlistFeedback && (
@@ -1327,6 +1439,13 @@ const TypingTest: React.FC = () => {
               </div>
             </div>
 
+            {!autoAdvance && !zenMode && resultUnlock && (
+              <ChapterBloomBanner
+                unlock={resultUnlock}
+                onOpenCompanion={handleOpenCompanionForUnlock}
+              />
+            )}
+
             <div className="results-actions">
               <button onClick={handleTryAnotherVerse} className="primary-button">
                 Try Another Verse
@@ -1362,6 +1481,20 @@ const TypingTest: React.FC = () => {
           </button>
         )}
       </>
+
+      {companionDrawerTarget && (
+        <Suspense fallback={null}>
+          <LazyCompanionDrawer
+            isOpen={true}
+            book={companionDrawerTarget.book}
+            chapter={companionDrawerTarget.chapter}
+            workId={companionDrawerTarget.workId || 'web-bible'}
+            onClose={handleCloseCompanionDrawer}
+            onNavigateChapter={handleDrawerNavigateChapter}
+            onTypeChapter={handleDrawerTypeChapter}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };
