@@ -414,10 +414,12 @@ export const WaypointOverlay: React.FC<WaypointOverlayProps> = ({
               data-testid={`waypoint-btn-${wp.chapter}`}
               data-waypoint-state={data.state}
             >
-              <span className="waypoint-node-glyph" aria-hidden="true">
-                {getStateGlyph(data.state)}
+              <span className="waypoint-node-plaque">
+                <span className="waypoint-node-glyph" aria-hidden="true">
+                  {getStateGlyph(data.state)}
+                </span>
+                <span aria-hidden="true">{wp.chapter}</span>
               </span>
-              <span aria-hidden="true">{wp.chapter}</span>
             </button>
           );
         })}

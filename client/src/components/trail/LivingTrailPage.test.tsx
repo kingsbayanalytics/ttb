@@ -646,4 +646,46 @@ describe('LivingTrailPage, WaypointOverlay & TrailChapterList (Story 12.3)', () 
       consoleErrorSpy.mockRestore();
     }
   });
+
+  it('switches Psalms clearings cleanly under React.StrictMode when starting from an active middle clearing', async () => {
+    (TrailService.getOverview as jest.Mock).mockResolvedValue({
+      ...buildOverviewFixture(),
+      activeTraveler: { biomeId: 'twilight-shepherds-sanctuary', book: 'Psalms', chapter: 23 },
+    });
+    (TrailService.getBookTrail as jest.Mock).mockResolvedValue({
+      ...buildPsalmsTrailFixture(),
+      activeChapter: 27,
+    });
+
+    activeLocationSearch = '';
+    render(
+      <React.StrictMode>
+        <ThemeProvider>
+          <LivingTrailPage />
+        </ThemeProvider>
+      </React.StrictMode>
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: /Psalms · Book I · Psalms 1–41 · Ps\. 15–28/i })
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('waypoint-btn-23')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('trail-clearing-pill-psa-book-1-c1'));
+    expect(
+      screen.getByRole('heading', { name: /Psalms · Book I · Psalms 1–41 · Ps\. 1–14/i })
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('waypoint-btn-1')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('trail-clearing-pill-psa-book-1-c2'));
+    expect(
+      screen.getByRole('heading', { name: /Psalms · Book I · Psalms 1–41 · Ps\. 15–28/i })
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('waypoint-btn-23')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('trail-clearing-pill-psa-book-1-c3'));
+    expect(
+      screen.getByRole('heading', { name: /Psalms · Book I · Psalms 1–41 · Ps\. 29–41/i })
+    ).toBeInTheDocument();
+  });
 });

@@ -411,19 +411,10 @@ export const LivingTrailPage: React.FC = () => {
     [selectedBook, bookTrail?.totalChapters]
   );
 
-  const [resolvedSegment, setResolvedSegment] = useState<ClearingSegment>(() =>
-    buildClearingSegment(selectedBook, activeClearingId, bookTrail?.totalChapters)
+  const resolvedSegment = useMemo<ClearingSegment>(
+    () => buildClearingSegment(selectedBook, activeClearingId, bookTrail?.totalChapters),
+    [selectedBook, activeClearingId, bookTrail?.totalChapters]
   );
-
-  useEffect(() => {
-    setResolvedSegment(
-      buildClearingSegment(selectedBook, activeClearingId, bookTrail?.totalChapters)
-    );
-  }, [selectedBook, activeClearingId, bookTrail?.totalChapters]);
-
-  const handleLayoutResolved = useCallback((segment: ClearingSegment) => {
-    setResolvedSegment(segment);
-  }, []);
 
   const chapters = useMemo<readonly TrailChapterWaypoint[]>(
     () => bookTrail?.chapters ?? [],
@@ -991,14 +982,13 @@ export const LivingTrailPage: React.FC = () => {
         <div className="trail-stage-frame" data-testid="trail-stage-frame">
           <BiomeCanvas
             book={selectedBook}
-            clearingId={resolvedSegment.clearingId}
+            clearingId={activeClearingId}
             chapters={chapters}
             activeChapter={bookTrail?.activeChapter}
             selectedChapter={selectedWaypointChapter}
             bookMastered={bookTrail?.bookMastered ?? false}
             animationPaused={motionPaused}
             className="trail-stage-canvas"
-            onLayoutResolved={handleLayoutResolved}
           />
 
           <WaypointOverlay

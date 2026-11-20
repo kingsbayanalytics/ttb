@@ -502,7 +502,6 @@
   background-color: var(--bg-parchment);
   border: 1px solid var(--border-strong);
   border-radius: 0;
-  image-rendering: pixelated;
 }
 
 .trail-stage-canvas {
@@ -524,78 +523,102 @@
 
 .waypoint-node-btn {
   position: absolute;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -84%);
   pointer-events: auto;
-  min-inline-size: 30px;
-  min-block-size: 30px;
-  padding: 0.12rem 0.32rem;
+  min-inline-size: 40px;
+  min-block-size: 56px;
+  padding: 0;
   display: inline-flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  gap: 0.16rem;
   border-radius: 0;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 0.68rem;
-  font-weight: 700;
-  line-height: 1;
+  background-color: transparent;
+  border: 1px solid transparent;
   cursor: pointer;
-  background-color: color-mix(in oklab, var(--bg-ivory) 88%, transparent);
-  color: var(--ink-primary);
-  border: 1px solid var(--border-strong);
-  transition: background-color 140ms ease, border-color 140ms ease;
 }
 
 @media (pointer: coarse) {
   .waypoint-node-btn {
-    min-inline-size: 36px;
-    min-block-size: 36px;
+    min-inline-size: 44px;
+    min-block-size: 62px;
   }
 }
 
-/* Opt in to subtle hover/active scale strictly when motion is allowed (motion guide) */
+.waypoint-node-plaque {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.16rem;
+  padding: 0.1rem 0.34rem;
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1.1;
+  background-color: color-mix(in oklab, var(--bg-ivory) 92%, transparent);
+  color: var(--ink-primary);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 1px 4px color-mix(in oklab, var(--ink-primary) 18%, transparent);
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+/* Opt in to subtle hover lift strictly when motion is allowed (motion guide) */
 @media (prefers-reduced-motion: no-preference) {
   .waypoint-node-btn {
-    transition: background-color 140ms ease, border-color 140ms ease, transform 140ms ease-out;
+    transition: transform 140ms ease-out;
+  }
+
+  .waypoint-node-plaque {
+    transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease-out;
   }
 
   @media (hover: hover) {
-    .waypoint-node-btn:hover {
-      transform: translate(-50%, -56%);
+    .waypoint-node-btn:hover .waypoint-node-plaque {
+      transform: translateY(-2px);
     }
   }
 }
 
-/* Non-color differentiation per state: dashed = dormant, double/ochre = kindling, solid seal = bloomed */
-.waypoint-node-btn--dormant {
+@media (hover: hover) {
+  .waypoint-node-btn:hover {
+    border-color: color-mix(in oklab, var(--accent-ochre) 65%, transparent);
+  }
+}
+
+/* Non-color differentiation per state on the compact plinth plaque */
+.waypoint-node-btn--dormant .waypoint-node-plaque {
   border-style: dashed;
   border-color: var(--border-stone);
   color: var(--ink-secondary);
 }
 
-.waypoint-node-btn--in_progress {
+.waypoint-node-btn--in_progress .waypoint-node-plaque {
   border: 2px solid var(--accent-ochre);
   background-color: var(--bg-ivory);
   color: var(--ink-primary);
 }
 
-.waypoint-node-btn--bloomed {
+.waypoint-node-btn--bloomed .waypoint-node-plaque {
   border: 2px solid var(--accent-ochre);
   background-color: var(--bg-ivory);
   color: var(--ink-primary);
-  box-shadow: 0 2px 8px color-mix(in oklab, var(--ink-primary) 16%, transparent);
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--ink-primary) 22%, transparent);
 }
 
-.waypoint-node-btn--active-traveler {
+.waypoint-node-btn--active-traveler .waypoint-node-plaque {
   border-block-end-width: 3px;
   border-block-end-color: var(--accent-terracotta);
 }
 
 .waypoint-node-btn[aria-expanded="true"] {
+  z-index: 4;
+}
+
+.waypoint-node-btn[aria-expanded="true"] .waypoint-node-plaque {
   background-color: var(--ink-primary);
   color: var(--bg-ivory);
   border-color: var(--accent-ochre);
-  z-index: 4;
 }
 
 .waypoint-node-glyph {
@@ -1122,7 +1145,7 @@
   .trail-toolbar-btn[aria-expanded="true"],
   .trail-leg-pill[aria-pressed="true"],
   .trail-filter-pill[aria-pressed="true"],
-  .waypoint-node-btn[aria-expanded="true"] {
+  .waypoint-node-btn[aria-expanded="true"] .waypoint-node-plaque {
     border-color: Highlight;
     outline: 2px solid Highlight;
   }
@@ -1131,13 +1154,13 @@
     border-inline-start-color: CanvasText;
   }
 
-  .waypoint-node-btn--dormant,
+  .waypoint-node-btn--dormant .waypoint-node-plaque,
   .atlas-book-chip--veiled {
     border-color: GrayText;
   }
 
-  .waypoint-node-btn--bloomed,
-  .waypoint-node-btn--in_progress {
+  .waypoint-node-btn--bloomed .waypoint-node-plaque,
+  .waypoint-node-btn--in_progress .waypoint-node-plaque {
     border-color: ButtonText;
   }
 }

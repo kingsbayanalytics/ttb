@@ -1,11 +1,11 @@
 /**
- * Typing the Bible v3 — Deterministic 16-Bit Clearing Layouts & Waypoint Geometry
+ * Typing the Bible v3 — Deterministic 16-Bit HD Clearing Layouts & Waypoint Geometry
  *
- * Computes crisp logical coordinates inside a 320x180 16-bit viewBox (clean 2x/3x/4x
- * integer scaling up to 640x360, 960x540, 1280x720) with gentle left-to-right winding
- * Bezier paths, normalized percentage coordinates for `<WaypointOverlay />` alignment,
- * and distinct Genesis ("Eden Root-Garden") vs. Psalms ("Twilight Shepherd's Sanctuary")
- * scenic prop & landmark blueprints.
+ * Computes crisp logical coordinates inside a unified 640x360 HD pixel viewBox
+ * (clean 2x/3x/4x integer scaling up to 1280x720, 1920x1080, 2560x1440) with gentle
+ * left-to-right winding Bezier paths traced onto the Genesis ("Eden Root-Garden") and
+ * Psalms ("Twilight Shepherd's Sanctuary") HD pixel dioramas, plus normalized percentage
+ * coordinates for `<WaypointOverlay />` alignment.
  */
 
 import {
@@ -16,8 +16,8 @@ import {
   getTrailClearingsForBook,
 } from '../../data/trailBiomes';
 
-export const TRAIL_LOGICAL_WIDTH = 320;
-export const TRAIL_LOGICAL_HEIGHT = 180;
+export const TRAIL_LOGICAL_WIDTH = 640;
+export const TRAIL_LOGICAL_HEIGHT = 360;
 export const TRAIL_TILE_SIZE = 16;
 
 export type WaypointState = 'dormant' | 'in_progress' | 'bloomed';
@@ -139,58 +139,48 @@ function hashStringToInt(input: string): number {
 }
 
 /**
- * Generates a gentle two-segment serpentine S-curve flowing left-to-right across
- * the lower-middle clearing (`y` in 78..146), leaving the upper sanctuary band
- * clear for the Hero Landmark, Biome Keeper, cedar herb beds, or sanctuary porch.
+ * Traces the painted S-curve footpath across the 640x360 HD Genesis & Psalms backdrops
+ * while preserving the classic lower-middle meadow band for fallback rendering.
  */
 function buildSerpentineCurves(
   variant: TrailSceneVariant,
   seed: number
 ): readonly CubicBezierSegment[] {
-  const flip = seed % 2 === 0 ? 1 : -1;
-  const yShift = ((seed >> 2) % 5) - 2; // -2..+2 px subtle scenic variety
+  const yShift = ((seed >> 2) % 5) - 2; // -2..+2 px subtle clearing variation
 
   if (variant === 'twilight-shepherds-sanctuary') {
-    // Psalms pasture sits above the twilight creek band (`creekY = 152`), so keep trail y in 74..134
-    const startY = 104 + yShift;
-    const midY = 100 - yShift;
-    const endY = 98 + (flip > 0 ? 4 : -4);
-    const amp = 26 * flip;
-
+    // Psalms footpath enters left meadow (48, 238), winds up past the harp ridge
+    // (320, 188), and meets the Southern Cedar Sanctuary porch steps near (528, 178).
     return [
       {
-        p0: { x: 26, y: startY },
-        p1: { x: 70, y: startY - amp },
-        p2: { x: 118, y: midY + amp * 0.9 },
-        p3: { x: 162, y: midY },
+        p0: { x: 48, y: 238 + yShift },
+        p1: { x: 132, y: 246 + yShift },
+        p2: { x: 222, y: 244 - yShift },
+        p3: { x: 300, y: 196 + yShift },
       },
       {
-        p0: { x: 162, y: midY },
-        p1: { x: 204, y: midY - amp * 0.9 },
-        p2: { x: 248, y: endY + amp * 0.75 },
-        p3: { x: 292, y: endY },
+        p0: { x: 300, y: 196 + yShift },
+        p1: { x: 368, y: 164 - yShift },
+        p2: { x: 454, y: 190 + yShift },
+        p3: { x: 528, y: 178 - yShift },
       },
     ];
   }
 
-  // Genesis Eden Root-Garden: lush meandering red-clay trail across y 82..144
-  const startY = 116 + yShift;
-  const midY = 112 - yShift;
-  const endY = 104 + (flip > 0 ? 6 : -6);
-  const amp = 28 * flip;
-
+  // Genesis Eden Root-Garden: painted clay trail sweeps from (52, 242) clear below
+  // the raised cedar herb beds across (310, 196) and onward toward (552, 184).
   return [
     {
-      p0: { x: 26, y: startY },
-      p1: { x: 72, y: startY + amp },
-      p2: { x: 118, y: midY - amp },
-      p3: { x: 160, y: midY },
+      p0: { x: 52, y: 242 + yShift },
+      p1: { x: 140, y: 248 + yShift },
+      p2: { x: 232, y: 246 - yShift },
+      p3: { x: 310, y: 196 + yShift },
     },
     {
-      p0: { x: 160, y: midY },
-      p1: { x: 206, y: midY + amp },
-      p2: { x: 250, y: endY - amp * 0.85 },
-      p3: { x: 294, y: endY },
+      p0: { x: 310, y: 196 + yShift },
+      p1: { x: 374, y: 162 - yShift },
+      p2: { x: 468, y: 188 + yShift },
+      p3: { x: 552, y: 184 - yShift },
     },
   ];
 }
@@ -258,25 +248,25 @@ function buildSceneBlueprint(
   seed: number
 ): ClearingSceneBlueprint {
   if (variant === 'twilight-shepherds-sanctuary') {
-    const lanternShift = (seed % 3) * 8;
+    const lanternShift = (seed % 3) * 16;
     return {
       variant,
       pathTile: 'mossy-stone-path',
       pathEdgeTile: 'mossy-stone-path',
       hasCreek: true,
-      creekY: 148,
+      creekY: 296,
       hasCedarPorch: true,
-      porchRect: { x: 224, y: 16, cols: 5, rows: 3 },
+      porchRect: { x: 464, y: 32, cols: 10, rows: 6 },
       heroLandmark: {
-        x: 266,
-        y: 12,
+        x: 540,
+        y: 28,
         dormantFrame: 'shepherds-sanctuary-porch',
         bloomedFrame: 'shepherds-sanctuary-porch',
         label: "Shepherd's Sanctuary Porch",
       },
       keeperPlacement: {
-        x: 244,
-        y: 26,
+        x: 500,
+        y: 52,
         framePrefix: 'psalms-twilight-psalmist',
         name: 'The Twilight Psalmist',
       },
@@ -284,60 +274,60 @@ function buildSceneBlueprint(
         {
           sheet: 'landmarks-phase1',
           frame: 'hanging-drying-herbs',
-          x: 214,
-          y: 14,
+          x: 428,
+          y: 28,
         },
         {
           sheet: 'landmarks-phase1',
           frame: 'brass-porch-lantern-unlit',
           bloomedFrame: 'brass-porch-lantern-lit',
-          x: 184 - lanternShift,
-          y: 18,
+          x: 368 - lanternShift,
+          y: 36,
         },
         {
           sheet: 'landmarks-phase1',
           frame: 'cedar-herb-bed',
-          x: 24 + (seed % 2) * 14,
-          y: 20,
+          x: 48 + (seed % 2) * 28,
+          y: 40,
         },
         {
           sheet: 'landmarks-phase1',
           frame: 'hanging-drying-herbs',
-          x: 78 + (seed % 3) * 10,
-          y: 16,
+          x: 156 + (seed % 3) * 20,
+          y: 32,
         },
       ],
       fireflyAnchors: [
-        { x: 46, y: 54, phase: 0 },
-        { x: 112, y: 44, phase: 1.7 },
-        { x: 178, y: 62, phase: 3.1 },
-        { x: 236, y: 56, phase: 4.4 },
-        { x: 282, y: 136, phase: 2.3 },
-        { x: 88, y: 144, phase: 5.2 },
+        { x: 92, y: 112, phase: 0 },
+        { x: 224, y: 92, phase: 1.7 },
+        { x: 356, y: 124, phase: 3.1 },
+        { x: 468, y: 110, phase: 4.4 },
+        { x: 564, y: 272, phase: 2.3 },
+        { x: 176, y: 288, phase: 5.2 },
       ],
     };
   }
 
   // Genesis — Eden Root-Garden
-  const herbOffset = (seed % 3) * 10;
+  const herbOffset = (seed % 3) * 20;
   return {
     variant,
     pathTile: 'red-clay-path-straight',
     pathEdgeTile: 'red-clay-path-edge',
     hasCreek: false,
-    creekY: 164,
+    creekY: 324,
     hasCedarPorch: false,
     porchRect: { x: 0, y: 0, cols: 0, rows: 0 },
     heroLandmark: {
-      x: 268,
-      y: 14,
+      x: 536,
+      y: 28,
       dormantFrame: 'eden-tree-dormant',
       bloomedFrame: 'eden-tree-bloomed',
       label: 'Eden Tree of Roots',
     },
     keeperPlacement: {
-      x: 244,
-      y: 28,
+      x: 488,
+      y: 56,
       framePrefix: 'genesis-root-keeper',
       name: 'The Garden Root-Keeper',
     },
@@ -345,35 +335,35 @@ function buildSceneBlueprint(
       {
         sheet: 'landmarks-phase1',
         frame: 'cedar-herb-bed',
-        x: 22 + herbOffset,
-        y: 22,
+        x: 44 + herbOffset,
+        y: 44,
       },
       {
         sheet: 'landmarks-phase1',
         frame: 'cedar-herb-bed',
-        x: 74 + herbOffset,
-        y: 20,
+        x: 148 + herbOffset,
+        y: 40,
       },
       {
         sheet: 'landmarks-phase1',
         frame: 'hanging-drying-herbs',
-        x: 136,
-        y: 16,
+        x: 272,
+        y: 32,
       },
       {
         sheet: 'landmarks-phase1',
         frame: 'brass-porch-lantern-unlit',
         bloomedFrame: 'brass-porch-lantern-lit',
-        x: 194,
-        y: 20,
+        x: 388,
+        y: 40,
       },
     ],
     fireflyAnchors: [
-      { x: 54, y: 58, phase: 0.4 },
-      { x: 124, y: 48, phase: 1.9 },
-      { x: 192, y: 54, phase: 3.4 },
-      { x: 256, y: 46, phase: 4.8 },
-      { x: 146, y: 150, phase: 2.6 },
+      { x: 108, y: 116, phase: 0.4 },
+      { x: 248, y: 96, phase: 1.9 },
+      { x: 384, y: 108, phase: 3.4 },
+      { x: 512, y: 92, phase: 4.8 },
+      { x: 292, y: 300, phase: 2.6 },
     ],
   };
 }
@@ -406,15 +396,31 @@ function buildSegmentFromClearing(
     const frac = count === 1 ? 0.5 : idx / (count - 1);
     const pt = pointAtArcLength(samples, cumulativeLengths, frac * totalLen);
     const x = Math.round(pt.x);
-    const y = Math.round(pt.y);
+    // Alternate wooden hook-post anchors along upper and lower path verges while keeping
+    // left-side Genesis herb beds clear and placing Michael cleanly away from the right-hanging arm.
+    const vergeOffset =
+      variant === 'eden-root-garden' && pt.x < 240 && idx % 2 === 0
+        ? -4
+        : idx % 2 === 0
+          ? -12
+          : 22;
+    const y = Math.min(TRAIL_LOGICAL_HEIGHT - 34, Math.max(96, Math.round(pt.y + vergeOffset)));
+    const footX =
+      idx % 2 === 1
+        ? Math.max(36, Math.round(pt.x - 22))
+        : Math.min(TRAIL_LOGICAL_WIDTH - 48, Math.max(36, Math.round(pt.x - 14)));
+    const footY =
+      idx % 2 === 1
+        ? Math.min(TRAIL_LOGICAL_HEIGHT - 22, Math.max(96, Math.round(pt.y + 6)))
+        : Math.min(TRAIL_LOGICAL_HEIGHT - 22, Math.max(96, Math.round(pt.y + 14)));
     return {
       chapter,
       x,
       y,
       xPct: Number(((x / TRAIL_LOGICAL_WIDTH) * 100).toFixed(3)),
       yPct: Number(((y / TRAIL_LOGICAL_HEIGHT) * 100).toFixed(3)),
-      footX: x,
-      footY: y + 2,
+      footX,
+      footY,
       indexInClearing: idx,
     };
   });

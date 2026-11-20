@@ -29,7 +29,10 @@ import {
   ANIMATION_FRAME_INTERVAL_MS,
   BiomeCanvas,
   BiomeCanvasChapter,
+  HD_BACKDROP_PATHS,
+  HD_SPRITE_PATHS,
   buildBiomeCanvasAriaLabel,
+  clearBiomeCanvasImageCache,
 } from './BiomeCanvas';
 
 interface MockCanvasCall {
@@ -327,12 +330,11 @@ describe('trailLayouts — Logical ViewBox, Waypoint Geometry & Integer Scaling'
     expect(getAllClearingSegmentsForBook('Psalms')).toHaveLength(14);
   });
 
-  it('computes clean integer pixel scales (2, 3, or 4)', () => {
-    expect(computeIntegerScale(320, 1)).toBe(2);
+  it('computes clean integer pixel scales (2, 3, or 4) on the 640x360 HD logical grid', () => {
     expect(computeIntegerScale(640, 1)).toBe(2);
-    expect(computeIntegerScale(480, 2)).toBe(3);
-    expect(computeIntegerScale(960, 1)).toBe(3);
-    expect(computeIntegerScale(640, 2)).toBe(4);
+    expect(computeIntegerScale(960, 2)).toBe(3);
+    expect(computeIntegerScale(1920, 1)).toBe(3);
+    expect(computeIntegerScale(1200, 2)).toBe(4);
     expect(computeIntegerScale(1280, 2)).toBe(4);
     expect(computeIntegerScale(0, 1)).toBe(2);
   });
@@ -654,5 +656,102 @@ describe('<BiomeCanvas /> — JSDOM Rendering, Theme Reactivity & Reduced Motion
 
     unmount();
     expect(cancelRafSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('draws unified 1280x720 HD backdrop and chroma-keyed sprites when images load cleanly in Light and Dark themes', () => {
+    installMatchMediaMock({ prefersReducedMotion: true });
+    clearBiomeCanvasImageCache();
+    const originalImage = window.Image;
+    const tracker = createMockCanvasContext();
+    HTMLCanvasElement.prototype.getContext = jest.fn(
+      () => tracker.ctx
+    ) as unknown as typeof originalGetContext;
+
+    class MockLoadedImage {
+      public decoding = 'async';
+      public complete = true;
+      public naturalWidth = 1280;
+      public naturalHeight = 720;
+      public onload: (() => void) | null = null;
+      private _src = '';
+
+      get src() {
+        return this._src;
+      }
+
+      set src(value: string) {
+        this._src = value;
+      }
+    }
+
+    Object.defineProperty(window, 'Image', {
+      writable: true,
+      configurable: true,
+      value: MockLoadedImage,
+    });
+
+    try {
+      const { rerender } = render(
+        <ThemeProvider>
+          <BiomeCanvas
+            book="Psalms"
+            clearingId="psa-book-1-c2"
+            chapters={[
+              { chapter: 15, totalVerses: 5, completedVerses: 5, state: 'bloomed' },
+              { chapter: 16, totalVerses: 11, completedVerses: 4, state: 'in_progress' },
+              { chapter: 17, totalVerses: 15, completedVerses: 0, state: 'dormant' },
+            ]}
+            activeChapter={16}
+            themeOverride="light"
+            scaleOverride={2}
+          />
+        </ThemeProvider>
+      );
+
+      const drawImageMock = tracker.ctx.drawImage as unknown as jest.Mock;
+      const drawnSrcsLight = drawImageMock.mock.calls.map(
+        (call) => (call[0] as { src?: string })?.src ?? ''
+      );
+      expect(drawnSrcsLight).toContain(HD_BACKDROP_PATHS['twilight-shepherds-sanctuary'].light);
+      expect(drawnSrcsLight).toContain(HD_SPRITE_PATHS.bloomed);
+      expect(drawnSrcsLight).toContain(HD_SPRITE_PATHS.kindling);
+      expect(drawnSrcsLight).toContain(HD_SPRITE_PATHS.dormant);
+      expect(drawnSrcsLight).toContain(HD_SPRITE_PATHS.michael);
+      // Light backdrop call uses full backing resolution (640*2 = 1280 x 720)
+      expect(drawImageMock).toHaveBeenCalledWith(
+        expect.objectContaining({ src: HD_BACKDROP_PATHS['twilight-shepherds-sanctuary'].light }),
+        0,
+        0,
+        1280,
+        720
+      );
+
+      drawImageMock.mockClear();
+      rerender(
+        <ThemeProvider>
+          <BiomeCanvas
+            book="Genesis"
+            clearingId="gen-leg-1"
+            chapters={[{ chapter: 1, totalVerses: 31, completedVerses: 31, state: 'bloomed' }]}
+            activeChapter={1}
+            themeOverride="dark"
+            scaleOverride={2}
+          />
+        </ThemeProvider>
+      );
+
+      const drawnSrcsDark = drawImageMock.mock.calls.map(
+        (call) => (call[0] as { src?: string })?.src ?? ''
+      );
+      expect(drawnSrcsDark).toContain(HD_BACKDROP_PATHS['eden-root-garden'].dark);
+      expect(drawnSrcsDark).toContain(HD_SPRITE_PATHS.michael);
+    } finally {
+      clearBiomeCanvasImageCache();
+      Object.defineProperty(window, 'Image', {
+        writable: true,
+        configurable: true,
+        value: originalImage,
+      });
+    }
   });
 });
