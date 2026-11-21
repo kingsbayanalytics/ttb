@@ -253,6 +253,20 @@ export interface TrailBookResponse {
   chapters: TrailChapterWaypoint[];
 }
 
+export type TrailYardPropWakeEvent =
+  | 'bottle-tree'
+  | 'herb-rack'
+  | 'river-cairn'
+  | 'elder-keeper';
+
+export interface ChapterTrailStepPayload {
+  clearingId: string | null;
+  clearingBloomed: number;
+  clearingTotal: number;
+  nextChapter: number | null;
+  propJustAwakened: TrailYardPropWakeEvent | null;
+}
+
 export interface ChapterJustUnlocked {
   workId: string;
   book: string;
@@ -261,4 +275,5 @@ export interface ChapterJustUnlocked {
   unlockedAt: string;
   companionCount: number;
   availableLenses: CompanionLens[];
+  trailStep?: ChapterTrailStepPayload;
 }

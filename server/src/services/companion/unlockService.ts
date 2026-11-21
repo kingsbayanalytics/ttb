@@ -5,8 +5,11 @@
 export {
   ChapterBloomState,
   ChapterStatusRecord,
+  ChapterTrailStepPayload,
   ChapterJustUnlockedPayload,
+  TrailYardPropWakeEvent,
   computeChapterState,
+  computePropJustAwakened,
   getChapterStatus,
   getBookChaptersStatus,
   getUserBloomedChapters,

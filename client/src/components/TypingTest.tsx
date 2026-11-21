@@ -32,7 +32,7 @@ import {
 } from '../utils/weaknessExtractor';
 import {
   ChapterBloomBanner,
-  ChapterBloomToast,
+  SessionHarvestStrip,
   ZenBloomChip,
 } from './companion/ChapterBloomToast';
 import { BadgeUnlockToast, ZenBadgeChip } from './trail/BadgeUnlockToast';
@@ -851,6 +851,19 @@ const TypingTest: React.FC = () => {
     [newlyUnlockedBadges]
   );
 
+  const latestSessionUnlock =
+    sessionUnlocks.length > 0 ? sessionUnlocks[sessionUnlocks.length - 1] : null;
+  const activeChapterUnlock =
+    latestSessionUnlock &&
+    dismissedUnlockKey !== `${latestSessionUnlock.book}:${latestSessionUnlock.chapter}`
+      ? latestSessionUnlock
+      : null;
+
+  const handleDismissChapterUnlock = useCallback(() => {
+    if (!latestSessionUnlock) return;
+    setDismissedUnlockKey(`${latestSessionUnlock.book}:${latestSessionUnlock.chapter}`);
+  }, [latestSessionUnlock]);
+
   const handleDrawerNavigateChapter = useCallback((bookName: string, chapterNum: number) => {
     setCompanionDrawerTarget((prev) => ({
       book: bookName,
@@ -1275,24 +1288,10 @@ const TypingTest: React.FC = () => {
         </div>
       )}
 
-      {!zenMode && (autoAdvance || sessionUnlocks.length > 1) && (
-        <ChapterBloomToast
+      {!zenMode && sessionUnlocks.length > 1 && (
+        <SessionHarvestStrip
           sessionUnlocks={sessionUnlocks}
-          dismissedLatest={
-            !autoAdvance ||
-            (sessionUnlocks.length > 0 &&
-              dismissedUnlockKey ===
-                `${sessionUnlocks[sessionUnlocks.length - 1].book}:${
-                  sessionUnlocks[sessionUnlocks.length - 1].chapter
-                }`)
-          }
           onOpenCompanion={handleOpenCompanionForUnlock}
-          onDismissLatest={() => {
-            if (sessionUnlocks.length > 0) {
-              const latest = sessionUnlocks[sessionUnlocks.length - 1];
-              setDismissedUnlockKey(`${latest.book}:${latest.chapter}`);
-            }
-          }}
         />
       )}
 
@@ -1583,9 +1582,12 @@ const TypingTest: React.FC = () => {
 
       <BadgeUnlockToast
         badges={newlyUnlockedBadges}
+        chapterUnlock={activeChapterUnlock}
         suppressed={zenMode || companionDrawerTarget !== null || badgeModalOpen}
         onDismissBadge={handleDismissUnlockedBadge}
         onOpenBadgeCase={handleOpenBadgeCase}
+        onOpenCompanion={handleOpenCompanionForUnlock}
+        onDismissChapterUnlock={handleDismissChapterUnlock}
       />
 
       {badgeModalEverOpened && (

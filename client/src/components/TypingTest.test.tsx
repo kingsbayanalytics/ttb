@@ -1514,7 +1514,7 @@ describe('TypingTest', () => {
     );
     expect(screen.getByTestId('results-view-trail-link')).toHaveAttribute(
       'href',
-      '/trail?book=Genesis'
+      '/trail?book=Genesis&chapter=1'
     );
   });
 
@@ -1633,5 +1633,158 @@ describe('TypingTest', () => {
     const zenBadgeChip = await screen.findByTestId('zen-badge-chip', {}, { timeout: 2000 });
     expect(zenBadgeChip).toHaveTextContent('✦ Bottle Tree Lit Earned');
     expect(screen.queryByTestId('badge-unlock-toast-trail-bottle-tree')).not.toBeInTheDocument();
+  });
+
+  it('stacks the New Trail Step chapter bloom popup with badge unlock medallions without stealing focus', async () => {
+    const lockedData = {
+      streak: { currentStreakDays: 0, longestStreakDays: 0, lastActiveDate: null, activeToday: false },
+      milestones: {
+        totalAttempts: 3,
+        bestWpm: 72,
+        flawlessCount: 1,
+        uniqueVersesCompleted: 10,
+        psalmsCompletedCount: 4,
+        bloomedChaptersCount: 0,
+        completedClearingsCount: 0,
+      },
+      badges: [
+        {
+          id: 'trail-first-bloom',
+          title: 'First Bloom',
+          description: 'Bloom your first complete scripture chapter on the Living Trail.',
+          category: 'trail' as const,
+          unlocked: false,
+          progressCurrent: 0,
+          progressTarget: 1,
+          progressPct: 0,
+        },
+      ],
+    };
+    const unlockedData = {
+      ...lockedData,
+      milestones: { ...lockedData.milestones, bloomedChaptersCount: 1 },
+      badges: [
+        {
+          ...lockedData.badges[0],
+          unlocked: true,
+          progressCurrent: 1,
+          progressPct: 100,
+        },
+      ],
+    };
+
+    const router = require('react-router-dom');
+    const useLocationSpy = jest.spyOn(router, 'useLocation').mockReturnValue({
+      pathname: '/typing',
+      search: '?book=Psalms&chapter=4',
+      hash: '',
+      state: null,
+      key: 'trail-step-stack',
+    });
+
+    const ps4v8 = {
+      _id: 'ps4-8',
+      verseOrder: 13599,
+      book: 'Psalms',
+      chapter: 4,
+      verse: 8,
+      text: 'In peace I will both lay myself down and sleep.',
+      characters: 48,
+      words: 10,
+    };
+    const ps5v1 = {
+      _id: 'ps5-1',
+      verseOrder: 13600,
+      book: 'Psalms',
+      chapter: 5,
+      verse: 1,
+      text: 'Give ear to my words, Yahweh.',
+      characters: 28,
+      words: 6,
+    };
+
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue({ _id: 'user123' });
+    (VerseService.getNextVerse as jest.Mock).mockResolvedValueOnce({
+      complete: false,
+      chapterComplete: false,
+      verse: ps4v8,
+    });
+    (VerseService.getVerseByOrder as jest.Mock).mockResolvedValueOnce(ps5v1);
+    (StatsService.getAchievements as jest.Mock)
+      .mockResolvedValueOnce(lockedData)
+      .mockResolvedValueOnce(unlockedData);
+    (ProgressService.submitResult as jest.Mock).mockResolvedValueOnce({
+      result: { _id: 'r-ps4' },
+      progress: { _id: 'p-ps4', completed: true },
+      chapterJustUnlocked: {
+        workId: 'web-bible',
+        book: 'Psalms',
+        chapter: 4,
+        totalVerses: 8,
+        unlockedAt: '2026-11-21T00:00:00.000Z',
+        companionCount: 2,
+        availableLenses: ['hoodoo-folk', 'historical-classic'],
+        trailStep: {
+          clearingId: 'psa-book-1-c1',
+          clearingBloomed: 4,
+          clearingTotal: 14,
+          nextChapter: 5,
+          propJustAwakened: 'river-cairn',
+        },
+      },
+    });
+
+    try {
+      render(<TypingTest />);
+
+      const textarea = (await screen.findByPlaceholderText(
+        'Start typing the verse above...',
+        {},
+        { timeout: 2000 }
+      )) as HTMLTextAreaElement;
+      textarea.focus();
+      expect(document.activeElement).toBe(textarea);
+
+      fireEvent.change(textarea, { target: { value: ps4v8.text } });
+
+      const chapterPopup = await screen.findByTestId(
+        'chapter-bloom-whisper-pill',
+        {},
+        { timeout: 2000 }
+      );
+      const badgePopup = await screen.findByTestId(
+        'badge-unlock-toast-trail-first-bloom',
+        {},
+        { timeout: 2000 }
+      );
+      const toastRegion = screen.getByTestId('badge-toast-region');
+      expect(toastRegion).toContainElement(chapterPopup);
+      expect(toastRegion).toContainElement(badgePopup);
+
+      expect(chapterPopup).toHaveTextContent('Green Pastures & Still Waters');
+      expect(chapterPopup).toHaveTextContent('Psalm 4 Bloomed');
+      expect(chapterPopup).toHaveTextContent('Companion Unlocked');
+      expect(chapterPopup).toHaveTextContent('Flagstone 4/14 lit · Michael steps to Psalm 5');
+      expect(chapterPopup).toHaveTextContent('Anointed River Cairn awakened');
+
+      const artwork = chapterPopup.querySelector('img');
+      expect(artwork).toHaveAttribute('src', '/assets/trail/hd/prop-river-cairn-hd.png');
+      expect(screen.getByTestId('chapter-bloom-trail-link')).toHaveAttribute(
+        'href',
+        '/trail?book=Psalms&chapter=4'
+      );
+
+      // Focus remains inside inline typing input
+      const activeInput = screen.getByPlaceholderText('Start typing the verse above...');
+      expect(activeInput).toHaveClass('typing-input-inline');
+      expect(document.activeElement).toBe(activeInput);
+
+      // Dismissing chapter popup keeps the badge medallion card intact in the stack
+      fireEvent.click(screen.getByTestId('chapter-bloom-dismiss-btn'));
+      expect(screen.queryByTestId('chapter-bloom-whisper-pill')).not.toBeInTheDocument();
+      expect(screen.getByTestId('badge-unlock-toast-trail-first-bloom')).toBeInTheDocument();
+    } finally {
+      useLocationSpy.mockRestore();
+    }
   });
 });

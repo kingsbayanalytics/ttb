@@ -8,11 +8,13 @@ export { CompanionMarkdown, isSafeHttpsUrl } from './CompanionMarkdown';
 export type { CompanionMarkdownProps } from './CompanionMarkdown';
 export {
   ChapterBloomToast,
+  SessionHarvestStrip,
   ZenBloomChip,
   ChapterBloomBanner,
 } from './ChapterBloomToast';
 export type {
   ChapterBloomToastProps,
+  SessionHarvestStripProps,
   ZenBloomChipProps,
   ChapterBloomBannerProps,
 } from './ChapterBloomToast';

@@ -133,6 +133,20 @@ export interface TrailBookDetailDTO {
   chapters: TrailChapterWaypointDTO[];
 }
 
+export type TrailYardPropWakeEvent =
+  | 'bottle-tree'
+  | 'herb-rack'
+  | 'river-cairn'
+  | 'elder-keeper';
+
+export interface ChapterTrailStepPayload {
+  clearingId: string | null;
+  clearingBloomed: number;
+  clearingTotal: number;
+  nextChapter: number | null;
+  propJustAwakened: TrailYardPropWakeEvent | null;
+}
+
 export interface ChapterJustUnlockedPayload {
   workId: string;
   book: string;
@@ -141,6 +155,48 @@ export interface ChapterJustUnlockedPayload {
   unlockedAt: string;
   companionCount: number;
   availableLenses: CompanionLens[];
+  trailStep?: ChapterTrailStepPayload;
+}
+
+/**
+ * Pure threshold detector returning which Living Trail yard prop awakened on this newly bloomed chapter.
+ * Mirrors `computeYardPropWakeState` thresholds on the client diorama.
+ */
+export function computePropJustAwakened(
+  clearingBloomed: number,
+  clearingTotal: number
+): TrailYardPropWakeEvent | null {
+  const safeTotal = Math.max(1, clearingTotal);
+  const after = Math.max(0, clearingBloomed);
+  const before = Math.max(0, after - 1);
+
+  if (after === 0 || after <= before) {
+    return null;
+  }
+
+  const elderAfter = after >= safeTotal;
+  const elderBefore = before >= safeTotal;
+  if (elderAfter && !elderBefore) {
+    return 'elder-keeper';
+  }
+
+  const cairnAfter = after / safeTotal >= 0.5 || after >= 4;
+  const cairnBefore = before / safeTotal >= 0.5 || before >= 4;
+  if (cairnAfter && !cairnBefore) {
+    return 'river-cairn';
+  }
+
+  const herbAfter = after / safeTotal >= 0.25 || after >= 2;
+  const herbBefore = before / safeTotal >= 0.25 || before >= 2;
+  if (herbAfter && !herbBefore) {
+    return 'herb-rack';
+  }
+
+  if (after >= 1 && before < 1) {
+    return 'bottle-tree';
+  }
+
+  return null;
 }
 
 /**
@@ -767,6 +823,97 @@ export async function detectChapterJustUnlocked(params: {
     }
   }
 
+  const bookChapters = manifest.chaptersByBook.get(verse.book);
+  let maxManifestChapter = verse.chapter;
+  if (bookChapters) {
+    for (const chNum of bookChapters.keys()) {
+      if (chNum > maxManifestChapter) {
+        maxManifestChapter = chNum;
+      }
+    }
+  }
+  const totalBookChapters = getBiomeBookMeta(verse.book)?.canonicalChapters ?? maxManifestChapter;
+  const nextChapter = verse.chapter < totalBookChapters ? verse.chapter + 1 : null;
+
+  let trailStep: ChapterTrailStepPayload = {
+    clearingId: null,
+    clearingBloomed: 0,
+    clearingTotal: 0,
+    nextChapter,
+    propJustAwakened: null,
+  };
+
+  const clearing = PHASE1_CLEARING_RANGES.find(
+    (c) =>
+      c.book === verse.book &&
+      verse.chapter >= c.startChapter &&
+      verse.chapter <= c.endChapter
+  );
+
+  if (clearing && bookChapters) {
+    let minOrder = Infinity;
+    let maxOrder = -Infinity;
+    for (let ch = clearing.startChapter; ch <= clearing.endChapter; ch += 1) {
+      const meta = bookChapters.get(ch);
+      if (meta) {
+        if (meta.minVerseOrder < minOrder) minOrder = meta.minVerseOrder;
+        if (meta.maxVerseOrder > maxOrder) maxOrder = meta.maxVerseOrder;
+      }
+    }
+
+    let clearingBloomed = 1;
+    if (Number.isFinite(minOrder) && Number.isFinite(maxOrder) && minOrder <= maxOrder) {
+      const clearingProgressRows = await Progress.find({
+        user: userId,
+        completed: true,
+        verseOrder: { $gte: minOrder, $lte: maxOrder },
+      })
+        .select('verseOrder')
+        .lean<Array<{ verseOrder: number }>>();
+
+      const uniqueOrders = new Set<number>();
+      for (const row of clearingProgressRows) {
+        if (typeof row.verseOrder === 'number' && Number.isFinite(row.verseOrder)) {
+          uniqueOrders.add(row.verseOrder);
+        }
+      }
+
+      const chapterCounts = new Map<number, number>();
+      for (const vo of uniqueOrders) {
+        const meta = findChapterForVerseOrder(manifest, vo);
+        if (
+          meta &&
+          meta.book === clearing.book &&
+          meta.chapter >= clearing.startChapter &&
+          meta.chapter <= clearing.endChapter
+        ) {
+          chapterCounts.set(meta.chapter, (chapterCounts.get(meta.chapter) ?? 0) + 1);
+        }
+      }
+
+      let bloomedCount = 0;
+      for (let ch = clearing.startChapter; ch <= clearing.endChapter; ch += 1) {
+        const meta = bookChapters.get(ch);
+        if (meta && meta.totalVerses > 0) {
+          const done = chapterCounts.get(ch) ?? 0;
+          if (computeChapterState(done, meta.totalVerses) === 'bloomed') {
+            bloomedCount += 1;
+          }
+        }
+      }
+      clearingBloomed = Math.max(1, bloomedCount);
+    }
+
+    const clearingTotal = clearing.endChapter - clearing.startChapter + 1;
+    trailStep = {
+      clearingId: clearing.clearingId,
+      clearingBloomed,
+      clearingTotal,
+      nextChapter,
+      propJustAwakened: computePropJustAwakened(clearingBloomed, clearingTotal),
+    };
+  }
+
   return {
     workId,
     book: verse.book,
@@ -775,6 +922,7 @@ export async function detectChapterJustUnlocked(params: {
     unlockedAt: (unlockedAt ?? new Date()).toISOString(),
     companionCount: companionDocs.length,
     availableLenses: orderedLenses,
+    trailStep,
   };
 }
 

@@ -2,11 +2,55 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ChapterJustUnlocked } from '../../types';
 import { HerbSprigIcon } from '../../assets/trail/lensMicroIcons';
+import {
+  buildChapterTrailStepSummary,
+  formatChapterLabel,
+} from '../trail/trailStepNotice';
 import './CompanionDrawer.css';
 
-function formatChapterLabel(book: string, chapter: number): string {
-  return book === 'Psalms' ? `Psalm ${chapter}` : `${book} ${chapter}`;
+export interface SessionHarvestStripProps {
+  sessionUnlocks: ChapterJustUnlocked[];
+  onOpenCompanion: (unlock: ChapterJustUnlocked) => void;
 }
+
+/**
+ * Compact inline session strip displayed above the verse when 2+ chapters
+ * have been unlocked in the current typing session.
+ */
+export const SessionHarvestStrip: React.FC<SessionHarvestStripProps> = ({
+  sessionUnlocks,
+  onOpenCompanion,
+}) => {
+  if (sessionUnlocks.length <= 1) return null;
+
+  return (
+    <div
+      className="session-harvest-strip"
+      aria-label="Chapters unlocked this session"
+      data-testid="session-harvest-strip"
+    >
+      <span className="session-harvest-kicker">
+        ✦ {sessionUnlocks.length} Chapters Unlocked This Session
+      </span>
+      <div className="session-harvest-chips">
+        {sessionUnlocks.map((unlock) => {
+          const key = `${unlock.book}:${unlock.chapter}`;
+          return (
+            <button
+              key={key}
+              type="button"
+              className="session-harvest-chip"
+              onClick={() => onOpenCompanion(unlock)}
+              data-testid={`session-harvest-chip-${unlock.book}-${unlock.chapter}`}
+            >
+              {formatChapterLabel(unlock.book, unlock.chapter)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 export interface ChapterBloomToastProps {
   /** Deduplicated queue of chapters unlocked in the current typing session. */
@@ -18,9 +62,9 @@ export interface ChapterBloomToastProps {
 }
 
 /**
- * Quiet, focus-preserving Chapter Bloom whisper pill + Session Harvest Strip
- * for autoAdvance && !zenMode in TypingTest.tsx (Story 11.3 / AD-15).
- * Always renders a single aria-live="polite" aria-atomic="true" region.
+ * Legacy inline wrapper retained for external imports. Active TypingTest surfaces the latest
+ * chapter bloom inside the shared bottom-right BadgeUnlockToast Top-Layer stack and keeps
+ * SessionHarvestStrip inline above the verse.
  */
 export const ChapterBloomToast: React.FC<ChapterBloomToastProps> = ({
   sessionUnlocks,
@@ -30,7 +74,7 @@ export const ChapterBloomToast: React.FC<ChapterBloomToastProps> = ({
 }) => {
   const latest = sessionUnlocks.length > 0 ? sessionUnlocks[sessionUnlocks.length - 1] : null;
   const showWhisperPill = Boolean(latest && !dismissedLatest);
-  const showHarvestStrip = sessionUnlocks.length > 1;
+  const summary = latest ? buildChapterTrailStepSummary(latest) : null;
 
   return (
     <div className="chapter-bloom-toast-region" data-testid="chapter-bloom-toast-region">
@@ -40,13 +84,12 @@ export const ChapterBloomToast: React.FC<ChapterBloomToastProps> = ({
         aria-atomic="true"
         data-testid="chapter-bloom-live-region"
       >
-        {showWhisperPill && latest && (
+        {showWhisperPill && latest && summary && (
           <div className="chapter-bloom-whisper-pill" data-testid="chapter-bloom-whisper-pill">
             <div className="chapter-bloom-whisper-text">
               <HerbSprigIcon size={16} className="chapter-bloom-icon" aria-hidden />
               <span>
-                <strong>{formatChapterLabel(latest.book, latest.chapter)} Bloomed</strong> ·
-                Companion Unlocked
+                <strong>{summary.chapterLabel} Bloomed</strong> · Companion Unlocked
               </span>
             </div>
             <div className="chapter-bloom-whisper-actions">
@@ -58,6 +101,13 @@ export const ChapterBloomToast: React.FC<ChapterBloomToastProps> = ({
               >
                 Open Reading Room
               </button>
+              <Link
+                to={summary.trailHref}
+                className="chapter-bloom-dismiss-btn"
+                data-testid="chapter-bloom-trail-link"
+              >
+                View on Trail →
+              </Link>
               <button
                 type="button"
                 className="chapter-bloom-dismiss-btn"
@@ -72,33 +122,10 @@ export const ChapterBloomToast: React.FC<ChapterBloomToastProps> = ({
         )}
       </div>
 
-      {showHarvestStrip && (
-        <div
-          className="session-harvest-strip"
-          aria-label="Chapters unlocked this session"
-          data-testid="session-harvest-strip"
-        >
-          <span className="session-harvest-kicker">
-            ✦ {sessionUnlocks.length} Chapters Unlocked This Session
-          </span>
-          <div className="session-harvest-chips">
-            {sessionUnlocks.map((unlock) => {
-              const key = `${unlock.book}:${unlock.chapter}`;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  className="session-harvest-chip"
-                  onClick={() => onOpenCompanion(unlock)}
-                  data-testid={`session-harvest-chip-${unlock.book}-${unlock.chapter}`}
-                >
-                  {formatChapterLabel(unlock.book, unlock.chapter)}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <SessionHarvestStrip
+        sessionUnlocks={sessionUnlocks}
+        onOpenCompanion={onOpenCompanion}
+      />
     </div>
   );
 };
@@ -146,33 +173,54 @@ export const ChapterBloomBanner: React.FC<ChapterBloomBannerProps> = ({
   unlock,
   onOpenCompanion,
 }) => {
-  const chapterLabel = formatChapterLabel(unlock.book, unlock.chapter);
+  const summary = buildChapterTrailStepSummary(unlock);
   return (
     <div className="chapter-bloom-banner" data-testid="chapter-bloom-banner">
-      <div className="chapter-bloom-banner-header">
-        <HerbSprigIcon size={16} className="chapter-bloom-icon" aria-hidden />
-        <span className="chapter-bloom-banner-kicker">CHAPTER BLOOMED · COMPANION UNLOCKED</span>
-      </div>
-      <p className="chapter-bloom-banner-copy">
-        You completed every verse of <strong>{chapterLabel}</strong> ({unlock.totalVerses} verses).
-        Multi-lens commentary is ready in the Reading Room.
-      </p>
-      <div className="chapter-bloom-banner-actions">
-        <button
-          type="button"
-          className="primary-button"
-          onClick={() => onOpenCompanion(unlock)}
-          data-testid="results-open-companion-btn"
-        >
-          Open Companion Reading Room
-        </button>
-        <Link
-          to={`/trail?book=${encodeURIComponent(unlock.book)}`}
-          className="secondary-button"
-          data-testid="results-view-trail-link"
-        >
-          View on Living Trail
-        </Link>
+      <div className="chapter-bloom-banner-shell">
+        <img
+          src={summary.iconPath}
+          alt=""
+          width={48}
+          height={48}
+          className="chapter-bloom-banner-art"
+        />
+        <div className="chapter-bloom-banner-main">
+          <div className="chapter-bloom-banner-header">
+            <span className="chapter-bloom-banner-kicker">{summary.kicker}</span>
+            <span className="chapter-toast-companion-tag">Companion Unlocked</span>
+          </div>
+          <p className="chapter-bloom-banner-copy">
+            <strong>{summary.chapterLabel} Bloomed</strong> — {summary.stepCopy} ({unlock.totalVerses}{' '}
+            {unlock.totalVerses === 1 ? 'verse' : 'verses'}). Multi-lens commentary is ready in the
+            Reading Room.
+          </p>
+          {summary.propNote && (
+            <p
+              className={`chapter-toast-prop-note ${
+                summary.propAwakened ? 'chapter-toast-prop-note--awakened' : ''
+              }`.trim()}
+            >
+              {summary.propNote}
+            </p>
+          )}
+          <div className="chapter-bloom-banner-actions">
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => onOpenCompanion(unlock)}
+              data-testid="results-open-companion-btn"
+            >
+              Open Companion Reading Room
+            </button>
+            <Link
+              to={summary.trailHref}
+              className="secondary-button"
+              data-testid="results-view-trail-link"
+            >
+              View on Living Trail
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

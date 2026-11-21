@@ -2,6 +2,7 @@ import request from 'supertest';
 import { connectTestDB, disconnectTestDB, setupTestApp } from './test-setup';
 import { CompanionEntry, Progress, Result, User, Verse } from '../models';
 import {
+  computePropJustAwakened,
   getBookChaptersStatus,
   getChapterStatus,
   resetChapterManifestCache,
@@ -238,5 +239,51 @@ describe('Story 9.4: Derived Chapter Unlock Service & chapterJustUnlocked Hook',
       { ch: 2, state: 'bloomed' },
       { ch: 3, state: 'dormant' },
     ]);
+  });
+
+  it('computes waking yard prop transitions across thresholds via computePropJustAwakened', () => {
+    expect(computePropJustAwakened(1, 14)).toBe('bottle-tree');
+    expect(computePropJustAwakened(2, 14)).toBe('herb-rack');
+    expect(computePropJustAwakened(3, 14)).toBeNull();
+    expect(computePropJustAwakened(4, 14)).toBe('river-cairn');
+    expect(computePropJustAwakened(10, 10)).toBe('elder-keeper');
+    expect(computePropJustAwakened(14, 14)).toBe('elder-keeper');
+  });
+
+  it('attaches trailStep telemetry with clearing progress and propJustAwakened on Phase 1 blooms', async () => {
+    const psalmVerses = await Verse.insertMany([
+      { verseOrder: 14101, book: 'Psalms', chapter: 1, verse: 1, text: 'Psalm 1:1', characters: 9, words: 2 },
+      { verseOrder: 14201, book: 'Psalms', chapter: 2, verse: 1, text: 'Psalm 2:1', characters: 9, words: 2 },
+      { verseOrder: 14301, book: 'Psalms', chapter: 3, verse: 1, text: 'Psalm 3:1', characters: 9, words: 2 },
+      { verseOrder: 14401, book: 'Psalms', chapter: 4, verse: 1, text: 'Psalm 4:1', characters: 9, words: 2 },
+    ]);
+
+    const expectedProps: Array<string | null> = [
+      'bottle-tree',
+      'herb-rack',
+      null,
+      'river-cairn',
+    ];
+
+    for (let i = 0; i < psalmVerses.length; i += 1) {
+      const v = psalmVerses[i];
+      const res = await request(app)
+        .post(`/api/progress/result/${v._id}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .send(submitPayload(v, 76, 99))
+        .expect(201);
+
+      expect(res.body.data.chapterJustUnlocked).toMatchObject({
+        book: 'Psalms',
+        chapter: i + 1,
+        trailStep: {
+          clearingId: 'psa-book-1-c1',
+          clearingBloomed: i + 1,
+          clearingTotal: 14,
+          nextChapter: i + 2,
+          propJustAwakened: expectedProps[i],
+        },
+      });
+    }
   });
 });

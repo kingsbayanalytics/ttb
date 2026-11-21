@@ -900,7 +900,7 @@ dialog.companion-drawer::backdrop {
   margin-block-end: 0.85rem;
 }
 
-.chapter-bloom-whisper-pill {
+.chapter-bloom-toast-region .chapter-bloom-whisper-pill {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -962,6 +962,7 @@ dialog.companion-drawer::backdrop {
   justify-content: space-between;
   gap: 0.65rem;
   flex-wrap: wrap;
+  margin-block-end: 0.85rem;
   padding: 0.5rem 0.85rem;
   background: var(--bg-parchment);
   border: 1px solid var(--border-stone);
@@ -1025,14 +1026,38 @@ dialog.companion-drawer::backdrop {
   border: 1px solid var(--border-stone);
   border-inline-start: 4px solid var(--accent-ochre);
   text-align: start;
+}
+
+.chapter-bloom-banner-shell {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+}
+
+.chapter-bloom-banner-art {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: var(--bg-ivory);
+  border: 1px solid var(--accent-ochre);
+  padding: 2px;
+}
+
+.chapter-bloom-banner-main {
+  flex: 1 1 auto;
+  min-inline-size: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.5rem;
 }
 
 .chapter-bloom-banner-header {
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: 0.45rem;
 }
 
@@ -1040,6 +1065,7 @@ dialog.companion-drawer::backdrop {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   letter-spacing: 0.08em;
+  text-transform: uppercase;
   font-weight: 600;
   color: var(--accent-ochre);
 }
@@ -1049,12 +1075,19 @@ dialog.companion-drawer::backdrop {
   font-size: 0.98rem;
   line-height: 1.55;
   color: var(--ink-primary);
+  margin: 0;
 }
 
 .chapter-bloom-banner-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem;
+}
+
+@media (max-width: 520px) {
+  .chapter-bloom-banner-shell {
+    flex-direction: column;
+  }
 }
 
 /* Visually hidden utility (accessibility guide) */
