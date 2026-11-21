@@ -69,6 +69,9 @@ RAW_ASSETS: Dict[str, str] = {
     "flush-stones": "sprite_flush_stones_trio_1795204987714.jpg",
     "waking-props": "sprite_waking_yard_props_4col_1795204989575.jpg",
     "elder-keepers": "sprite_elder_keepers_2col_1795205081868.jpg",
+    "badges-sheet-1": "achievement_medallions_sheet_1795224090919.jpg",
+    "badges-sheet-2": "achievement_medallions_sheet_v2_1795224105300.jpg",
+    "badges-sheet-3": "achievement_medallions_sheet_1795224089376.jpg",
 }
 
 STORY_ARC_DUAL_STEMS: Tuple[str, ...] = (
@@ -147,7 +150,11 @@ def grade_daylight_to_twilight(im: Image.Image) -> Image.Image:
     return Image.fromarray(graded, mode="RGB")
 
 
-def build_chroma_alpha(rgb: np.ndarray, aggressive_interior: bool = False) -> np.ndarray:
+def build_chroma_alpha(
+    rgb: np.ndarray,
+    aggressive_interior: bool = False,
+    allow_interior_cutout: bool = True,
+) -> np.ndarray:
     """
     Remove solid #FF00FF chroma background and enclosed triangle gaps while preserving
     crisp dark espresso pixel outlines without purple JPEG compression fringe.
@@ -183,11 +190,12 @@ def build_chroma_alpha(rgb: np.ndarray, aggressive_interior: bool = False) -> np
                 queue.append((ny, nx))
 
     # 2. Clear enclosed pure-magenta cutouts (e.g., A-frame rack legs, bottle branches, harp frame)
-    if aggressive_interior:
-        is_interior_mag = (chroma > 70) & (r > 130) & (b > 130) & (g < 110)
-    else:
-        is_interior_mag = (chroma > 105) & (r > 150) & (b > 150) & (g < 95)
-    bg = bg | is_interior_mag
+    if allow_interior_cutout:
+        if aggressive_interior:
+            is_interior_mag = (chroma > 70) & (r > 130) & (b > 130) & (g < 110)
+        else:
+            is_interior_mag = (chroma > 105) & (r > 150) & (b > 150) & (g < 95)
+        bg = bg | is_interior_mag
 
     rgba = np.zeros((h, w, 4), dtype=np.uint8)
     rgba[:, :, :3] = rgb
@@ -361,7 +369,61 @@ def split_sprite_columns(
     return split_2d_components(rgba, expected_count=expected_count)
 
 
-def process_all(artifacts_dir: Path, out_dir: Path) -> None:
+def process_badges(artifacts_dir: Path, out_dir: Path) -> None:
+    """Slice all 3 octagonal pixel-medallion sheets into 96x96 transparent PNGs."""
+    badges_dir = out_dir / "badges"
+    badges_dir.mkdir(parents=True, exist_ok=True)
+
+    badge_sheets: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
+        (
+            "badges-sheet-1",
+            ("first-scribe", "streak-3", "streak-7", "streak-30", "precision-100"),
+        ),
+        (
+            "badges-sheet-2",
+            ("speed-60", "speed-80", "speed-100", "psalms-mantra", "explorer-50"),
+        ),
+        (
+            "badges-sheet-3",
+            (
+                "trail-first-bloom",
+                "trail-bottle-tree",
+                "trail-herb-rack",
+                "trail-clearing-complete",
+            ),
+        ),
+    )
+
+    for sheet_key, badge_ids in badge_sheets:
+        src = artifacts_dir / RAW_ASSETS[sheet_key]
+        if not src.exists():
+            raise FileNotFoundError(f"Missing raw badge sheet artifact: {src}")
+        rgb = np.array(Image.open(src).convert("RGB"))
+        rgba = build_chroma_alpha(
+            rgb,
+            aggressive_interior=False,
+            allow_interior_cutout=False,
+        )
+        slices = split_sprite_columns(rgba, expected_count=len(badge_ids))
+        for col_rgba, badge_id in zip(slices, badge_ids):
+            medallion = trim_and_place_sprite(
+                col_rgba,
+                target_size=(96, 96),
+                max_content_height=84,
+                bottom_margin=6,
+            )
+            dst = badges_dir / f"badge-{badge_id}.png"
+            medallion.save(dst, format="PNG", optimize=True)
+            print(
+                f"Encoded {dst.relative_to(REPO_ROOT)}: {medallion.size[0]}x{medallion.size[1]} PNG ({dst.stat().st_size:,} bytes)"
+            )
+
+
+def process_all(artifacts_dir: Path, out_dir: Path, badges_only: bool = False) -> None:
+    if badges_only:
+        process_badges(artifacts_dir, out_dir)
+        return
+
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. Existing Clearing-1 Backdrops (Genesis Eden & Psalms Sanctuary)
@@ -477,13 +539,17 @@ def process_all(artifacts_dir: Path, out_dir: Path) -> None:
         elder_img.save(dst, format="PNG", optimize=True)
         print(f"Encoded {dst.relative_to(REPO_ROOT)}: {elder_img.size[0]}x{elder_img.size[1]} PNG ({dst.stat().st_size:,} bytes)")
 
+    # 7. Living Trail Pixel Medallion Badges (14 PNGs)
+    process_badges(artifacts_dir, out_dir)
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build HD trail backdrops and sprites.")
     parser.add_argument("--artifacts-dir", type=Path, default=DEFAULT_ARTIFACTS_DIR)
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR)
+    parser.add_argument("--badges-only", action="store_true")
     args = parser.parse_args()
-    process_all(args.artifacts_dir, args.out_dir)
+    process_all(args.artifacts_dir, args.out_dir, badges_only=args.badges_only)
 
 
 if __name__ == "__main__":

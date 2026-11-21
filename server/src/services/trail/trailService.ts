@@ -11,6 +11,7 @@ import {
   DEFAULT_WORK_ID,
 } from '../../utils/companionWorks';
 import {
+  PHASE1_CLEARING_RANGES,
   TRAIL_BIOME_CATALOG,
   getBiomeBookMeta,
   getTrailLegsForBook,
@@ -774,5 +775,105 @@ export async function detectChapterJustUnlocked(params: {
     unlockedAt: (unlockedAt ?? new Date()).toISOString(),
     companionCount: companionDocs.length,
     availableLenses: orderedLenses,
+  };
+}
+
+export interface TrailBadgeProgressSummary {
+  bloomedChaptersCount: number;
+  maxClearingBloomedCount: number;
+  bestClearingBloomed: number;
+  bestClearingTotal: number;
+  completedClearingsCount: number;
+}
+
+/**
+ * Pure aggregation computing Living Trail chapter blooms and Phase 1 clearing wakes
+ * from deduplicated completed verseOrder values.
+ */
+export function computeTrailBadgeProgress(
+  manifest: ChapterManifest,
+  completedVerseOrders: ReadonlyArray<number>
+): TrailBadgeProgressSummary {
+  const uniqueOrders = new Set<number>();
+  for (const vo of completedVerseOrders) {
+    if (typeof vo === 'number' && Number.isFinite(vo)) {
+      uniqueOrders.add(vo);
+    }
+  }
+
+  const countsByBookChapter = new Map<string, Map<number, number>>();
+  for (const vo of uniqueOrders) {
+    const chMeta = findChapterForVerseOrder(manifest, vo);
+    if (!chMeta) continue;
+    let bookMap = countsByBookChapter.get(chMeta.book);
+    if (!bookMap) {
+      bookMap = new Map<number, number>();
+      countsByBookChapter.set(chMeta.book, bookMap);
+    }
+    bookMap.set(chMeta.chapter, (bookMap.get(chMeta.chapter) ?? 0) + 1);
+  }
+
+  let bloomedChaptersCount = 0;
+  const bloomedByBook = new Map<string, Set<number>>();
+
+  for (const [book, chMap] of countsByBookChapter.entries()) {
+    const manifestChapters = manifest.chaptersByBook.get(book);
+    if (!manifestChapters) continue;
+    for (const [chapter, completedCount] of chMap.entries()) {
+      const chMeta = manifestChapters.get(chapter);
+      if (chMeta && computeChapterState(completedCount, chMeta.totalVerses) === 'bloomed') {
+        bloomedChaptersCount += 1;
+        let bloomedSet = bloomedByBook.get(book);
+        if (!bloomedSet) {
+          bloomedSet = new Set<number>();
+          bloomedByBook.set(book, bloomedSet);
+        }
+        bloomedSet.add(chapter);
+      }
+    }
+  }
+
+  let maxClearingBloomedCount = 0;
+  let completedClearingsCount = 0;
+  let bestClearingBloomed = 0;
+  let bestClearingTotal = 10;
+  let bestRatio = 0;
+
+  for (const clearing of PHASE1_CLEARING_RANGES) {
+    const bookBloomed = bloomedByBook.get(clearing.book);
+    let bloomedInClearing = 0;
+    if (bookBloomed) {
+      for (let ch = clearing.startChapter; ch <= clearing.endChapter; ch += 1) {
+        if (bookBloomed.has(ch)) {
+          bloomedInClearing += 1;
+        }
+      }
+    }
+
+    const totalInClearing = clearing.endChapter - clearing.startChapter + 1;
+    if (bloomedInClearing > maxClearingBloomedCount) {
+      maxClearingBloomedCount = bloomedInClearing;
+    }
+    if (bloomedInClearing >= totalInClearing) {
+      completedClearingsCount += 1;
+    }
+
+    const ratio = totalInClearing > 0 ? bloomedInClearing / totalInClearing : 0;
+    if (
+      bloomedInClearing > 0 &&
+      (ratio > bestRatio || (ratio === bestRatio && bloomedInClearing > bestClearingBloomed))
+    ) {
+      bestRatio = ratio;
+      bestClearingBloomed = bloomedInClearing;
+      bestClearingTotal = totalInClearing;
+    }
+  }
+
+  return {
+    bloomedChaptersCount,
+    maxClearingBloomedCount,
+    bestClearingBloomed,
+    bestClearingTotal,
+    completedClearingsCount,
   };
 }

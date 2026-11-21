@@ -8,6 +8,7 @@ import {
   MemoryService,
   PlanService,
   CompanionService,
+  StatsService,
 } from '../services/api';
 
 const mockVerse = {
@@ -55,6 +56,9 @@ jest.mock('../services/api', () => ({
     getBookGuide: jest.fn(),
     searchCompanion: jest.fn(),
   },
+  StatsService: {
+    getAchievements: jest.fn(),
+  },
 }));
 
 describe('TypingTest', () => {
@@ -73,6 +77,24 @@ describe('TypingTest', () => {
     (PlanService.getCustomPlans as jest.Mock).mockResolvedValue([]);
     (ProgressService.submitResult as jest.Mock).mockResolvedValue({});
     (ProgressService.getUserProgress as jest.Mock).mockResolvedValue([]);
+    (StatsService.getAchievements as jest.Mock).mockResolvedValue({
+      streak: {
+        currentStreakDays: 0,
+        longestStreakDays: 0,
+        lastActiveDate: null,
+        activeToday: false,
+      },
+      milestones: {
+        totalAttempts: 0,
+        bestWpm: 0,
+        flawlessCount: 0,
+        uniqueVersesCompleted: 0,
+        psalmsCompletedCount: 0,
+        bloomedChaptersCount: 0,
+        completedClearingsCount: 0,
+      },
+      badges: [],
+    });
     (ProgressService.getBookChapterProgress as jest.Mock).mockResolvedValue({
       book: 'Genesis',
       chapter: 1,
@@ -1494,5 +1516,122 @@ describe('TypingTest', () => {
       'href',
       '/trail?book=Genesis'
     );
+  });
+
+  it('surfaces a celebratory Living Trail badge toast outside Zen Mode and a Zen badge chip inside Zen Mode when a medallion unlocks', async () => {
+    const lockedData = {
+      streak: { currentStreakDays: 0, longestStreakDays: 0, lastActiveDate: null, activeToday: false },
+      milestones: {
+        totalAttempts: 0,
+        bestWpm: 0,
+        flawlessCount: 0,
+        uniqueVersesCompleted: 0,
+        psalmsCompletedCount: 0,
+        bloomedChaptersCount: 0,
+        completedClearingsCount: 0,
+      },
+      badges: [
+        {
+          id: 'trail-first-bloom',
+          title: 'First Bloom',
+          description: 'Bloom your first complete scripture chapter on the Living Trail.',
+          category: 'trail' as const,
+          unlocked: false,
+          progressCurrent: 0,
+          progressTarget: 1,
+          progressPct: 0,
+        },
+      ],
+    };
+    const unlockedData = {
+      ...lockedData,
+      milestones: { ...lockedData.milestones, bloomedChaptersCount: 1 },
+      badges: [
+        {
+          ...lockedData.badges[0],
+          unlocked: true,
+          progressCurrent: 1,
+          progressPct: 100,
+        },
+      ],
+    };
+
+    (AuthService.getCurrentUser as jest.Mock).mockReturnValue({ _id: 'user123' });
+    (StatsService.getAchievements as jest.Mock)
+      .mockResolvedValueOnce(lockedData)
+      .mockResolvedValueOnce(unlockedData);
+    (ProgressService.submitResult as jest.Mock).mockResolvedValueOnce({
+      result: { _id: 'r-badge' },
+      progress: { _id: 'p-badge', completed: true },
+      chapterJustUnlocked: null,
+    });
+
+    render(<TypingTest />);
+    const textarea = (await screen.findByPlaceholderText(
+      'Start typing the verse above...',
+      {},
+      { timeout: 2000 }
+    )) as HTMLTextAreaElement;
+
+    await waitFor(() => {
+      expect(StatsService.getAchievements).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.change(textarea, { target: { value: mockVerse.text } });
+
+    const toast = await screen.findByTestId(
+      'badge-unlock-toast-trail-first-bloom',
+      {},
+      { timeout: 2000 }
+    );
+    expect(toast).toHaveTextContent('First Bloom');
+    fireEvent.click(screen.getByTestId('badge-toast-open-case-trail-first-bloom'));
+
+    const badgesModal = await screen.findByTestId('trail-badges-modal', {}, { timeout: 2000 });
+    expect(badgesModal).toHaveAttribute('open');
+    expect(badgesModal).toHaveTextContent('First Bloom');
+    fireEvent.click(screen.getByTestId('trail-badges-close-btn'));
+    expect(badgesModal).not.toHaveAttribute('open');
+
+    // Second scenario: Zen Mode suppresses overlay toast and surfaces ZenBadgeChip instead
+    const secondUnlockData = {
+      ...unlockedData,
+      badges: [
+        ...unlockedData.badges,
+        {
+          id: 'trail-bottle-tree',
+          title: 'Bottle Tree Lit',
+          description: "Awaken a clearing's Hoodoo Bottle Tree by blooming a chapter in Genesis or Psalms.",
+          category: 'trail' as const,
+          unlocked: true,
+          progressCurrent: 1,
+          progressTarget: 1,
+          progressPct: 100,
+        },
+      ],
+    };
+
+    (StatsService.getAchievements as jest.Mock).mockResolvedValueOnce(secondUnlockData);
+    (ProgressService.submitResult as jest.Mock).mockResolvedValueOnce({
+      result: { _id: 'r-badge-zen' },
+      progress: { _id: 'p-badge-zen', completed: true },
+      chapterJustUnlocked: null,
+    });
+
+    // Clear first toast before entering Zen Mode, then trigger Zen Mode unlock flow
+    fireEvent.click(screen.getByTestId('badge-toast-dismiss-trail-first-bloom'));
+
+    fireEvent.click(screen.getByRole('button', { name: /Try Another Verse/i }));
+    const nextTextarea = (await screen.findByPlaceholderText(
+      'Start typing the verse above...',
+      {},
+      { timeout: 2000 }
+    )) as HTMLTextAreaElement;
+    fireEvent.click(screen.getByTestId('enter-zen-button'));
+    fireEvent.change(nextTextarea, { target: { value: mockVerse.text } });
+
+    const zenBadgeChip = await screen.findByTestId('zen-badge-chip', {}, { timeout: 2000 });
+    expect(zenBadgeChip).toHaveTextContent('✦ Bottle Tree Lit Earned');
+    expect(screen.queryByTestId('badge-unlock-toast-trail-bottle-tree')).not.toBeInTheDocument();
   });
 });

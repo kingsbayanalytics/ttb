@@ -41,6 +41,7 @@ import {
   getMockTrailBook,
   getMockTrailOverview,
 } from '../data/mockCompanion';
+import { createMockAchievementsData } from '../data/trailBadges';
 
 export interface NextVerseChapterResult extends NextVerseResult {
   chapterComplete?: boolean;
@@ -801,22 +802,7 @@ export const StatsService = {
   getAchievements: async (tz?: string): Promise<AchievementsData> => {
     try {
       if (USE_MOCK_DATA) {
-        return {
-          streak: {
-            currentStreakDays: 0,
-            longestStreakDays: 0,
-            lastActiveDate: null,
-            activeToday: false,
-          },
-          milestones: {
-            totalAttempts: 0,
-            bestWpm: 0,
-            flawlessCount: 0,
-            uniqueVersesCompleted: 0,
-            psalmsCompletedCount: 0,
-          },
-          badges: [],
-        };
+        return createMockAchievementsData();
       }
 
       const response = await api.get('/stats/achievements', {

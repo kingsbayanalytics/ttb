@@ -1,0 +1,626 @@
+/* ==========================================================================
+   Living Trail Overlays: Badge Case Modal, World Atlas Drawer & Unlock Toasts
+   Editorial Atlas Visual Grammar — Parchment Light / Obsidian Dark
+   Zero unconditional `display` on <dialog>; scroll-contained native ::backdrop
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Living Trail Field-Satchel Badge Case Modal (<dialog>)
+   -------------------------------------------------------------------------- */
+dialog.trail-badges-modal {
+  padding: 0;
+  margin: auto;
+  border: 1px solid var(--border-strong);
+  border-inline-start: 4px solid var(--accent-ochre);
+  border-radius: 0;
+  background-color: var(--bg-ivory);
+  color: var(--ink-primary);
+  inline-size: min(860px, calc(100vw - 2rem));
+  max-inline-size: calc(100vw - 1.5rem);
+  max-block-size: min(86dvh, 780px);
+  box-shadow: 0 18px 48px rgba(20, 20, 19, 0.32);
+  overflow: hidden;
+}
+
+dialog.trail-badges-modal[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+dialog.trail-badges-modal:modal {
+  overscroll-behavior: contain;
+}
+
+dialog.trail-badges-modal::backdrop {
+  background: rgba(20, 20, 19, 0.52);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  dialog.trail-badges-modal[open] {
+    animation: trail-modal-pop 160ms ease-out;
+  }
+}
+
+@keyframes trail-modal-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.trail-badges-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1rem 1.25rem 0.9rem;
+  background-color: var(--bg-parchment);
+  border-block-end: 1px solid var(--border-stone);
+  flex-shrink: 0;
+}
+
+.trail-badges-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.trail-badges-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-ochre);
+}
+
+.trail-dialog-close-btn {
+  min-block-size: 32px;
+  min-inline-size: 44px;
+  padding: 0.3rem 0.7rem;
+  background-color: var(--bg-ivory);
+  color: var(--ink-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .trail-dialog-close-btn:hover {
+    background-color: var(--bg-bone);
+    border-color: var(--accent-ochre);
+  }
+}
+
+.trail-dialog-close-btn:focus-visible,
+.trail-badge-filter-btn:focus-visible,
+.badge-toast-action-btn:focus-visible,
+.badge-toast-dismiss-btn:focus-visible {
+  outline: 2px solid var(--accent-terracotta);
+  outline-offset: 2px;
+}
+
+.trail-badges-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.65rem;
+}
+
+.trail-badges-title {
+  font-family: var(--font-serif);
+  font-size: clamp(1.35rem, 1.15rem + 0.6vw, 1.7rem);
+  line-height: 1.2;
+  color: var(--ink-primary);
+  margin: 0;
+}
+
+.trail-badges-seal-count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.22rem 0.6rem;
+  background-color: var(--bg-ivory);
+  border: 1px solid var(--accent-ochre);
+  color: var(--accent-ochre);
+}
+
+.trail-badges-summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.trail-badges-summary-pill {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.55rem;
+  background-color: var(--bg-ivory);
+  border: 1px solid var(--border-stone);
+  color: var(--ink-secondary);
+}
+
+.trail-badges-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.65rem 1.25rem;
+  background-color: var(--bg-ivory);
+  border-block-end: 1px solid var(--border-stone);
+  flex-shrink: 0;
+}
+
+.trail-badge-filter-btn {
+  min-block-size: 30px;
+  padding: 0.25rem 0.65rem;
+  background-color: var(--bg-parchment);
+  color: var(--ink-secondary);
+  border: 1px solid var(--border-stone);
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.trail-badge-filter-btn[aria-pressed="true"] {
+  background-color: var(--ink-primary);
+  color: var(--bg-ivory);
+  border-color: var(--ink-primary);
+  border-block-end: 3px solid var(--accent-ochre);
+}
+
+.trail-badges-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-block-size: 0;
+  overscroll-behavior: contain;
+  padding: 1.05rem 1.25rem 1.25rem;
+}
+
+.trail-badges-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 0.8rem;
+}
+
+.trail-medallion-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.85rem 0.95rem;
+  background-color: var(--bg-parchment);
+  border: 1px solid var(--border-stone);
+  border-radius: 0;
+}
+
+.trail-medallion-card--unlocked {
+  background-color: var(--bg-ivory);
+  border-color: var(--border-strong);
+  border-inline-start: 4px solid var(--accent-ochre);
+}
+
+.trail-medallion-card--locked {
+  border-style: dashed;
+  opacity: 0.86;
+}
+
+.trail-medallion-card--highlighted {
+  box-shadow: inset 0 0 0 1px var(--accent-ochre), 0 0 0 1px var(--accent-ochre);
+}
+
+.trail-medallion-frame {
+  width: 60px;
+  height: 60px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background-color: var(--bg-bone);
+  border: 1px solid var(--border-stone);
+}
+
+.trail-medallion-card--unlocked .trail-medallion-frame {
+  border-color: var(--accent-ochre);
+  background-color: color-mix(in oklab, var(--bg-parchment) 80%, var(--accent-ochre) 20%);
+}
+
+.trail-medallion-img {
+  width: 48px;
+  height: 48px;
+  image-rendering: pixelated;
+  display: block;
+}
+
+.trail-medallion-card--locked .trail-medallion-img {
+  filter: grayscale(0.88) opacity(0.5);
+}
+
+.trail-medallion-content {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.trail-medallion-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.trail-medallion-ribbon {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-muted);
+}
+
+.trail-medallion-status {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.1rem 0.42rem;
+  border: 1px solid var(--border-stone);
+  background-color: var(--bg-bone);
+  color: var(--ink-secondary);
+}
+
+.trail-medallion-card--unlocked .trail-medallion-status {
+  border-color: var(--accent-ochre);
+  color: var(--accent-ochre);
+  background-color: var(--bg-parchment);
+}
+
+.trail-medallion-title {
+  font-family: var(--font-serif);
+  font-size: 1.02rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink-primary);
+  margin: 0;
+}
+
+.trail-medallion-desc {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--ink-secondary);
+  margin: 0;
+}
+
+.trail-medallion-flavor {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--ink-muted);
+  margin: 0;
+}
+
+.trail-medallion-meter {
+  margin-block-start: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+}
+
+.trail-medallion-track {
+  block-size: 6px;
+  inline-size: 100%;
+  background-color: var(--bg-bone);
+  border: 1px solid var(--border-stone);
+  overflow: hidden;
+}
+
+.trail-medallion-fill {
+  block-size: 100%;
+  background-color: var(--accent-ochre);
+}
+
+.trail-medallion-numbers {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.68rem;
+  color: var(--ink-muted);
+}
+
+/* --------------------------------------------------------------------------
+   2. World Atlas Slide-Over Drawer (<dialog>)
+   -------------------------------------------------------------------------- */
+dialog.world-atlas-drawer {
+  padding: 0;
+  margin: 0;
+  margin-inline-start: auto;
+  border: 0;
+  border-inline-start: 1px solid var(--border-strong);
+  border-radius: 0;
+  background-color: var(--bg-ivory);
+  color: var(--ink-primary);
+  inline-size: min(760px, 68vw);
+  max-inline-size: 100vw;
+  block-size: 100dvh;
+  max-block-size: 100dvh;
+  box-shadow: -8px 0 30px rgba(20, 20, 19, 0.22);
+  overflow: hidden;
+}
+
+dialog.world-atlas-drawer[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+dialog.world-atlas-drawer:modal {
+  overscroll-behavior: contain;
+}
+
+dialog.world-atlas-drawer::backdrop {
+  background: rgba(20, 20, 19, 0.45);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  dialog.world-atlas-drawer[open] {
+    animation: world-atlas-slide-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+@keyframes world-atlas-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 959px) and (min-width: 600px) {
+  dialog.world-atlas-drawer {
+    inline-size: min(640px, 92vw);
+  }
+}
+
+@media (max-width: 599px) {
+  dialog.world-atlas-drawer {
+    margin-inline-start: 0;
+    margin-block-start: auto;
+    inline-size: 100vw;
+    block-size: auto;
+    max-block-size: 92dvh;
+    border-inline-start: 0;
+    border-block-start: 1px solid var(--border-strong);
+  }
+}
+
+.world-atlas-drawer-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 1rem 1.25rem 0.9rem;
+  background-color: var(--bg-parchment);
+  border-block-end: 1px solid var(--border-stone);
+  flex-shrink: 0;
+}
+
+.world-atlas-drawer-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.world-atlas-drawer-title {
+  font-family: var(--font-serif);
+  font-size: 1.45rem;
+  color: var(--ink-primary);
+  margin: 0;
+}
+
+.world-atlas-drawer-subtitle {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.74rem;
+  color: var(--ink-secondary);
+  margin: 0;
+}
+
+.world-atlas-drawer-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-block-size: 0;
+  overscroll-behavior: contain;
+  padding: 1.05rem 1.25rem 1.35rem;
+}
+
+/* --------------------------------------------------------------------------
+   3. Persistent Celebratory Badge Unlock Toasts ([popover="manual"])
+   -------------------------------------------------------------------------- */
+.badge-toast-region {
+  position: fixed;
+  inset: auto 0 0 auto;
+  z-index: 45;
+  pointer-events: none;
+}
+
+.badge-toast-stack {
+  position: fixed;
+  inset: auto 1rem 1rem auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.65rem;
+  max-inline-size: calc(100vw - 1.5rem);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 180ms ease-out, transform 180ms ease-out, display 180ms;
+  transition-behavior: allow-discrete;
+}
+
+.badge-toast-stack[popover]:is(:popover-open, .\:popover-open),
+.badge-toast-stack.badge-toast-stack--fallback {
+  display: flex;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@starting-style {
+  .badge-toast-stack[popover]:is(:popover-open, .\:popover-open) {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badge-toast-stack {
+    transition: none;
+    transform: none;
+  }
+}
+
+.badge-toast-card {
+  margin: 0;
+  pointer-events: auto;
+  inline-size: min(370px, calc(100vw - 1.5rem));
+  padding: 0.8rem 0.9rem;
+  background-color: var(--bg-ivory);
+  color: var(--ink-primary);
+  border: 1px solid var(--border-strong);
+  border-inline-start: 4px solid var(--accent-ochre);
+  border-radius: 0;
+  box-shadow: 0 12px 32px rgba(20, 20, 19, 0.24);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.badge-toast-medallion {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  image-rendering: pixelated;
+  background-color: var(--bg-parchment);
+  border: 1px solid var(--accent-ochre);
+  padding: 2px;
+}
+
+.badge-toast-content {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.badge-toast-kicker {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-ochre);
+}
+
+.badge-toast-title {
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink-primary);
+  margin: 0;
+}
+
+.badge-toast-desc {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--ink-secondary);
+  margin: 0;
+}
+
+.badge-toast-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-block-start: 0.35rem;
+}
+
+.badge-toast-action-btn,
+.badge-toast-dismiss-btn {
+  min-block-size: 28px;
+  padding: 0.22rem 0.55rem;
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.badge-toast-action-btn {
+  background-color: var(--ink-primary);
+  color: var(--bg-ivory);
+  border: 1px solid var(--ink-primary);
+}
+
+.badge-toast-dismiss-btn {
+  background-color: var(--bg-parchment);
+  color: var(--ink-secondary);
+  border: 1px solid var(--border-stone);
+}
+
+.zen-badge-chip {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.3rem 0.65rem;
+  background-color: var(--bg-ivory);
+  color: var(--accent-ochre);
+  border: 1px solid var(--accent-ochre);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+@media (max-width: 599px) {
+  dialog.trail-badges-modal {
+    inline-size: calc(100vw - 1rem);
+    max-block-size: 92dvh;
+  }
+
+  .trail-badges-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .badge-toast-stack {
+    inset: auto 0.75rem 0.75rem 0.75rem;
+    align-items: stretch;
+  }
+
+  .badge-toast-card {
+    inline-size: 100%;
+  }
+}

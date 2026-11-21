@@ -49,6 +49,8 @@ const DEFAULT_ACHIEVEMENTS_DATA: AchievementsData = {
     flawlessCount: 0,
     uniqueVersesCompleted: 0,
     psalmsCompletedCount: 0,
+    bloomedChaptersCount: 0,
+    completedClearingsCount: 0,
   },
   badges: [],
 };

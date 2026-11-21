@@ -249,6 +249,35 @@ for (const biome of TRAIL_BIOME_CATALOG) {
   }
 }
 
+export interface Phase1ClearingRange {
+  book: 'Genesis' | 'Psalms';
+  clearingId: string;
+  startChapter: number;
+  endChapter: number;
+}
+
+export const PHASE1_CLEARING_RANGES: readonly Phase1ClearingRange[] = [
+  { book: 'Genesis', clearingId: 'gen-leg-1', startChapter: 1, endChapter: 10 },
+  { book: 'Genesis', clearingId: 'gen-leg-2', startChapter: 11, endChapter: 20 },
+  { book: 'Genesis', clearingId: 'gen-leg-3', startChapter: 21, endChapter: 30 },
+  { book: 'Genesis', clearingId: 'gen-leg-4', startChapter: 31, endChapter: 40 },
+  { book: 'Genesis', clearingId: 'gen-leg-5', startChapter: 41, endChapter: 50 },
+  { book: 'Psalms', clearingId: 'psa-book-1-c1', startChapter: 1, endChapter: 14 },
+  { book: 'Psalms', clearingId: 'psa-book-1-c2', startChapter: 15, endChapter: 28 },
+  { book: 'Psalms', clearingId: 'psa-book-1-c3', startChapter: 29, endChapter: 41 },
+  { book: 'Psalms', clearingId: 'psa-book-2-c1', startChapter: 42, endChapter: 52 },
+  { book: 'Psalms', clearingId: 'psa-book-2-c2', startChapter: 53, endChapter: 62 },
+  { book: 'Psalms', clearingId: 'psa-book-2-c3', startChapter: 63, endChapter: 72 },
+  { book: 'Psalms', clearingId: 'psa-book-3-c1', startChapter: 73, endChapter: 81 },
+  { book: 'Psalms', clearingId: 'psa-book-3-c2', startChapter: 82, endChapter: 89 },
+  { book: 'Psalms', clearingId: 'psa-book-4-c1', startChapter: 90, endChapter: 98 },
+  { book: 'Psalms', clearingId: 'psa-book-4-c2', startChapter: 99, endChapter: 106 },
+  { book: 'Psalms', clearingId: 'psa-book-5-c1', startChapter: 107, endChapter: 117 },
+  { book: 'Psalms', clearingId: 'psa-book-5-c2', startChapter: 118, endChapter: 128 },
+  { book: 'Psalms', clearingId: 'psa-book-5-c3', startChapter: 129, endChapter: 139 },
+  { book: 'Psalms', clearingId: 'psa-book-5-c4', startChapter: 140, endChapter: 150 },
+];
+
 export const GENESIS_TRAIL_LEGS: readonly TrailLegDefinition[] = [
   { legId: 'gen-leg-1', label: 'Ch. 1–10', startChapter: 1, endChapter: 10 },
   { legId: 'gen-leg-2', label: 'Ch. 11–20', startChapter: 11, endChapter: 20 },

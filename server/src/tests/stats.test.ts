@@ -450,8 +450,14 @@ describe('Stats API (Story 2.2)', () => {
       flawlessCount: 0,
       uniqueVersesCompleted: 1,
       psalmsCompletedCount: 1,
+      bloomedChaptersCount: 1,
+      completedClearingsCount: 0,
     });
-    expect(achievementsRes.body.data.badges).toHaveLength(10);
+    expect(achievementsRes.body.data.badges).toHaveLength(14);
+    const trailFirstBloom = achievementsRes.body.data.badges.find(
+      (b: { id: string }) => b.id === 'trail-first-bloom'
+    );
+    expect(trailFirstBloom).toMatchObject({ category: 'trail', unlocked: true });
 
     const badTzRes = await request(app)
       .get('/api/stats/achievements?tz=Invalid/Timezone')

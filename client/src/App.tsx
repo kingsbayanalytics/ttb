@@ -52,7 +52,18 @@ const AppRoutes: React.FC = () => {
       <footer>
         <div className="container footer-inner">
           <span className="footer-kicker">WEB · 73 CANONICAL BOOKS</span>
-          <p>&copy; {new Date().getFullYear()} Type the Bible. Inspired by the original command-line game by Kenneth Burchfiel.</p>
+          <p>
+            &copy; {new Date().getFullYear()} Type the Bible. Inspired by the original command-line game by{' '}
+            <a
+              href="https://github.com/kburchfiel/Type_The_Bible"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="footer-attribution-link"
+            >
+              Kenneth Burchfiel
+            </a>
+            .
+          </p>
         </div>
       </footer>
     </div>

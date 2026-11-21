@@ -349,9 +349,11 @@ describe('stats service (Story 2.1 pure functions)', () => {
         flawlessCount: 4,
         uniqueVersesCompleted: 15,
         psalmsCompletedCount: 10,
+        bloomedChaptersCount: 0,
+        completedClearingsCount: 0,
       });
 
-      expect(achievements.badges).toHaveLength(10);
+      expect(achievements.badges).toHaveLength(14);
       const byId = Object.fromEntries(achievements.badges.map((b) => [b.id, b]));
       expect(byId['first-scribe'].unlocked).toBe(true);
       expect(byId['streak-3'].unlocked).toBe(true);
@@ -363,6 +365,58 @@ describe('stats service (Story 2.1 pure functions)', () => {
       expect(byId['psalms-mantra'].unlocked).toBe(true);
       expect(byId['explorer-50'].unlocked).toBe(false);
       expect(byId['explorer-50'].progressPct).toBe(30);
+      expect(byId['trail-first-bloom'].unlocked).toBe(false);
+    });
+
+    it('tracks Living Trail milestones across partial (2/10) and completed (10/10) clearings', () => {
+      const now = new Date('2026-11-20T18:00:00.000Z');
+      const partial = buildStreaksAndBadges({
+        results: [{ startTime: now, wpm: 72, accuracy: 99, incorrectCharacters: 0 }],
+        completedProgressCount: 56,
+        psalmsCompletedCount: 0,
+        bloomedChaptersCount: 2,
+        maxClearingBloomedCount: 2,
+        bestClearingBloomed: 2,
+        bestClearingTotal: 10,
+        completedClearingsCount: 0,
+        timezone: 'UTC',
+        now,
+      });
+
+      expect(partial.milestones.bloomedChaptersCount).toBe(2);
+      expect(partial.milestones.completedClearingsCount).toBe(0);
+      const partialMap = Object.fromEntries(partial.badges.map((b) => [b.id, b]));
+      expect(partialMap['trail-first-bloom'].unlocked).toBe(true);
+      expect(partialMap['trail-bottle-tree'].unlocked).toBe(true);
+      expect(partialMap['trail-herb-rack'].unlocked).toBe(true);
+      expect(partialMap['trail-clearing-complete']).toMatchObject({
+        category: 'trail',
+        unlocked: false,
+        progressCurrent: 2,
+        progressTarget: 10,
+        progressPct: 20,
+      });
+
+      const cleared = buildStreaksAndBadges({
+        results: [{ startTime: now, wpm: 72, accuracy: 99, incorrectCharacters: 0 }],
+        completedProgressCount: 250,
+        psalmsCompletedCount: 0,
+        bloomedChaptersCount: 10,
+        maxClearingBloomedCount: 10,
+        bestClearingBloomed: 10,
+        bestClearingTotal: 10,
+        completedClearingsCount: 1,
+        timezone: 'UTC',
+        now,
+      });
+      expect(cleared.milestones.completedClearingsCount).toBe(1);
+      const clearedMap = Object.fromEntries(cleared.badges.map((b) => [b.id, b]));
+      expect(clearedMap['trail-clearing-complete']).toMatchObject({
+        unlocked: true,
+        progressCurrent: 10,
+        progressTarget: 10,
+        progressPct: 100,
+      });
     });
 
     it('resets currentStreakDays to 0 when the last practice was 2 or more days ago', () => {

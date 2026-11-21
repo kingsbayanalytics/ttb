@@ -10,12 +10,12 @@ import React, {
 import * as RouterDom from 'react-router-dom';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  TrailBookOverview,
+  AchievementsData,
   TrailBookResponse,
   TrailChapterWaypoint,
   TrailOverviewResponse,
 } from '../../types';
-import { AuthService, TrailService } from '../../services/api';
+import { AuthService, StatsService, TrailService } from '../../services/api';
 import { useAuthSession } from '../../context/AuthContext';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import {
@@ -31,6 +31,7 @@ import {
   getTrailClearingsForBook,
   getTrailLegsForBook,
 } from '../../data/trailBiomes';
+import { createMockAchievementsData } from '../../data/trailBadges';
 import { BiomeCanvas } from './BiomeCanvas';
 import { ClearingSegment, YardPropId, buildClearingSegment } from './trailLayouts';
 import {
@@ -39,6 +40,11 @@ import {
   formatTrailChapterTitle,
 } from './WaypointOverlay';
 import { TrailChapterList } from './TrailChapterList';
+import { TrailBadgesModal } from './TrailBadgesModal';
+import {
+  HydratedAtlasBiome,
+  WorldAtlasDrawer,
+} from './WorldAtlasDrawer';
 import type { CompanionDrawerMode } from '../companion/CompanionDrawer';
 import './LivingTrail.css';
 
@@ -77,30 +83,11 @@ function resolveClearingParam(
   );
 }
 
-interface HydratedAtlasBook extends TrailBookOverview {
-  readonly canonicalChapters: number;
-}
-
-interface HydratedAtlasBiome {
-  readonly biomeId: string;
-  readonly order: number;
-  readonly name: string;
-  readonly shortName: string;
-  readonly phase: 1 | 2 | 3;
-  readonly motif: string;
-  readonly books: readonly HydratedAtlasBook[];
-}
-
-/**
- * Merges the canonical 9-biome / 73-book registry (`TRAIL_BIOME_CATALOG`) with live
- * API overview progress so all 9 regions and 73 books always render in canonical order
- * even when running against compact mock fixtures.
- */
 function hydrateMacroAtlas(
   overview: TrailOverviewResponse | null,
   activeBookTrail: TrailBookResponse | null
 ): readonly HydratedAtlasBiome[] {
-  const apiBookMap = new Map<string, TrailBookOverview>();
+  const apiBookMap = new Map<string, TrailOverviewResponse['biomes'][number]['books'][number]>();
   if (overview?.biomes) {
     for (const b of overview.biomes) {
       for (const bookEntry of b.books) {
@@ -218,9 +205,11 @@ export const LivingTrailPage: React.FC = () => {
   const urlBook = normalizePhase1Book(searchParams.get('book'));
   const urlChapterRaw = searchParams.get('chapter');
   const urlLegRaw = searchParams.get('leg') ?? searchParams.get('clearing');
+  const urlBadgesParam = searchParams.get('badges');
 
   const [overview, setOverview] = useState<TrailOverviewResponse | null>(null);
   const [bookTrail, setBookTrail] = useState<TrailBookResponse | null>(null);
+  const [achievements, setAchievements] = useState<AchievementsData | null>(null);
   const [selectedBook, setSelectedBook] = useState<'Genesis' | 'Psalms'>(
     urlBook ?? 'Genesis'
   );
@@ -238,6 +227,9 @@ export const LivingTrailPage: React.FC = () => {
   const [showChapterList, setShowChapterList] = useState<boolean>(false);
   const [motionPaused, setMotionPaused] = useState<boolean>(false);
   const [focusRequest, setFocusRequest] = useState<WaypointFocusRequest | null>(null);
+  const [badgeModalOpen, setBadgeModalOpen] = useState<boolean>(urlBadgesParam === 'open');
+  const [atlasDrawerOpen, setAtlasDrawerOpen] = useState<boolean>(false);
+  const [atlasFocusBiomeId, setAtlasFocusBiomeId] = useState<string | null>(null);
 
   const [drawerState, setDrawerState] = useState<DrawerState>({
     isOpen: false,
@@ -307,22 +299,43 @@ export const LivingTrailPage: React.FC = () => {
       return;
     }
 
+    const fetchOptionalAchievements = async (): Promise<AchievementsData | null> => {
+      if (typeof StatsService?.getAchievements !== 'function') {
+        return null;
+      }
+      try {
+        return await StatsService.getAchievements();
+      } catch {
+        return null;
+      }
+    };
+
     try {
       setLoading(true);
       setError(null);
 
       if (urlBook) {
-        const [overviewRes, bookRes] = await Promise.all([
+        const [overviewRes, bookRes, achievementsRes] = await Promise.all([
           TrailService.getOverview(),
           TrailService.getBookTrail(urlBook),
+          fetchOptionalAchievements(),
         ]);
         setOverview(overviewRes);
         setSelectedBook(urlBook);
         setBookTrail(bookRes);
+        if (achievementsRes) {
+          setAchievements(achievementsRes);
+        }
         applyInitialClearingForBook(bookRes, urlChapterRaw, urlLegRaw);
       } else {
-        const overviewRes = await TrailService.getOverview();
+        const [overviewRes, achievementsRes] = await Promise.all([
+          TrailService.getOverview(),
+          fetchOptionalAchievements(),
+        ]);
         setOverview(overviewRes);
+        if (achievementsRes) {
+          setAchievements(achievementsRes);
+        }
         const preferredBook =
           normalizePhase1Book(overviewRes.activeTraveler?.book) ?? 'Genesis';
         setSelectedBook(preferredBook);
@@ -589,6 +602,39 @@ export const LivingTrailPage: React.FC = () => {
     );
   }, [overview, hydratedBiomes]);
 
+  const playableBooksOverview = useMemo(() => {
+    const map = new Map<'Genesis' | 'Psalms', { bloomed: number; total: number }>();
+    for (const biome of hydratedBiomes) {
+      for (const bk of biome.books) {
+        if (bk.book === 'Genesis' || bk.book === 'Psalms') {
+          map.set(bk.book, { bloomed: bk.bloomedChapters, total: bk.totalChapters });
+        }
+      }
+    }
+    return map;
+  }, [hydratedBiomes]);
+
+  const resolvedAchievements = useMemo<AchievementsData>(() => {
+    if (achievements && achievements.badges.length > 0) {
+      return achievements;
+    }
+    return createMockAchievementsData({
+      bloomedChaptersCount: totalCanonBloomed,
+      maxClearingBloomedCount: countBloomedInRange(
+        resolvedSegment.startChapter,
+        resolvedSegment.endChapter
+      ),
+      bestClearingTotal: resolvedSegment.endChapter - resolvedSegment.startChapter + 1,
+    });
+  }, [achievements, totalCanonBloomed, countBloomedInRange, resolvedSegment]);
+
+  const unlockedBadgeCount = useMemo(
+    () => resolvedAchievements.badges.filter((b) => b.unlocked).length,
+    [resolvedAchievements]
+  );
+
+  const totalBadgeCount = resolvedAchievements.badges.length || 14;
+
   if (loading && !bookTrail) {
     return (
       <div className="loading-container" role="status" data-testid="trail-loading">
@@ -623,181 +669,108 @@ export const LivingTrailPage: React.FC = () => {
 
   return (
     <div className="living-trail-page" data-testid="living-trail-page">
-      {/* Masthead */}
-      <header className="trail-masthead">
-        <div className="trail-masthead-copy">
-          <span className="trail-kicker">LIVING PIXEL TRAIL · WORLD ENGLISH BIBLE</span>
-          <h1>Living Scripture Trail</h1>
-          <p className="trail-masthead-subtitle">
-            Walk the 16-bit scripture trail—every completed chapter blooms its river flagstone,
-            awakens Hoodoo &amp; biblical yard landmarks, and unlocks multi-lens Companion study
-            notes.
-          </p>
-        </div>
+      <h1 className="sr-only">Living Scripture Trail</h1>
 
-        <div className="trail-masthead-stats">
-          <span className="trail-stat-pill" data-testid="trail-canon-summary">
-            ✦ {totalCanonBloomed} / {overview?.totalChapters ?? CANONICAL_TOTAL_CHAPTERS} Chapters
-            Bloomed · {overview?.totalBooks ?? CANONICAL_TOTAL_BOOKS} Books
-          </span>
-          <span
-            className="trail-stat-pill trail-stat-pill--traveler"
-            data-testid="trail-active-traveler"
-          >
-            Traveler at {travelerSummary}
-          </span>
-        </div>
-      </header>
-
-      {/* Tier 1: Macro Atlas Trail Strip (All 9 Biomes / 73 Books) */}
-      <section
-        className="trail-atlas-section"
-        aria-labelledby="trail-macro-atlas-heading"
-        data-testid="trail-macro-atlas"
-      >
-        <div className="trail-section-header">
-          <h2 id="trail-macro-atlas-heading">Canonical Biome Atlas</h2>
-          <span className="trail-section-meta">
-            9 Regions · 73 Canonical Books · Phase 1 Playable: Genesis &amp; Psalms
-          </span>
-        </div>
-
-        <ol className="atlas-biome-strip">
-          {hydratedBiomes.map((biome: HydratedAtlasBiome) => {
-            const containsActiveBook = biome.books.some((b) => b.book === selectedBook);
-            const hasPlayablePhase1 = biome.books.some((b) => b.phase1Active);
-
-            const cardClasses = [
-              'atlas-biome-card',
-              containsActiveBook ? 'atlas-biome-card--active' : '',
-              !hasPlayablePhase1 ? 'atlas-biome-card--horizon' : '',
-            ]
-              .filter(Boolean)
-              .join(' ');
-
-            return (
-              <li
-                key={biome.biomeId}
-                className={cardClasses}
-                data-biome-id={biome.biomeId}
-                data-testid={`atlas-biome-${biome.biomeId}`}
-              >
-                <div className="atlas-biome-card-top">
-                  <span className="atlas-biome-order">Region {biome.order}</span>
-                  <span
-                    className={
-                      hasPlayablePhase1
-                        ? 'atlas-phase-badge atlas-phase-badge--playable'
-                        : 'atlas-phase-badge'
-                    }
-                  >
-                    {hasPlayablePhase1
-                      ? 'Phase 1 Playable'
-                      : `Phase ${biome.phase} · Mist-Veiled`}
-                  </span>
-                </div>
-
-                <div>
-                  <h3 className="atlas-biome-title">{biome.name}</h3>
-                  <p className="atlas-biome-motif">{biome.motif}</p>
-                </div>
-
-                <ul className="atlas-biome-books">
-                  {biome.books.map((bk) => {
-                    if (bk.phase1Active) {
-                      const isSelected = selectedBook === bk.book;
-                      return (
-                        <li
-                          key={bk.book}
-                          style={{ width: '100%' }}
-                          data-book={bk.book}
-                          data-phase1-active="true"
-                        >
-                          <button
-                            type="button"
-                            className="atlas-playable-book-btn"
-                            aria-pressed={isSelected}
-                            onClick={() =>
-                              handleSelectBook(bk.book as 'Genesis' | 'Psalms')
-                            }
-                            data-testid={`atlas-book-btn-${bk.book}`}
-                          >
-                            <span className="atlas-playable-book-row">
-                              <span className="atlas-playable-book-name">
-                                {bk.bookMastered ? '✦ ' : ''}
-                                {bk.book}
-                              </span>
-                              <span className="atlas-playable-book-bloom">
-                                {bk.book} · {bk.bloomedChapters} / {bk.totalChapters} Chapters
-                                Bloomed
-                              </span>
-                            </span>
-                            <span className="atlas-playable-book-landmark">
-                              Landmark: {bk.landmarkName}
-                              {bk.bookMastered ? ' · Sanctuary Illuminated' : ''}
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    }
-
-                    return (
-                      <li
-                        key={bk.book}
-                        className="atlas-book-chip--veiled"
-                        data-book={bk.book}
-                        data-phase1-active="false"
-                        title={`${bk.book} (${bk.totalChapters} ch.) — Mist-veiled future horizon`}
-                      >
-                        <span className="atlas-veiled-glyph" aria-hidden="true">
-                          ◌
-                        </span>
-                        <span>{bk.book}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </li>
-            );
-          })}
-        </ol>
-      </section>
-
-      {/* Tier 2: Playable Biome Clearing Stage */}
+      {/* Tier 1 (Gallery Plate First): Artwork Stage Immediately Above the Fold */}
       <section
         className="trail-clearing-section"
         aria-labelledby="trail-clearing-heading"
         aria-busy={bookSwitching}
         data-testid="trail-clearing-section"
       >
-        <div className="trail-clearing-header">
-          <div className="trail-clearing-title-group">
-            <span className="trail-kicker">
-              {activeBiomeMeta?.name ?? 'Playable Biome Clearing'}
-            </span>
-            <h2 id="trail-clearing-heading">
-              {selectedBook} · {resolvedSegment.label}
-            </h2>
-            <p className="trail-story-arc-line" data-testid="trail-story-arc-title">
-              <strong>{resolvedSegment.storyTitle}</strong> — {resolvedSegment.storyMotif}
-            </p>
-            <p className="trail-clearing-subtitle">
-              {bookTrail?.bloomedChapters ?? bookBloomedCount} of{' '}
-              {bookTrail?.totalChapters ?? chapters.length} chapters bloomed in {selectedBook} ·{' '}
-              {bookTrail?.completedVerses ?? 0} / {bookTrail?.totalVerses ?? 0} verses completed
-            </p>
+        {/* Slim 1-Row Cinema Header Bar */}
+        <header className="trail-cinema-bar" data-testid="trail-cinema-bar">
+          <div className="trail-cinema-left">
+            <div
+              className="trail-book-switcher"
+              role="group"
+              aria-label="Playable books"
+            >
+              {(['Genesis', 'Psalms'] as const).map((bookName) => {
+                const counts = playableBooksOverview.get(bookName) ?? {
+                  bloomed: 0,
+                  total: bookName === 'Genesis' ? 50 : 150,
+                };
+                const isSelected = selectedBook === bookName;
+                return (
+                  <button
+                    key={bookName}
+                    type="button"
+                    className="trail-book-tab"
+                    aria-pressed={isSelected}
+                    onClick={() => handleSelectBook(bookName)}
+                    data-testid={`trail-book-tab-${bookName}`}
+                  >
+                    <span>{bookName}</span>
+                    <span className="trail-book-tab-count">
+                      {counts.bloomed}/{counts.total}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="trail-cinema-title-group">
+              <span className="trail-cinema-kicker">
+                {activeBiomeMeta?.shortName ?? 'Biome'}
+              </span>
+              <div className="trail-cinema-heading-row">
+                <h2 id="trail-clearing-heading">
+                  {selectedBook} · {resolvedSegment.label}
+                </h2>
+                <span className="trail-story-arc-chip" data-testid="trail-story-arc-title">
+                  {resolvedSegment.storyTitle}
+                </span>
+              </div>
+            </div>
           </div>
 
-          {bookTrail?.bookMastered && (
-            <div className="trail-mastery-banner" data-testid="trail-book-mastery-banner">
+          <div className="trail-cinema-actions">
+            {bookTrail?.bookMastered && (
+              <div className="trail-mastery-banner" data-testid="trail-book-mastery-banner">
+                <span aria-hidden="true">✦</span>
+                <span>
+                  {bookTrail.landmarkName} Illuminated ·{' '}
+                  {activeBiomeMeta?.keeperName ?? 'Keeper'} Present
+                </span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="trail-toolbar-btn trail-cinema-action-btn"
+              onClick={() => setBadgeModalOpen(true)}
+              data-testid="trail-btn-badges"
+            >
               <span aria-hidden="true">✦</span>
               <span>
-                {bookTrail.landmarkName} Illuminated · {activeBiomeMeta?.keeperName ?? 'Keeper'}{' '}
-                Present
+                Badges ({unlockedBadgeCount}/{totalBadgeCount})
               </span>
-            </div>
-          )}
-        </div>
+            </button>
+
+            <button
+              type="button"
+              className="trail-toolbar-btn trail-cinema-action-btn"
+              onClick={() => {
+                setAtlasFocusBiomeId(activeBiomeMeta?.biomeId ?? null);
+                setAtlasDrawerOpen(true);
+              }}
+              data-testid="trail-btn-world-atlas"
+            >
+              Atlas ({overview?.totalBooks ?? CANONICAL_TOTAL_BOOKS})
+            </button>
+
+            <button
+              type="button"
+              className="trail-toolbar-btn trail-toolbar-btn--guide trail-cinema-action-btn"
+              onClick={handleOpenBookGuide}
+              data-testid="trail-btn-book-guide"
+            >
+              <span aria-hidden="true">✦</span>
+              <span>Book Guide</span>
+            </button>
+          </div>
+        </header>
 
         {error && bookTrail && (
           <div className="error-container" role="alert">
@@ -805,64 +778,175 @@ export const LivingTrailPage: React.FC = () => {
           </div>
         )}
 
-        {/* Quick-Jump Toolbar */}
-        <div
-          role="toolbar"
-          aria-label="Living Trail quick-jump and view controls"
-          className="trail-toolbar"
-          data-testid="trail-quick-jump-toolbar"
-        >
-          <div
-            role="group"
-            aria-label="Waypoint navigation and filters"
-            className="trail-toolbar-group"
-          >
-            <button
-              type="button"
-              className="trail-toolbar-btn"
-              onClick={handleJumpNextActive}
-              data-testid="trail-btn-next-active"
-            >
-              Next Active
-            </button>
+        {/* Hero 16:9 Aspect-Locked Pixel Stage + Semantic Flush-Stone Overlay */}
+        <div className="trail-stage-shell">
+          <div className="trail-stage-frame" data-testid="trail-stage-frame">
+            <BiomeCanvas
+              book={selectedBook}
+              clearingId={activeClearingId}
+              chapters={chapters}
+              activeChapter={bookTrail?.activeChapter}
+              selectedChapter={selectedWaypointChapter}
+              selectedYardPropId={selectedYardPropId}
+              bookMastered={bookTrail?.bookMastered ?? false}
+              animationPaused={motionPaused}
+              className="trail-stage-canvas"
+            />
 
-            <button
-              type="button"
-              className="trail-toolbar-btn"
-              aria-pressed={bloomedOnly}
-              onClick={handleToggleBloomedOnly}
-              data-testid="trail-btn-bloomed-only"
-            >
-              Bloomed Only ({bookBloomedCount})
-            </button>
+            <WaypointOverlay
+              book={selectedBook}
+              segment={resolvedSegment}
+              chapters={chapters}
+              activeChapter={bookTrail?.activeChapter}
+              selectedChapter={selectedWaypointChapter}
+              onSelectChapter={handleSelectWaypointChapter}
+              onOpenCompanion={handleOpenChapterCompanion}
+              selectedYardPropId={selectedYardPropId}
+              onSelectYardProp={setSelectedYardPropId}
+              onOpenBookGuide={handleOpenBookGuide}
+              bookMastered={bookTrail?.bookMastered ?? false}
+              bloomedOnly={bloomedOnly}
+              onDisableBloomedOnly={() => setBloomedOnly(false)}
+              focusRequest={focusRequest}
+            />
           </div>
+        </div>
 
-          <span
-            role="separator"
-            aria-orientation="vertical"
-            className="trail-toolbar-sep"
-          />
-
-          <div
-            role="group"
-            aria-label="Leg and clearing selector"
-            className="trail-toolbar-group"
-          >
-            <div className="trail-clearing-select-wrap">
-              <label htmlFor={clearingSelectId} className="trail-clearing-select-label">
-                {selectedBook === 'Psalms' ? 'Psalter Clearing' : 'Trail Leg'}
-              </label>
-              <select
-                id={clearingSelectId}
-                className="trail-clearing-select"
-                value={resolvedSegment.clearingId}
-                onChange={(e) => handleClearingChange(e.target.value)}
-                data-testid="trail-clearing-selector"
+        {/* Museum Plaque Dock Directly Under the Canvas */}
+        <div className="trail-plaque-dock" data-testid="trail-plaque-dock">
+          <div className="trail-dock-controls">
+            {/* Classical Psalter Books I–V / Genesis Legs Strip + Sub-Clearings */}
+            <div className="trail-leg-strip" data-testid="trail-leg-strip">
+              <div
+                className="trail-leg-pills"
+                role="group"
+                aria-label={
+                  selectedBook === 'Psalms'
+                    ? 'Classical Books of the Psalter'
+                    : 'Genesis Trail Legs'
+                }
               >
-                {selectedBook === 'Psalms'
-                  ? legs.map((leg) => (
-                      <optgroup key={leg.legId} label={leg.label}>
-                        {leg.clearings.map((clearing) => {
+                {legs.map((leg) => {
+                  const isCurrentLeg = activeLeg?.legId === leg.legId;
+                  const legBloomed = countBloomedInRange(leg.startChapter, leg.endChapter);
+                  const legTotal = leg.endChapter - leg.startChapter + 1;
+                  return (
+                    <button
+                      key={leg.legId}
+                      type="button"
+                      className="trail-leg-pill"
+                      title={leg.storyTitle}
+                      aria-pressed={isCurrentLeg}
+                      onClick={() => handleLegSelect(leg)}
+                      data-testid={`trail-leg-btn-${leg.legId}`}
+                    >
+                      {leg.shortLabel} · {legBloomed}/{legTotal}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {activeLeg && activeLeg.clearings.length > 1 && (
+                <div
+                  className="trail-subclearing-pills"
+                  role="group"
+                  aria-label={`${activeLeg.shortLabel} scenic clearings`}
+                  data-testid="trail-subclearing-pills"
+                >
+                  <span className="trail-subclearing-kicker">Clearings:</span>
+                  {activeLeg.clearings.map((clearing) => {
+                    const isCurrentClearing =
+                      resolvedSegment.clearingId === clearing.clearingId;
+                    return (
+                      <button
+                        key={clearing.clearingId}
+                        type="button"
+                        className="trail-leg-pill"
+                        aria-pressed={isCurrentClearing}
+                        onClick={() => handleClearingChange(clearing.clearingId)}
+                        data-testid={`trail-clearing-pill-${clearing.clearingId}`}
+                      >
+                        {clearing.shortLabel}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Compact Quick-Jump Toolbar */}
+            <div
+              role="toolbar"
+              aria-label="Living Trail quick-jump and view controls"
+              className="trail-toolbar"
+              data-testid="trail-quick-jump-toolbar"
+            >
+              <div
+                role="group"
+                aria-label="Waypoint navigation and filters"
+                className="trail-toolbar-group"
+              >
+                <button
+                  type="button"
+                  className="trail-toolbar-btn"
+                  onClick={handleJumpNextActive}
+                  data-testid="trail-btn-next-active"
+                >
+                  Next Active
+                </button>
+
+                <button
+                  type="button"
+                  className="trail-toolbar-btn"
+                  aria-pressed={bloomedOnly}
+                  onClick={handleToggleBloomedOnly}
+                  data-testid="trail-btn-bloomed-only"
+                >
+                  Bloomed Only ({bookBloomedCount})
+                </button>
+              </div>
+
+              <span
+                role="separator"
+                aria-orientation="vertical"
+                className="trail-toolbar-sep"
+              />
+
+              <div
+                role="group"
+                aria-label="Leg and clearing selector"
+                className="trail-toolbar-group"
+              >
+                <div className="trail-clearing-select-wrap">
+                  <label htmlFor={clearingSelectId} className="trail-clearing-select-label">
+                    {selectedBook === 'Psalms' ? 'Clearing' : 'Leg'}
+                  </label>
+                  <select
+                    id={clearingSelectId}
+                    className="trail-clearing-select"
+                    value={resolvedSegment.clearingId}
+                    onChange={(e) => handleClearingChange(e.target.value)}
+                    data-testid="trail-clearing-selector"
+                  >
+                    {selectedBook === 'Psalms'
+                      ? legs.map((leg) => (
+                          <optgroup key={leg.legId} label={leg.label}>
+                            {leg.clearings.map((clearing) => {
+                              const bloomedInClearing = countBloomedInRange(
+                                clearing.startChapter,
+                                clearing.endChapter
+                              );
+                              const totalInClearing =
+                                clearing.endChapter - clearing.startChapter + 1;
+                              return (
+                                <option key={clearing.clearingId} value={clearing.clearingId}>
+                                  {clearing.label} ({bloomedInClearing}/{totalInClearing} bloomed)
+                                </option>
+                              );
+                            })}
+                          </optgroup>
+                        ))
+                      : clearings.map((clearing) => {
                           const bloomedInClearing = countBloomedInRange(
                             clearing.startChapter,
                             clearing.endChapter
@@ -875,174 +959,68 @@ export const LivingTrailPage: React.FC = () => {
                             </option>
                           );
                         })}
-                      </optgroup>
-                    ))
-                  : clearings.map((clearing) => {
-                      const bloomedInClearing = countBloomedInRange(
-                        clearing.startChapter,
-                        clearing.endChapter
-                      );
-                      const totalInClearing =
-                        clearing.endChapter - clearing.startChapter + 1;
-                      return (
-                        <option key={clearing.clearingId} value={clearing.clearingId}>
-                          {clearing.label} ({bloomedInClearing}/{totalInClearing} bloomed)
-                        </option>
-                      );
-                    })}
-              </select>
-            </div>
-          </div>
+                  </select>
+                </div>
+              </div>
 
-          <span
-            role="separator"
-            aria-orientation="vertical"
-            className="trail-toolbar-sep"
-          />
+              <span
+                role="separator"
+                aria-orientation="vertical"
+                className="trail-toolbar-sep"
+              />
 
-          <div
-            role="group"
-            aria-label="Companion guide and accessibility views"
-            className="trail-toolbar-group"
-          >
-            <button
-              type="button"
-              className="trail-toolbar-btn trail-toolbar-btn--guide"
-              onClick={handleOpenBookGuide}
-              data-testid="trail-btn-book-guide"
-            >
-              <span aria-hidden="true">✦</span>
-              <span>Book Guide</span>
-            </button>
-
-            <button
-              type="button"
-              className="trail-toolbar-btn"
-              aria-expanded={showChapterList}
-              aria-controls="trail-chapter-list-panel"
-              onClick={() => setShowChapterList((prev) => !prev)}
-              data-testid="trail-btn-chapter-list"
-            >
-              Accessible Chapter List
-            </button>
-
-            {!osReducedMotion && (
-              <button
-                type="button"
-                className="trail-toolbar-btn"
-                onClick={() => setMotionPaused((prev) => !prev)}
-                data-testid="trail-btn-pause-motion"
+              <div
+                role="group"
+                aria-label="Accessibility views and animation"
+                className="trail-toolbar-group"
               >
-                {motionPaused ? 'Play Motion' : 'Pause Motion'}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Classical Psalter Books I–V / Genesis Legs Strip + Sub-Clearings */}
-        <div className="trail-leg-strip" data-testid="trail-leg-strip">
-          <div
-            className="trail-leg-pills"
-            role="group"
-            aria-label={
-              selectedBook === 'Psalms'
-                ? 'Classical Books of the Psalter'
-                : 'Genesis Trail Legs'
-            }
-          >
-            {legs.map((leg) => {
-              const isCurrentLeg = activeLeg?.legId === leg.legId;
-              const legBloomed = countBloomedInRange(leg.startChapter, leg.endChapter);
-              const legTotal = leg.endChapter - leg.startChapter + 1;
-              return (
                 <button
-                  key={leg.legId}
                   type="button"
-                  className="trail-leg-pill"
-                  title={leg.storyTitle}
-                  aria-pressed={isCurrentLeg}
-                  onClick={() => handleLegSelect(leg)}
-                  data-testid={`trail-leg-btn-${leg.legId}`}
+                  className="trail-toolbar-btn"
+                  aria-expanded={showChapterList}
+                  aria-controls="trail-chapter-list-panel"
+                  onClick={() => setShowChapterList((prev) => !prev)}
+                  data-testid="trail-btn-chapter-list"
                 >
-                  {leg.shortLabel} · {legBloomed}/{legTotal}
+                  Accessible Chapter List
                 </button>
-              );
-            })}
-          </div>
 
-          {activeLeg && activeLeg.clearings.length > 1 && (
-            <div
-              className="trail-subclearing-pills"
-              role="group"
-              aria-label={`${activeLeg.shortLabel} scenic clearings`}
-              data-testid="trail-subclearing-pills"
-            >
-              <span className="trail-subclearing-kicker">Scenic Clearings:</span>
-              {activeLeg.clearings.map((clearing) => {
-                const isCurrentClearing = resolvedSegment.clearingId === clearing.clearingId;
-                return (
+                {!osReducedMotion && (
                   <button
-                    key={clearing.clearingId}
                     type="button"
-                    className="trail-leg-pill"
-                    aria-pressed={isCurrentClearing}
-                    onClick={() => handleClearingChange(clearing.clearingId)}
-                    data-testid={`trail-clearing-pill-${clearing.clearingId}`}
+                    className="trail-toolbar-btn"
+                    onClick={() => setMotionPaused((prev) => !prev)}
+                    data-testid="trail-btn-pause-motion"
                   >
-                    {clearing.shortLabel}
+                    {motionPaused ? 'Play Motion' : 'Pause Motion'}
                   </button>
-                );
-              })}
+                )}
+              </div>
             </div>
-          )}
-        </div>
-
-        {/* Responsive 16:9 Aspect-Locked Pixel Stage + Semantic Flush-Stone Overlay */}
-        <div className="trail-stage-frame" data-testid="trail-stage-frame">
-          <BiomeCanvas
-            book={selectedBook}
-            clearingId={activeClearingId}
-            chapters={chapters}
-            activeChapter={bookTrail?.activeChapter}
-            selectedChapter={selectedWaypointChapter}
-            selectedYardPropId={selectedYardPropId}
-            bookMastered={bookTrail?.bookMastered ?? false}
-            animationPaused={motionPaused}
-            className="trail-stage-canvas"
-          />
-
-          <WaypointOverlay
-            book={selectedBook}
-            segment={resolvedSegment}
-            chapters={chapters}
-            activeChapter={bookTrail?.activeChapter}
-            selectedChapter={selectedWaypointChapter}
-            onSelectChapter={handleSelectWaypointChapter}
-            onOpenCompanion={handleOpenChapterCompanion}
-            selectedYardPropId={selectedYardPropId}
-            onSelectYardProp={setSelectedYardPropId}
-            onOpenBookGuide={handleOpenBookGuide}
-            bookMastered={bookTrail?.bookMastered ?? false}
-            bloomedOnly={bloomedOnly}
-            onDisableBloomedOnly={() => setBloomedOnly(false)}
-            focusRequest={focusRequest}
-          />
-        </div>
-
-        {/* Non-Color State Legend & Keyboard Hint */}
-        <div className="trail-legend-bar" aria-label="Flagstone and yard prop status key">
-          <div className="trail-legend-items">
-            <span className="trail-legend-item">
-              <span aria-hidden="true">◇</span> Dormant Stone (Mist)
-            </span>
-            <span className="trail-legend-item">
-              <span aria-hidden="true">◐</span> In Progress (Kindling)
-            </span>
-            <span className="trail-legend-item">
-              <span aria-hidden="true">✦</span> Bloomed &amp; Yard Props Awake
-            </span>
           </div>
-          <span>Click stones or yard props · Arrow keys navigate stones · Enter opens</span>
+
+          {/* Non-Color State Legend & Story Caption */}
+          <div className="trail-legend-bar" aria-label="Story clearing status and key">
+            <div className="trail-legend-caption">
+              <span>{resolvedSegment.storyMotif}</span>
+              <span className="trail-clearing-subtitle">
+                · {bookTrail?.bloomedChapters ?? bookBloomedCount}/
+                {bookTrail?.totalChapters ?? chapters.length} ch. bloomed ·{' '}
+                {bookTrail?.completedVerses ?? 0}/{bookTrail?.totalVerses ?? 0} verses
+              </span>
+            </div>
+            <div className="trail-legend-items">
+              <span className="trail-legend-item">
+                <span aria-hidden="true">◇</span> Dormant
+              </span>
+              <span className="trail-legend-item">
+                <span aria-hidden="true">◐</span> Kindling
+              </span>
+              <span className="trail-legend-item">
+                <span aria-hidden="true">✦</span> Bloomed &amp; Props Awake
+              </span>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -1057,7 +1035,106 @@ export const LivingTrailPage: React.FC = () => {
         />
       )}
 
-      {/* Code-Split Slide-Over Companion Reading Room & Book Guide */}
+      {/* Tier 2 (Below the Fold): Slim 1-Row 9-Region Horizon Ribbon */}
+      <section
+        className="trail-horizon-ribbon"
+        aria-labelledby="trail-horizon-heading"
+        data-testid="trail-horizon-ribbon"
+      >
+        <div className="trail-horizon-header">
+          <div className="trail-horizon-title-row">
+            <h2 id="trail-horizon-heading">Canonical Pilgrimage Horizon</h2>
+            <span className="trail-stat-pill" data-testid="trail-canon-summary">
+              ✦ {totalCanonBloomed} / {overview?.totalChapters ?? CANONICAL_TOTAL_CHAPTERS} Chapters
+              Bloomed · {overview?.totalBooks ?? CANONICAL_TOTAL_BOOKS} Books
+            </span>
+            <span
+              className="trail-stat-pill trail-stat-pill--traveler"
+              data-testid="trail-active-traveler"
+            >
+              Traveler at {travelerSummary}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            className="trail-toolbar-btn"
+            onClick={() => {
+              setAtlasFocusBiomeId(null);
+              setAtlasDrawerOpen(true);
+            }}
+            data-testid="trail-horizon-open-atlas-btn"
+          >
+            Open Full 73-Book Atlas →
+          </button>
+        </div>
+
+        <ol className="trail-horizon-strip" aria-label="9 Canonical Bible Regions">
+          {hydratedBiomes.map((biome) => {
+            const hasPlayablePhase1 = biome.books.some((b) => b.phase1Active);
+            const containsActiveBook = biome.books.some((b) => b.book === selectedBook);
+            const regionBloomed = biome.books.reduce((sum, b) => sum + b.bloomedChapters, 0);
+            const playableInRegion = biome.books.find((b) => b.phase1Active);
+
+            return (
+              <li key={biome.biomeId} className="trail-horizon-item">
+                <button
+                  type="button"
+                  className={`trail-horizon-pill ${
+                    containsActiveBook ? 'is-active' : ''
+                  } ${hasPlayablePhase1 ? 'is-playable' : 'is-veiled'}`}
+                  aria-current={containsActiveBook ? 'location' : undefined}
+                  onClick={() => {
+                    if (
+                      playableInRegion &&
+                      (playableInRegion.book === 'Genesis' ||
+                        playableInRegion.book === 'Psalms')
+                    ) {
+                      handleSelectBook(playableInRegion.book);
+                    } else {
+                      setAtlasFocusBiomeId(biome.biomeId);
+                      setAtlasDrawerOpen(true);
+                    }
+                  }}
+                  data-testid={`trail-horizon-region-${biome.biomeId}`}
+                >
+                  <span className="trail-horizon-step">
+                    {biome.order}. {biome.shortName}
+                  </span>
+                  <span className="trail-horizon-meta">
+                    {hasPlayablePhase1 && playableInRegion
+                      ? `✦ ${regionBloomed}/${playableInRegion.totalChapters} ch.`
+                      : `◌ Phase ${biome.phase}`}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+
+      {/* Code-Split & Native Modal / Drawer Overlays */}
+      <TrailBadgesModal
+        isOpen={badgeModalOpen}
+        achievements={resolvedAchievements}
+        onClose={() => setBadgeModalOpen(false)}
+      />
+
+      <WorldAtlasDrawer
+        isOpen={atlasDrawerOpen}
+        biomes={hydratedBiomes}
+        selectedBook={selectedBook}
+        totalCanonBloomed={totalCanonBloomed}
+        totalCanonChapters={overview?.totalChapters ?? CANONICAL_TOTAL_CHAPTERS}
+        totalCanonBooks={overview?.totalBooks ?? CANONICAL_TOTAL_BOOKS}
+        travelerSummary={travelerSummary}
+        focusBiomeId={atlasFocusBiomeId}
+        onSelectBook={(nextBook) => {
+          handleSelectBook(nextBook);
+        }}
+        onClose={() => setAtlasDrawerOpen(false)}
+      />
+
       {(drawerEverOpened || drawerState.isOpen) && (
         <Suspense
           fallback={

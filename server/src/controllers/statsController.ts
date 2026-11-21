@@ -10,6 +10,8 @@ import {
   isValidTimeZone,
   isValidTrendRange,
 } from '../services/stats';
+import { getChapterManifest } from '../services/trail/chapterManifest';
+import { computeTrailBadgeProgress } from '../services/trail/trailService';
 import { createDayFormatter } from '../services/stats/timezone';
 import { ApiError, asyncHandler } from '../utils/errorHandler';
 
@@ -169,11 +171,14 @@ export const getAchievementsStats = asyncHandler(async (req: Request, res: Respo
   const tz = parseTimezoneParam(req.query.tz);
   const now = new Date();
 
-  const [results, completedProgress] = await Promise.all([
+  const [results, completedProgress, manifest] = await Promise.all([
     Result.find({ user: req.user._id })
       .select('startTime wpm accuracy incorrectCharacters')
       .lean(),
-    Progress.find({ user: req.user._id, completed: true }).select('verse').lean(),
+    Progress.find({ user: req.user._id, completed: true })
+      .select('verse verseOrder')
+      .lean<Array<{ verse: any; verseOrder?: number }>>(),
+    getChapterManifest(),
   ]);
 
   const completedVerseIds = completedProgress.map((p) => p.verse);
@@ -185,10 +190,18 @@ export const getAchievementsStats = asyncHandler(async (req: Request, res: Respo
     });
   }
 
+  const trailBadgeProgress = computeTrailBadgeProgress(
+    manifest,
+    completedProgress
+      .map((p) => p.verseOrder)
+      .filter((vo): vo is number => typeof vo === 'number')
+  );
+
   const data = buildStreaksAndBadges({
     results,
     completedProgressCount: completedVerseIds.length,
     psalmsCompletedCount,
+    ...trailBadgeProgress,
     timezone: tz,
     now,
   });

@@ -1,5 +1,6 @@
 import React from 'react';
 import { AchievementsData, BadgeCategory } from '../../types';
+import { getBadgeMedallionPath } from '../../data/trailBadges';
 
 interface StreakAndBadgesProps {
   achievements: AchievementsData;
@@ -10,6 +11,7 @@ const CATEGORY_LABELS: Record<BadgeCategory, string> = {
   velocity: 'Velocity',
   precision: 'Precision',
   canon: 'Canon',
+  trail: 'Living Trail',
 };
 
 const StreakAndBadges: React.FC<StreakAndBadgesProps> = ({ achievements }) => {
@@ -100,8 +102,19 @@ const StreakAndBadges: React.FC<StreakAndBadgesProps> = ({ achievements }) => {
                 </span>
               </div>
 
-              <h4 className="editorial-badge-title">{badge.title}</h4>
-              <p className="editorial-badge-description">{badge.description}</p>
+              <div className="editorial-badge-identity">
+                <img
+                  src={getBadgeMedallionPath(badge.id)}
+                  alt=""
+                  width={36}
+                  height={36}
+                  className={`editorial-badge-medallion ${badge.unlocked ? 'is-unlocked' : 'is-locked'}`}
+                />
+                <div>
+                  <h4 className="editorial-badge-title">{badge.title}</h4>
+                  <p className="editorial-badge-description">{badge.description}</p>
+                </div>
+              </div>
 
               <div className="editorial-badge-progress">
                 <div

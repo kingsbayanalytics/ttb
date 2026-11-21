@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
+  AchievementsData,
+  BadgeItem,
   BookChapterInfo,
   BookChapterProgress,
   ChapterJustUnlocked,
@@ -10,7 +12,13 @@ import {
 } from '../types';
 import { CANONICAL_BOOKS } from '../data/books';
 import { getCuratedPlanById } from '../data/curatedCatalog';
-import { VerseService, ProgressService, MemoryService, PlanService } from '../services/api';
+import {
+  VerseService,
+  ProgressService,
+  MemoryService,
+  PlanService,
+  StatsService,
+} from '../services/api';
 import { useAuthSession } from '../context/AuthContext';
 import {
   countIncorrectCharacters,
@@ -27,8 +35,10 @@ import {
   ChapterBloomToast,
   ZenBloomChip,
 } from './companion/ChapterBloomToast';
+import { BadgeUnlockToast, ZenBadgeChip } from './trail/BadgeUnlockToast';
 
 const LazyCompanionDrawer = React.lazy(() => import('./companion/CompanionDrawer'));
+const LazyTrailBadgesModal = React.lazy(() => import('./trail/TrailBadgesModal'));
 
 function formatCompletionPercent(completed: number, total: number): string {
   if (total <= 0 || completed <= 0) return '0%';
@@ -113,12 +123,20 @@ const TypingTest: React.FC = () => {
     chapter: number;
     workId?: string;
   } | null>(null);
+  const [latestAchievements, setLatestAchievements] = useState<AchievementsData | null>(null);
+  const [newlyUnlockedBadges, setNewlyUnlockedBadges] = useState<BadgeItem[]>([]);
+  const [badgeModalOpen, setBadgeModalOpen] = useState<boolean>(false);
+  const [badgeModalEverOpened, setBadgeModalEverOpened] = useState<boolean>(false);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const bookSelectRef = useRef<HTMLSelectElement>(null);
   const mismatchIndicesRef = useRef<Set<number>>(new Set());
   const companionOpenRef = useRef<boolean>(false);
   companionOpenRef.current = companionDrawerTarget !== null;
+  const badgeModalOpenRef = useRef<boolean>(false);
+  badgeModalOpenRef.current = badgeModalOpen;
+  const knownUnlockedBadgeIdsRef = useRef<Set<string>>(new Set());
+  const achievementsBaselineReadyRef = useRef<boolean>(false);
   const navigate = useNavigate();
   const { user } = useAuthSession();
   const userId = user?._id;
@@ -469,7 +487,7 @@ const TypingTest: React.FC = () => {
     };
   }, [passageFlow, verse?.verseOrder]);
 
-  // Sync Zen Mode with documentElement and strict Escape precedence (Drawer closes before Zen Mode)
+  // Sync Zen Mode with documentElement and strict Escape precedence (Drawer/Modal closes before Zen Mode)
   useEffect(() => {
     if (zenMode) {
       document.documentElement.dataset.zen = 'true';
@@ -483,6 +501,11 @@ const TypingTest: React.FC = () => {
         setCompanionDrawerTarget(null);
         return;
       }
+      if (badgeModalOpen) {
+        e.preventDefault();
+        setBadgeModalOpen(false);
+        return;
+      }
       if (zenMode) {
         setZenMode(false);
       }
@@ -492,7 +515,36 @@ const TypingTest: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
       delete document.documentElement.dataset.zen;
     };
-  }, [zenMode, companionDrawerTarget]);
+  }, [zenMode, companionDrawerTarget, badgeModalOpen]);
+
+  // Capture initial achievement badge baseline when authenticated user enters Typing Studio
+  useEffect(() => {
+    knownUnlockedBadgeIdsRef.current = new Set();
+    achievementsBaselineReadyRef.current = false;
+    setNewlyUnlockedBadges([]);
+
+    if (!userId || typeof StatsService?.getAchievements !== 'function') {
+      return;
+    }
+
+    let cancelled = false;
+    Promise.resolve(StatsService.getAchievements())
+      .then((data) => {
+        if (cancelled || !data || !Array.isArray(data.badges)) return;
+        knownUnlockedBadgeIdsRef.current = new Set(
+          data.badges.filter((b) => b.unlocked).map((b) => b.id)
+        );
+        achievementsBaselineReadyRef.current = true;
+        setLatestAchievements(data);
+      })
+      .catch(() => {
+        // Non-blocking: baseline achievements unavailable silently
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   // Fetch live chapter & book completion counts for the current verse
   useEffect(() => {
@@ -596,7 +648,7 @@ const TypingTest: React.FC = () => {
     [activePlan, fetchVerse, selectedBook, verseSelectionMode]
   );
   useEffect(() => {
-    if (verse && !companionOpenRef.current) {
+    if (verse && !companionOpenRef.current && !badgeModalOpenRef.current) {
       if (initialMode === 'book' && !selectedBook && bookSelectRef.current) {
         bookSelectRef.current.focus();
       } else if (inputRef.current) {
@@ -738,6 +790,35 @@ const TypingTest: React.FC = () => {
         setDismissedUnlockKey(null);
         setResultUnlock(unlocked);
       }
+
+      if (
+        typeof StatsService?.getAchievements === 'function' &&
+        achievementsBaselineReadyRef.current
+      ) {
+        try {
+          const nextAchievements = await StatsService.getAchievements();
+          if (nextAchievements && Array.isArray(nextAchievements.badges)) {
+            setLatestAchievements(nextAchievements);
+            const earned = nextAchievements.badges.filter(
+              (b) => b.unlocked && !knownUnlockedBadgeIdsRef.current.has(b.id)
+            );
+            if (earned.length > 0) {
+              earned.forEach((b) => knownUnlockedBadgeIdsRef.current.add(b.id));
+              setNewlyUnlockedBadges((prev) => {
+                const merged = [...prev];
+                for (const item of earned) {
+                  if (!merged.some((existing) => existing.id === item.id)) {
+                    merged.push(item);
+                  }
+                }
+                return merged;
+              });
+            }
+          }
+        } catch {
+          // Non-blocking: ignore transient achievement poll errors
+        }
+      }
     } catch (err) {
       console.error('Failed to submit result:', err);
       // We'll continue even if result submission fails
@@ -755,6 +836,20 @@ const TypingTest: React.FC = () => {
   const handleCloseCompanionDrawer = useCallback(() => {
     setCompanionDrawerTarget(null);
   }, []);
+
+  const handleOpenBadgeCase = useCallback(() => {
+    setBadgeModalEverOpened(true);
+    setBadgeModalOpen(true);
+  }, []);
+
+  const handleDismissUnlockedBadge = useCallback((badgeId: string) => {
+    setNewlyUnlockedBadges((prev) => prev.filter((b) => b.id !== badgeId));
+  }, []);
+
+  const highlightedBadgeIds = useMemo(
+    () => new Set(newlyUnlockedBadges.map((b) => b.id)),
+    [newlyUnlockedBadges]
+  );
 
   const handleDrawerNavigateChapter = useCallback((bookName: string, chapterNum: number) => {
     setCompanionDrawerTarget((prev) => ({
@@ -978,6 +1073,10 @@ const TypingTest: React.FC = () => {
             <ZenBloomChip
               sessionUnlocks={sessionUnlocks}
               onOpenCompanion={handleOpenCompanionForUnlock}
+            />
+            <ZenBadgeChip
+              badges={newlyUnlockedBadges}
+              onOpenBadgeCase={handleOpenBadgeCase}
             />
             <button
               type="button"
@@ -1481,6 +1580,24 @@ const TypingTest: React.FC = () => {
           </button>
         )}
       </>
+
+      <BadgeUnlockToast
+        badges={newlyUnlockedBadges}
+        suppressed={zenMode || companionDrawerTarget !== null || badgeModalOpen}
+        onDismissBadge={handleDismissUnlockedBadge}
+        onOpenBadgeCase={handleOpenBadgeCase}
+      />
+
+      {badgeModalEverOpened && (
+        <Suspense fallback={null}>
+          <LazyTrailBadgesModal
+            isOpen={badgeModalOpen}
+            achievements={latestAchievements}
+            highlightedBadgeIds={highlightedBadgeIds}
+            onClose={() => setBadgeModalOpen(false)}
+          />
+        </Suspense>
+      )}
 
       {companionDrawerTarget && (
         <Suspense fallback={null}>

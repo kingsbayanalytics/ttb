@@ -2,11 +2,12 @@ import React from 'react';
 import * as router from 'react-router-dom';
 import { render, screen, fireEvent, waitFor, within } from '../../test-utils';
 import { ThemeProvider } from '../../context/ThemeContext';
-import { AuthService, CompanionService, TrailService } from '../../services/api';
+import { AuthService, CompanionService, StatsService, TrailService } from '../../services/api';
 import {
   getMockBookGuide,
   getMockChapterCompanion,
 } from '../../data/mockCompanion';
+import { createMockAchievementsData } from '../../data/trailBadges';
 import {
   TrailBookResponse,
   TrailChapterWaypoint,
@@ -21,6 +22,9 @@ jest.mock('../../services/api', () => ({
     getAuthMode: jest.fn(),
     getCachedAuthMode: jest.fn(),
     getCurrentUser: jest.fn(),
+  },
+  StatsService: {
+    getAchievements: jest.fn(),
   },
   TrailService: {
     getOverview: jest.fn(),
@@ -313,6 +317,13 @@ describe('LivingTrailPage, WaypointOverlay & TrailChapterList (Story 12.3)', () 
     (TrailService.getBookTrail as jest.Mock).mockImplementation(async (book: string) =>
       book === 'Genesis' ? buildGenesisTrailFixture() : buildPsalmsTrailFixture()
     );
+    (StatsService.getAchievements as jest.Mock).mockResolvedValue(
+      createMockAchievementsData({
+        bloomedChaptersCount: 14,
+        maxClearingBloomedCount: 4,
+        bestClearingTotal: 14,
+      })
+    );
     (CompanionService.getChapterCompanion as jest.Mock).mockImplementation(
       async (book: string, chapter: number) => getMockChapterCompanion(book, chapter)
     );
@@ -327,28 +338,69 @@ describe('LivingTrailPage, WaypointOverlay & TrailChapterList (Story 12.3)', () 
     canvasContextSpy.mockRestore();
   });
 
-  it('renders Macro Atlas strip with all 9 biomes and 73 books (Genesis & Psalms interactive, 71 mist-veiled)', async () => {
+  it('places the 16:9 artwork above the slim 9-region Horizon Ribbon and opens the full 73-book World Atlas Drawer & 14-Medallion Badge Case', async () => {
     renderTrailRoute('/trail');
 
-    const atlasSection = await screen.findByTestId('trail-macro-atlas');
-    const biomeCards = atlasSection.querySelectorAll('[data-biome-id]');
-    expect(biomeCards).toHaveLength(9);
+    const stageFrame = await screen.findByTestId('trail-stage-frame');
+    const horizonRibbon = screen.getByTestId('trail-horizon-ribbon');
 
-    const allBookNodes = atlasSection.querySelectorAll('[data-book]');
-    expect(allBookNodes).toHaveLength(73);
+    // Artwork stage appears BEFORE the Horizon Ribbon in DOM order (above-the-fold priority)
+    expect(
+      Boolean(stageFrame.compareDocumentPosition(horizonRibbon) & Node.DOCUMENT_POSITION_FOLLOWING)
+    ).toBe(true);
+    expect(horizonRibbon.querySelectorAll('.trail-horizon-item')).toHaveLength(9);
 
-    const playableNodes = atlasSection.querySelectorAll('[data-phase1-active="true"]');
-    const veiledNodes = atlasSection.querySelectorAll('[data-phase1-active="false"]');
-    expect(playableNodes).toHaveLength(2);
-    expect(veiledNodes).toHaveLength(71);
+    // Book switcher in slim top bar defaults to Psalms (active traveler in overview is Psalms ch. 24)
+    const psalmsTab = screen.getByTestId('trail-book-tab-Psalms');
+    const genesisTab = screen.getByTestId('trail-book-tab-Genesis');
+    expect(psalmsTab).toHaveAttribute('aria-pressed', 'true');
+    expect(genesisTab).toHaveAttribute('aria-pressed', 'false');
 
-    const genesisBtn = screen.getByTestId('atlas-book-btn-Genesis');
-    const psalmsBtn = screen.getByTestId('atlas-book-btn-Psalms');
-    expect(genesisBtn).toHaveTextContent('Genesis · 2 / 50 Chapters Bloomed');
-    expect(psalmsBtn).toHaveTextContent('Psalms · 12 / 150 Chapters Bloomed');
-    // Active traveler in overview is Psalms ch. 24 -> defaults to Psalms
+    // Open World Atlas Drawer from top bar
+    fireEvent.click(screen.getByTestId('trail-btn-world-atlas'));
+    const atlasDrawer = screen.getByTestId('world-atlas-drawer');
+    expect(atlasDrawer).toHaveAttribute('open');
+
+    const atlasSection = within(atlasDrawer).getByTestId('trail-macro-atlas');
+    expect(atlasSection.querySelectorAll('[data-biome-id]')).toHaveLength(9);
+    expect(atlasSection.querySelectorAll('[data-book]')).toHaveLength(73);
+    expect(atlasSection.querySelectorAll('[data-phase1-active="true"]')).toHaveLength(2);
+    expect(atlasSection.querySelectorAll('[data-phase1-active="false"]')).toHaveLength(71);
+
+    const genesisBtn = within(atlasDrawer).getByTestId('atlas-book-btn-Genesis');
+    const psalmsBtn = within(atlasDrawer).getByTestId('atlas-book-btn-Psalms');
+    expect(genesisBtn).toHaveTextContent('2 / 50 Chapters Bloomed');
+    expect(psalmsBtn).toHaveTextContent('12 / 150 Chapters Bloomed');
     expect(psalmsBtn).toHaveAttribute('aria-pressed', 'true');
     expect(genesisBtn).toHaveAttribute('aria-pressed', 'false');
+
+    // Close drawer via Close button before testing Badges modal
+    fireEvent.click(screen.getByTestId('world-atlas-close-btn'));
+    expect(atlasDrawer).not.toHaveAttribute('open');
+
+    // Open Living Trail Badge Case modal and filter to Living Trail milestones
+    const badgesBtn = screen.getByTestId('trail-btn-badges');
+    expect(badgesBtn).toHaveTextContent('Badges (3/14)');
+    fireEvent.click(badgesBtn);
+
+    const badgesModal = screen.getByTestId('trail-badges-modal');
+    expect(badgesModal).toHaveAttribute('open');
+    expect(within(badgesModal).getByTestId('trail-badges-unlocked-count')).toHaveTextContent(
+      '3 / 14 Medallions Lit'
+    );
+    expect(badgesModal.querySelectorAll('[data-badge-id]')).toHaveLength(14);
+    expect(
+      within(badgesModal).getByTestId('trail-badge-card-trail-herb-rack')
+    ).toHaveAttribute('data-unlocked', 'true');
+    expect(
+      within(badgesModal).getByTestId('trail-badge-card-trail-clearing-complete')
+    ).toHaveAttribute('data-unlocked', 'false');
+
+    fireEvent.click(within(badgesModal).getByTestId('trail-badge-filter-trail'));
+    expect(badgesModal.querySelectorAll('[data-badge-id]')).toHaveLength(4);
+
+    fireEvent.click(screen.getByTestId('trail-badges-close-btn'));
+    expect(badgesModal).not.toHaveAttribute('open');
   });
 
   it('switches between Genesis and Psalms and navigates Psalter Books I–V clearings & Quick-Jump controls', async () => {
@@ -400,8 +452,8 @@ describe('LivingTrailPage, WaypointOverlay & TrailChapterList (Story 12.3)', () 
       screen.queryByRole('button', { name: 'Psalm 24, In Progress, 3 of 10 verses' })
     ).not.toBeInTheDocument();
 
-    // Switch to Genesis from the Macro Atlas strip
-    fireEvent.click(screen.getByTestId('atlas-book-btn-Genesis'));
+    // Switch to Genesis from the slim cinema top bar (or World Atlas drawer)
+    fireEvent.click(screen.getByTestId('trail-book-tab-Genesis'));
     expect(await screen.findByRole('heading', { name: /Genesis · Ch\. 1–10/i })).toBeInTheDocument();
     expect(TrailService.getBookTrail).toHaveBeenCalledWith('Genesis');
     expect(

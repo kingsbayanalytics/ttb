@@ -24,9 +24,11 @@ export interface MilestonesSummary {
   flawlessCount: number;
   uniqueVersesCompleted: number;
   psalmsCompletedCount: number;
+  bloomedChaptersCount: number;
+  completedClearingsCount: number;
 }
 
-export type BadgeCategory = 'consistency' | 'velocity' | 'precision' | 'canon';
+export type BadgeCategory = 'consistency' | 'velocity' | 'precision' | 'canon' | 'trail';
 
 export interface BadgeItem {
   id: string;
@@ -49,6 +51,11 @@ export interface BuildStreaksAndBadgesOptions {
   results: ReadonlyArray<AchievementsResultInput>;
   completedProgressCount: number;
   psalmsCompletedCount: number;
+  bloomedChaptersCount?: number;
+  maxClearingBloomedCount?: number;
+  bestClearingBloomed?: number;
+  bestClearingTotal?: number;
+  completedClearingsCount?: number;
   timezone?: string;
   now?: Date;
 }
@@ -89,7 +96,7 @@ function buildBadge(
 }
 
 /**
- * Computes timezone-aware daily streaks, personal milestones, and 10 editorial badges.
+ * Computes timezone-aware daily streaks, personal milestones, and 14 Living Trail / editorial badges.
  */
 export function buildStreaksAndBadges(
   options: BuildStreaksAndBadgesOptions
@@ -152,6 +159,17 @@ export function buildStreaksAndBadges(
   const totalAttempts = options.results.length;
   const uniqueVersesCompleted = Math.max(0, options.completedProgressCount);
   const psalmsCompletedCount = Math.max(0, options.psalmsCompletedCount);
+  const bloomedChaptersCount = Math.max(0, Math.round(options.bloomedChaptersCount ?? 0));
+  const maxClearingBloomedCount = Math.max(
+    0,
+    Math.round(options.maxClearingBloomedCount ?? 0)
+  );
+  const completedClearingsCount = Math.max(
+    0,
+    Math.round(options.completedClearingsCount ?? 0)
+  );
+  const bestClearingTotal = Math.max(1, Math.round(options.bestClearingTotal ?? 10));
+  const bestClearingBloomed = Math.max(0, Math.round(options.bestClearingBloomed ?? 0));
 
   const streak: StreakSummary = {
     currentStreakDays,
@@ -166,6 +184,8 @@ export function buildStreaksAndBadges(
     flawlessCount,
     uniqueVersesCompleted,
     psalmsCompletedCount,
+    bloomedChaptersCount,
+    completedClearingsCount,
   };
 
   const bestStreakForBadges = Math.max(currentStreakDays, longestStreakDays);
@@ -250,6 +270,38 @@ export function buildStreaksAndBadges(
       'canon',
       uniqueVersesCompleted,
       50
+    ),
+    buildBadge(
+      'trail-first-bloom',
+      'First Bloom',
+      'Bloom your first complete scripture chapter on the Living Trail.',
+      'trail',
+      bloomedChaptersCount,
+      1
+    ),
+    buildBadge(
+      'trail-bottle-tree',
+      'Bottle Tree Lit',
+      "Awaken a clearing's Hoodoo Bottle Tree by blooming a chapter in Genesis or Psalms.",
+      'trail',
+      maxClearingBloomedCount,
+      1
+    ),
+    buildBadge(
+      'trail-herb-rack',
+      'Herb Rack Awake',
+      'Awaken the Rootwork & Sanctuary Herb Rack by blooming 2 chapters in a single clearing.',
+      'trail',
+      maxClearingBloomedCount,
+      2
+    ),
+    buildBadge(
+      'trail-clearing-complete',
+      'Clearing Complete',
+      'Bloom every river flagstone in a Story-Arc clearing so the Elder Keeper steps out.',
+      'trail',
+      completedClearingsCount >= 1 ? bestClearingTotal : bestClearingBloomed,
+      bestClearingTotal
     ),
   ];
 

@@ -129,6 +129,15 @@ Rendering 150 Psalm waypoints on a single screen creates clutter and tiny inacce
      5. `Book V (Ps. 107–150)` — *Starry Hallelujah Courtyard* (`Ps. 107–117`, `118–128`, `129–139`, `140–150`)
    - **Quick-Jump Bar above the Canvas:** `[Next Active]` · `[Bloomed Only (N)]` · `[Book/Leg Selector]` · `[Accessible List View toggle]`.
 
+### 4.4 Gallery-Plate-First `/trail` Composition, World Atlas Drawer & Badge Case
+
+To ensure the 16:9 Living Trail artwork owns the opening viewport immediately upon clicking `/trail`:
+
+1. **Above-the-Fold Cinema Stage:** A single-row cinema bar (`Genesis` | `Psalms` book switcher, active clearing heading, **`✦ Badges`** popup button, **`Atlas (73)`** drawer button, **`✦ Book Guide`** button) sits directly above the responsive 16:9 diorama (`min(100%, calc((100dvh - 235px) * 16 / 9))`).
+2. **Museum Plaque Dock:** Trail legs, Psalms scenic clearings, Quick-Jump controls (`Next Active`, `Bloomed Only`, `Accessible Chapter List`, `Pause Motion`), and legend sit cleanly directly below the frame.
+3. **Slim 9-Region Horizon Ribbon Below the Fold + `<WorldAtlasDrawer />`:** All 9 regions render as a compact 1-row horizontal stepping-stone ribbon below the fold, while clicking **`Atlas (73)`** or any future-phase region opens a native `<dialog>` slide-over drawer displaying the full 9-region / 73-book Canonical Biome Atlas.
+4. **Living Trail Field-Satchel Badges (`<TrailBadgesModal />` & `<BadgeUnlockToast />`):** Combines the 10 existing typing/streak achievements with 4 Living Trail milestones (*First Bloom*, *Bottle Tree Lit*, *Herb Rack Awake*, *Clearing Complete*), rendered as 14 octagonal 16-bit brushed-brass pixel medallions with non-blocking celebratory unlock popups in `TypingTest.tsx`.
+
 ---
 
 ## 5. Post-Session Unlock Trigger & Companion Drawer Wireflow
@@ -266,9 +275,12 @@ Keeping Phase 1 lean guarantees cohesive art quality without an asset bottleneck
 ```text
 client/src/components/
 ├── trail/
-│   ├── LivingTrailPage.tsx         # /trail route: Atlas strip + active Biome Clearing + List fallback
+│   ├── LivingTrailPage.tsx         # /trail route: Gallery-Plate-First cinema bar, 16:9 stage, dock & horizon ribbon
 │   ├── BiomeCanvas.tsx             # DPR-aware 16-bit <canvas> renderer (Daylight/Twilight LUT)
-│   ├── WaypointOverlay.tsx         # Accessible keyboard-navigable button layer + chapter popover
+│   ├── WaypointOverlay.tsx         # Accessible keyboard-navigable stone & yard-prop layer + popovers
+│   ├── TrailBadgesModal.tsx        # Native <dialog> 14-medallion Field-Satchel Badges popup
+│   ├── BadgeUnlockToast.tsx        # Non-blocking celebratory medallion toast & Zen chip for TypingTest.tsx
+│   ├── WorldAtlasDrawer.tsx        # Native <dialog> 9-region / 73-book Canonical Biome Atlas drawer
 │   ├── TrailChapterList.tsx        # NFR-2 accessible table/list fallback
 │   └── trailPalette.ts             # Harmonized Editorial Atlas <-> 16-bit LUT color definitions
 └── companion/

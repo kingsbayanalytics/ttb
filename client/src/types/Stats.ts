@@ -73,9 +73,16 @@ export interface MilestonesSummary {
   flawlessCount: number;
   uniqueVersesCompleted: number;
   psalmsCompletedCount: number;
+  bloomedChaptersCount?: number;
+  completedClearingsCount?: number;
 }
 
-export type BadgeCategory = 'consistency' | 'velocity' | 'precision' | 'canon';
+export type BadgeCategory =
+  | 'consistency'
+  | 'velocity'
+  | 'precision'
+  | 'canon'
+  | 'trail';
 
 export interface BadgeItem {
   id: string;
